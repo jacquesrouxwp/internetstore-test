@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import NextLink from "next/link";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ReticleToggle } from "@/components/ui/reticle-toggle";
 
 interface Particle {
   x: number;
@@ -221,12 +222,7 @@ export function ParticleHero({
         .particle-hero.gold-mode .content-section::after {
           filter: invert(1) brightness(4.4) opacity(1);
         }
-        .particle-hero.gold-mode .header > div.mid-spot {
-          box-shadow: 0 0 1em 0 #d8bd10;
-        }
-        .particle-hero.gold-mode .header > div.mid-spot:hover {
-          box-shadow: -0.3em 0.1em 0.2em 0 #98c0ef;
-        }
+
         .particle-hero.gold-mode .accent-lines > div > div {
           filter: invert(1) brightness(3.5);
         }
@@ -389,45 +385,17 @@ export function ParticleHero({
           zIndex: 5,
         }}
       >
+        {/* Scope reticle = light / gold mode toggle */}
         <div
-          className="mid-spot"
-          role="button"
-          tabIndex={0}
-          aria-label={isGoldMode ? "Turn light off" : "Turn light on"}
-          aria-pressed={isGoldMode}
-          title={isGoldMode ? "Вимкнути світло" : "Увімкнути світло"}
-          onClick={toggleGoldMode}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              toggleGoldMode();
-            }
-          }}
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            margin: "0 auto",
-            width: "1.8em",
-            height: "1.8em",
-            borderRadius: "50%",
-            background: "black",
-            boxShadow: isGoldMode ? "0 0 1em 0 #d8bd10" : "0 0 1em 0 #98c0ef",
-            cursor: "pointer",
-            transition: "box-shadow 1s ease-in-out",
-            zIndex: 6,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = isGoldMode
-              ? "-0.3em 0.1em 0.2em 0 #98c0ef"
-              : "-0.3em 0.1em 0.2em 0 #d8bd10";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = isGoldMode
-              ? "0 0 1em 0 #d8bd10"
-              : "0 0 1em 0 #98c0ef";
-          }}
-        />
+          className="mid-spot absolute left-0 right-0 z-[6] mx-auto flex justify-center"
+          style={{ top: "0.6em" }}
+        >
+          <ReticleToggle
+            active={isGoldMode}
+            onToggle={toggleGoldMode}
+            variant="hero"
+          />
+        </div>
 
         <div
           className="spotlight"

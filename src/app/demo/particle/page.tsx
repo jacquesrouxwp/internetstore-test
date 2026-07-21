@@ -14,7 +14,7 @@ export default function ParticleDemoPage() {
       />
       <div className="mx-auto max-w-2xl px-4 py-12 text-center text-sm text-slate-400">
         <p>
-          Клікніть на круглу «лампу» зверху по центру — gold / light mode.
+          Клікніть на приціл зверху по центру — gold / light mode.
           Demo: <code className="text-sky-300">/demo/particle</code>
         </p>
       </div>

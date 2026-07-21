@@ -1,15 +1,13 @@
 "use client";
 
-import { Lightbulb, LightbulbOff } from "lucide-react";
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
+import { ReticleToggle } from "@/components/ui/reticle-toggle";
 
 const STORAGE_KEY = "optics_light_mode";
 
 /**
- * Site-wide ambient light toggle.
- * Applies `data-light="on"` on <html> for global CSS accents.
- * Hero ParticleHero has its own local switch; this one is optional in header.
+ * Site-wide ambient light toggle (reticle / scope icon).
+ * Syncs with ParticleHero mid-spot via localStorage + optics-light event.
  */
 export function LightSwitch({ className }: { className?: string }) {
   const [on, setOn] = useState(false);
@@ -24,6 +22,13 @@ export function LightSwitch({ className }: { className?: string }) {
     } catch {
       /* ignore */
     }
+
+    const onGlobal = (e: Event) => {
+      const detail = (e as CustomEvent<{ on: boolean }>).detail;
+      if (detail && typeof detail.on === "boolean") setOn(detail.on);
+    };
+    window.addEventListener("optics-light", onGlobal);
+    return () => window.removeEventListener("optics-light", onGlobal);
   }, []);
 
   const toggle = () => {
@@ -35,7 +40,6 @@ export function LightSwitch({ className }: { className?: string }) {
         /* ignore */
       }
       document.documentElement.dataset.light = next ? "on" : "off";
-      // Notify ParticleHero if listening
       window.dispatchEvent(
         new CustomEvent("optics-light", { detail: { on: next } })
       );
@@ -46,26 +50,11 @@ export function LightSwitch({ className }: { className?: string }) {
   if (!mounted) return null;
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition",
-        on
-          ? "border-amber-400/40 bg-amber-400/15 text-amber-700"
-          : "border-line bg-white text-muted hover:text-ink",
-        className
-      )}
-      aria-pressed={on}
-      title={on ? "Вимкнути світло" : "Увімкнути світло"}
-      aria-label={on ? "Turn light off" : "Turn light on"}
-    >
-      {on ? (
-        <Lightbulb className="h-4 w-4 fill-amber-400 text-amber-500" />
-      ) : (
-        <LightbulbOff className="h-4 w-4" />
-      )}
-      <span className="hidden lg:inline">{on ? "Light" : "Dark"}</span>
-    </button>
+    <ReticleToggle
+      active={on}
+      onToggle={toggle}
+      variant="header"
+      className={className}
+    />
   );
 }
