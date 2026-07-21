@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Admin · OpticsShop",
+  title: "Admin · Pro-Optics",
   robots: { index: false, follow: false },
 };
 
@@ -16,7 +16,7 @@ export default function AdminLayout({
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link href="/admin" className="font-semibold tracking-tight">
-            OpticsShop <span className="text-muted">Admin</span>
+            Pro-Optics <span className="text-muted">Admin</span>
           </Link>
           <nav className="flex gap-4 text-sm">
             <Link href="/admin/products" className="text-muted hover:text-ink">

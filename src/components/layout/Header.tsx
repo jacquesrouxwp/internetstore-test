@@ -85,7 +85,7 @@ export function Header({ categories }: { categories: Category[] }) {
               <Aperture className="h-5 w-5" strokeWidth={1.75} />
             </span>
             <span className="font-display text-lg font-semibold tracking-tight text-ink">
-              Optics<span className="text-accent">Shop</span>
+              Pro<span className="text-accent">-Optics</span>
             </span>
           </Link>
 

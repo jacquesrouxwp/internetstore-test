@@ -42,10 +42,10 @@ export default async function ContactsPage({
           <div className="flex gap-3">
             <Mail className="mt-0.5 h-5 w-5 text-accent" />
             <a
-              href="mailto:info@opticsshop.ua"
+              href="mailto:info@pro-optics.ua"
               className="text-sm font-medium hover:text-accent"
             >
-              info@opticsshop.ua
+              info@pro-optics.ua
             </a>
           </div>
           <p className="text-sm text-muted">Пн–Пт 9:00–18:00 · Сб 12:00–15:00</p>

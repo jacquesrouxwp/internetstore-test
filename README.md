@@ -1,4 +1,4 @@
-# OpticsShop — e-commerce (тепловізори / оптика)
+# Pro-Optics — e-commerce (тепловізори / оптика)
 
 Повноцінний інтернет-магазин професійної оптики на **Next.js 14 + TypeScript + Tailwind + Supabase + next-intl (UK/RU)**.
 
@@ -30,7 +30,7 @@ npm run dev
 ### Адмін (демо)
 
 - URL: `/admin`
-- Login: `admin@opticsshop.ua` / `admin123`
+- Login: `admin@pro-optics.ua` / `admin123`
 - (або `ADMIN_EMAIL` / `ADMIN_PASSWORD` з `.env`)
 
 ## Змінні оточення

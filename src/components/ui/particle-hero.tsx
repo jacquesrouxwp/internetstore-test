@@ -30,7 +30,7 @@ export interface ParticleHeroProps {
 const STORAGE_KEY = "optics_light_mode";
 
 export function ParticleHero({
-  title = "OpticsShop",
+  title = "Pro-Optics",
   subtitle = "The world's best platform for thermal optics, powered by professionals",
   ctaLabel = "Каталог",
   secondaryLabel = "Консультація",

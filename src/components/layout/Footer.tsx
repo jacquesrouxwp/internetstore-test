@@ -17,7 +17,7 @@ export async function Footer() {
               <Aperture className="h-4 w-4" />
             </span>
             <span className="font-display text-lg font-semibold">
-              Optics<span className="text-accent">Shop</span>
+              Pro<span className="text-accent">-Optics</span>
             </span>
           </div>
           <p className="text-sm leading-relaxed text-muted">
@@ -106,7 +106,7 @@ export async function Footer() {
         </div>
       </div>
       <div className="border-t border-line py-4 text-center text-xs text-muted">
-        © {year} OpticsShop. {t("rights")}
+        © {year} Pro-Optics. {t("rights")}
       </div>
     </footer>
   );

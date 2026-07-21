@@ -19,15 +19,15 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://optics-shop-skeleton.vercel.app"
   ),
   title: {
-    default: "OpticsShop — професійна оптика та тепловізори",
-    template: "%s | OpticsShop",
+    default: "Pro-Optics — професійна оптика та тепловізори",
+    template: "%s | Pro-Optics",
   },
   description:
     "Інтернет-магазин тепловізорів, тепловізійних прицілів та ПНБ в Україні.",
   openGraph: {
     type: "website",
     locale: "uk_UA",
-    siteName: "OpticsShop",
+    siteName: "Pro-Optics",
   },
 };
 

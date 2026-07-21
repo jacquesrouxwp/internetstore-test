@@ -5,7 +5,7 @@ export default function ParticleDemoPage() {
   return (
     <main className="min-h-screen bg-[#05060f]">
       <ParticleHero
-        title="OpticsShop"
+        title="Pro-Optics"
         subtitle={
           "Професійна оптика та тепловізори — каталог брендів, доставка по Україні"
         }

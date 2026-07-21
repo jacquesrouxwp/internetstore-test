@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@opticsshop.ua");
+  const [email, setEmail] = useState("admin@pro-optics.ua");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
       <div className="card-surface p-8">
         <h1 className="mb-2 text-xl font-semibold">Admin login</h1>
         <p className="mb-6 text-xs text-muted">
-          Demo: admin@opticsshop.ua / admin123 (або ADMIN_EMAIL / ADMIN_PASSWORD
+          Demo: admin@pro-optics.ua / admin123 (або ADMIN_EMAIL / ADMIN_PASSWORD
           з env). Для продакшену — Supabase Auth.
         </p>
         <form onSubmit={submit} className="space-y-4">

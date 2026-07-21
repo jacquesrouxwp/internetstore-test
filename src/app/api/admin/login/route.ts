@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   const email = String(body.email || "");
   const password = String(body.password || "");
 
-  const adminEmail = process.env.ADMIN_EMAIL || "admin@opticsshop.ua";
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@pro-optics.ua";
   const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
 
   // Prefer Supabase Auth when configured

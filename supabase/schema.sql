@@ -1,4 +1,4 @@
--- OpticsShop schema for Supabase (Postgres)
+-- Pro-Optics schema for Supabase (Postgres)
 -- Run in Supabase SQL Editor
 
 create extension if not exists "pgcrypto";

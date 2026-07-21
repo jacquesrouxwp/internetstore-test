@@ -6,7 +6,7 @@ export async function Hero() {
 
   return (
     <ParticleHero
-      title={t("heroTitle")}
+      title="Pro-Optics"
       subtitle={t("heroSubtitle")}
       ctaLabel={t("heroCta")}
       secondaryLabel={t("heroSecondary")}
