@@ -1,5 +1,6 @@
 import { Hero } from "@/components/home/Hero";
 import { ProductRail } from "@/components/ui/ProductRail";
+import { BrandGrid } from "@/components/ui/BrandGrid";
 import {
   getProductsByFlag,
   getReviews,
@@ -7,7 +8,6 @@ import {
 } from "@/lib/catalog";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star } from "lucide-react";
-import { Link } from "@/i18n/routing";
 
 export default async function HomePage({
   params,
@@ -74,22 +74,7 @@ export default async function HomePage({
         viewAllLabel={t("viewAll")}
       />
 
-      <section className="border-t border-line bg-white py-12">
-        <div className="container-shop">
-          <h2 className="section-title mb-6">{tc("brandsBlock")}</h2>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-            {brands.map((b) => (
-              <Link
-                key={b.id}
-                href={`/catalog/teplovizori?brand=${b.slug}`}
-                className="flex items-center justify-center rounded-xl border border-line bg-canvas px-3 py-5 text-center text-sm font-semibold text-ink transition hover:border-ink/20 hover:bg-white"
-              >
-                {b.name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      <BrandGrid brands={brands} title={tc("brandsBlock")} />
 
       <section className="py-12">
         <div className="container-shop">

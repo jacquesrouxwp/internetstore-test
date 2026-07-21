@@ -71,3 +71,23 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Site-wide ambient light mode (LightSwitch + ParticleHero) */
+html[data-light="on"] {
+  --accent: #d4a017;
+}
+
+html[data-light="on"] .btn-primary {
+  background-color: #d4a017;
+  color: #1a1408;
+}
+
+html[data-light="on"] .btn-primary:hover {
+  background-color: #e0b020;
+}
+
+/* Particle hero base */
+.particle-hero {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}

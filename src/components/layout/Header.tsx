@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types";
 import { categoryName } from "@/types";
+import { LightSwitch } from "@/components/layout/LightSwitch";
 
 export function Header({ categories }: { categories: Category[] }) {
   const t = useTranslations("nav");
@@ -108,6 +109,7 @@ export function Header({ categories }: { categories: Category[] }) {
           </form>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <LightSwitch />
             <Link
               href="/cart"
               className="relative inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink transition hover:border-ink/20 hover:bg-canvas"

@@ -56,11 +56,11 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
           <summary className="cursor-pointer list-none text-sm font-medium text-ink marker:content-none">
             {t("brand")}
           </summary>
-          <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+          <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto">
             {brands.map((b) => (
               <label
                 key={b.id}
-                className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700"
+                className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm text-zinc-700 hover:bg-canvas"
               >
                 <input
                   type="checkbox"
@@ -68,7 +68,15 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
                   checked={selectedBrands.includes(b.slug)}
                   onChange={() => toggleMulti("brand", b.slug, selectedBrands)}
                 />
-                {b.name}
+                {b.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={b.logoUrl}
+                    alt=""
+                    className="h-5 w-10 object-contain"
+                  />
+                ) : null}
+                <span className="truncate">{b.name}</span>
               </label>
             ))}
           </div>

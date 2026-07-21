@@ -1,18 +1,35 @@
 import type { Brand, Category, Product, Review } from "@/types";
 
+/**
+ * Brand logos in public/brands (from optics-pro assets + reference grid photo).
+ * IDs b1–b12 kept stable for seed product foreign keys.
+ */
 export const SEED_BRANDS: Brand[] = [
-  { id: "b1", slug: "hikmicro", name: "HikMicro" },
-  { id: "b2", slug: "rix", name: "Rix" },
-  { id: "b3", slug: "pulsar", name: "PULSAR" },
-  { id: "b4", slug: "pard", name: "PARD" },
-  { id: "b5", slug: "infiray", name: "INFIRAY" },
-  { id: "b6", slug: "atn", name: "ATN" },
-  { id: "b7", slug: "agm", name: "AGM" },
-  { id: "b8", slug: "flir", name: "FLIR" },
-  { id: "b9", slug: "thermeye", name: "ThermEye" },
-  { id: "b10", slug: "guide", name: "Guide" },
-  { id: "b11", slug: "nvectech", name: "NVECTECH" },
-  { id: "b12", slug: "sytong", name: "Sytong" },
+  { id: "b1", slug: "hikmicro", name: "HikMicro", logoUrl: "/brands/hikmicro.png" },
+  { id: "b2", slug: "rix", name: "Rix", logoUrl: "/brands/rix.jpg" },
+  { id: "b3", slug: "pulsar", name: "PULSAR", logoUrl: "/brands/pulsar.jpg" },
+  { id: "b4", slug: "pard", name: "PARD", logoUrl: "/brands/pard.jpg" },
+  { id: "b5", slug: "infiray", name: "INFIRAY", logoUrl: "/brands/infiray.jpg" },
+  { id: "b6", slug: "atn", name: "ATN", logoUrl: "/brands/atn.jpg" },
+  { id: "b7", slug: "agm", name: "AGM", logoUrl: "/brands/agm.jpg" },
+  { id: "b8", slug: "flir", name: "FLIR", logoUrl: "/brands/flir.jpg" },
+  { id: "b9", slug: "thermeye", name: "ThermEye", logoUrl: "/brands/thermeye.jpg" },
+  { id: "b10", slug: "guide", name: "Guide", logoUrl: "/brands/guide.jpg" },
+  { id: "b11", slug: "nvectech", name: "NVECTECH", logoUrl: "/brands/nvectech.jpg" },
+  { id: "b12", slug: "sytong", name: "Sytong", logoUrl: "/brands/sytong.jpg" },
+  // Extra brands from reference catalog grid
+  { id: "b13", slug: "armasight", name: "ARMASIGHT", logoUrl: "/brands/armasight.jpg" },
+  { id: "b14", slug: "atn-ots-hd", name: "ATN OTS-HD", logoUrl: "/brands/atn.jpg" },
+  { id: "b15", slug: "conotech", name: "Cono Tech", logoUrl: "/brands/conotech.png" },
+  { id: "b16", slug: "falcon-optic", name: "Falcon Optic", logoUrl: "/brands/falcon-optic.jpg" },
+  { id: "b17", slug: "dahua", name: "DAHUA", logoUrl: "/brands/dahua.png" },
+  { id: "b18", slug: "dali", name: "DALI", logoUrl: "/brands/dali.png" },
+  { id: "b19", slug: "lahoux", name: "Lahoux", logoUrl: "/brands/lahoux.png" },
+  { id: "b20", slug: "dipol", name: "Dipol", logoUrl: "/brands/dipol.jpg" },
+  { id: "b21", slug: "konus", name: "KONUS", logoUrl: "/brands/konus.jpg" },
+  { id: "b22", slug: "seek", name: "Seek Thermal", logoUrl: "/brands/seek.jpg" },
+  { id: "b23", slug: "leupold", name: "Leupold", logoUrl: "/brands/leupold.jpg" },
+  { id: "b24", slug: "delta", name: "Delta", logoUrl: "/brands/delta.jpg" },
 ];
 
 export const SEED_CATEGORIES: Category[] = [
