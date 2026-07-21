@@ -59,26 +59,49 @@ export function ProductCard({
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-xl border border-line bg-white shadow-card transition-all duration-300 ease-premium hover:-translate-y-1 hover:shadow-lift",
+        "group relative flex flex-col overflow-hidden rounded-xl border border-line bg-white shadow-card",
+        "transition-all duration-300 ease-premium",
+        "hover:-translate-y-1 hover:z-20 hover:border-line hover:shadow-lift",
         compact && "min-w-[220px] max-w-[260px]"
       )}
     >
-      <Link href={`/product/${product.slug}`} className="relative block">
-        <div className="relative aspect-square overflow-hidden bg-canvas">
+      {/*
+        Photo — on hover covers the full card.
+        Badges / price / text fade out so the image stays clean to inspect.
+      */}
+      <Link
+        href={`/product/${product.slug}`}
+        className={cn(
+          "relative z-10 block aspect-square overflow-hidden bg-white",
+          "group-hover:absolute group-hover:inset-0 group-hover:z-20 group-hover:aspect-auto group-hover:h-full"
+        )}
+        aria-label={name}
+      >
+        <div className="relative h-full w-full bg-white">
           {product.images[0] ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={product.images[0]}
               alt={name}
-              className="h-full w-full object-contain p-4 transition duration-500 ease-premium group-hover:scale-105"
+              className={cn(
+                "h-full w-full object-contain transition-all duration-500 ease-premium",
+                "p-4 group-hover:p-8 group-hover:scale-[1.03]"
+              )}
             />
           ) : (
-            <div className="h-full transition duration-500 ease-premium group-hover:scale-105">
+            <div className="h-full transition-transform duration-500 ease-premium group-hover:scale-[1.03]">
               <ProductPlaceholder brand={product.brandName} />
             </div>
           )}
 
-          <div className="absolute left-2 top-2 flex flex-col gap-1">
+          {/* Sale / hit / new badges — hide on hover */}
+          <div
+            className={cn(
+              "absolute left-2 top-2 z-[1] flex flex-col gap-1",
+              "transition-all duration-250 ease-premium",
+              "group-hover:pointer-events-none group-hover:-translate-y-1 group-hover:opacity-0"
+            )}
+          >
             {sale != null && (
               <span className="label-badge bg-accent text-white">-{sale}%</span>
             )}
@@ -95,14 +118,24 @@ export function ProductCard({
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col p-3.5 sm:p-4">
+      {/*
+        Info stays in document flow (keeps card height) but becomes
+        invisible on hover so only the photo is visible.
+      */}
+      <div
+        className={cn(
+          "relative z-0 flex flex-1 flex-col p-3.5 sm:p-4",
+          "transition-opacity duration-300 ease-premium",
+          "group-hover:pointer-events-none group-hover:opacity-0"
+        )}
+      >
         {product.brandName && (
           <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted">
             {product.brandName}
           </p>
         )}
         <Link href={`/product/${product.slug}`}>
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-ink transition group-hover:text-accent">
+          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-ink">
             {name}
           </h3>
         </Link>
@@ -142,7 +175,7 @@ export function ProductCard({
       </div>
 
       {toast && (
-        <div className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+        <div className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white shadow-lg">
           ✓
         </div>
       )}
