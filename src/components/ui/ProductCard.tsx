@@ -1,0 +1,151 @@
+"use client";
+
+import { Link } from "@/i18n/routing";
+import { useLocale, useTranslations } from "next-intl";
+import { ShoppingCart, Star } from "lucide-react";
+import type { Product } from "@/types";
+import { productName, productShort, salePercent } from "@/types";
+import { formatPrice, cn } from "@/lib/utils";
+import { useCart } from "@/lib/cart-store";
+import { useState } from "react";
+
+function ProductPlaceholder({ brand }: { brand?: string | null }) {
+  const label = brand || "X";
+  let hue = 0;
+  for (let i = 0; i < label.length; i++) hue += label.charCodeAt(i);
+  hue = hue % 360;
+  return (
+    <div
+      className="flex h-full w-full items-center justify-center"
+      style={{
+        background: `linear-gradient(145deg, hsl(${hue}, 12%, 94%), hsl(${hue}, 8%, 88%))`,
+      }}
+    >
+      <div
+        className="h-16 w-20 rounded-2xl border-2 border-white/80 shadow-sm sm:h-20 sm:w-24"
+        style={{
+          background: `linear-gradient(145deg, hsl(${hue}, 18%, 42%), hsl(${hue}, 22%, 28%))`,
+        }}
+      >
+        <div className="mx-auto mt-5 h-8 w-8 rounded-full border-2 border-white/70 sm:mt-6 sm:h-9 sm:w-9" />
+      </div>
+    </div>
+  );
+}
+
+export function ProductCard({
+  product,
+  compact = false,
+}: {
+  product: Product;
+  compact?: boolean;
+}) {
+  const t = useTranslations("product");
+  const locale = useLocale() as "uk" | "ru";
+  const add = useCart((s) => s.add);
+  const [toast, setToast] = useState(false);
+  const sale = salePercent(product.price, product.oldPrice);
+  const name = productName(product, locale);
+  const short = productShort(product, locale);
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    add(product, locale);
+    setToast(true);
+    setTimeout(() => setToast(false), 1600);
+  };
+
+  return (
+    <article
+      className={cn(
+        "group relative flex flex-col overflow-hidden rounded-xl border border-line bg-white shadow-card transition-all duration-300 ease-premium hover:-translate-y-1 hover:shadow-lift",
+        compact && "min-w-[220px] max-w-[260px]"
+      )}
+    >
+      <Link href={`/product/${product.slug}`} className="relative block">
+        <div className="relative aspect-square overflow-hidden bg-canvas">
+          {product.images[0] ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={product.images[0]}
+              alt={name}
+              className="h-full w-full object-contain p-4 transition duration-500 ease-premium group-hover:scale-105"
+            />
+          ) : (
+            <div className="h-full transition duration-500 ease-premium group-hover:scale-105">
+              <ProductPlaceholder brand={product.brandName} />
+            </div>
+          )}
+
+          <div className="absolute left-2 top-2 flex flex-col gap-1">
+            {sale != null && (
+              <span className="label-badge bg-accent text-white">-{sale}%</span>
+            )}
+            {product.isHit && (
+              <span className="label-badge bg-ink text-white">{t("hit")}</span>
+            )}
+            {product.isNew && (
+              <span className="label-badge bg-success text-white">{t("new")}</span>
+            )}
+            {product.isTop && !product.isHit && (
+              <span className="label-badge bg-zinc-700 text-white">{t("top")}</span>
+            )}
+          </div>
+        </div>
+      </Link>
+
+      <div className="flex flex-1 flex-col p-3.5 sm:p-4">
+        {product.brandName && (
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted">
+            {product.brandName}
+          </p>
+        )}
+        <Link href={`/product/${product.slug}`}>
+          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-ink transition group-hover:text-accent">
+            {name}
+          </h3>
+        </Link>
+        {short && !compact && (
+          <p className="mt-1 line-clamp-2 text-xs text-muted">{short}</p>
+        )}
+
+        <div className="mt-2 flex items-center gap-1 text-xs text-muted">
+          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+          <span className="font-medium text-ink">{product.rating.toFixed(1)}</span>
+          <span>
+            ({product.reviewsCount} {t("reviews")})
+          </span>
+        </div>
+
+        <div className="mt-auto pt-3">
+          <div className="mb-3 flex flex-wrap items-baseline gap-2">
+            <span className="text-lg font-semibold tracking-tight text-ink">
+              {formatPrice(product.price, locale)}
+            </span>
+            {product.oldPrice != null && product.oldPrice > product.price && (
+              <span className="text-sm text-muted line-through">
+                {formatPrice(product.oldPrice, locale)}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={product.stock <= 0}
+            className="btn-primary w-full text-sm"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            {t("buy")}
+          </button>
+        </div>
+      </div>
+
+      {toast && (
+        <div className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+          ✓
+        </div>
+      )}
+    </article>
+  );
+}
