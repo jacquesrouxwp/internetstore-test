@@ -24,7 +24,7 @@ export function ProductRail({
           {href && viewAllLabel && (
             <Link
               href={href}
-              className="inline-flex items-center gap-1 text-sm font-medium text-slate-400 transition hover:text-accent"
+              className="inline-flex items-center gap-1 text-sm font-medium text-secondary transition hover:text-[var(--accent)]"
             >
               {viewAllLabel}
               <ChevronRight className="h-4 w-4" />

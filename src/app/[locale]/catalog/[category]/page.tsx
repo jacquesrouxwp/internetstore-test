@@ -63,12 +63,12 @@ export default async function CatalogPage({ params, searchParams }: Props) {
 
   return (
     <div className="container-shop py-6 sm:py-8">
-      <nav className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted">
-        <Link href="/" className="hover:text-accent">
+      <nav className="mb-4 flex flex-wrap items-center gap-2 text-sm text-secondary">
+        <Link href="/" className="hover:text-[var(--accent)]">
           {tn("home")}
         </Link>
-        <span>/</span>
-        <span className="text-ink">{title}</span>
+        <span className="text-faint">/</span>
+        <span className="text-primary">{title}</span>
       </nav>
 
       <h1 className="section-title mb-6">{title}</h1>
@@ -84,7 +84,7 @@ export default async function CatalogPage({ params, searchParams }: Props) {
           </Suspense>
 
           {result.products.length === 0 ? (
-            <div className="card-surface py-16 text-center text-muted">
+            <div className="card-surface py-16 text-center text-secondary">
               {t("empty")}
             </div>
           ) : (
@@ -103,13 +103,16 @@ export default async function CatalogPage({ params, searchParams }: Props) {
             />
           </Suspense>
 
-          <article className="prose prose-sm mt-12 max-w-none border-t border-line pt-8 text-muted">
-            <h2 className="font-display text-xl font-semibold text-ink">
+          <article
+            className="mt-12 max-w-none pt-8 text-secondary"
+            style={{ borderTop: "1px solid var(--border)" }}
+          >
+            <h2 className="font-display text-xl font-semibold text-primary">
               {t("buyThermal")}
             </h2>
-            <p className="mt-3 leading-relaxed">{t("seoText")}</p>
+            <p className="mt-3 text-sm leading-relaxed">{t("seoText")}</p>
             {(locale === "ru" ? cat.descriptionRu : cat.descriptionUk) && (
-              <p className="mt-3 leading-relaxed">
+              <p className="mt-3 text-sm leading-relaxed">
                 {locale === "ru" ? cat.descriptionRu : cat.descriptionUk}
               </p>
             )}

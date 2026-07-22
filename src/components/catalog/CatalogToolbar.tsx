@@ -23,11 +23,11 @@ export function CatalogToolbar({ total }: { total: number }) {
 
   return (
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-muted">
+      <p className="text-sm text-secondary">
         {t("found", { count: total })}
       </p>
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-muted">
+        <label className="flex items-center gap-2 text-sm text-secondary">
           <span>{t("sort")}</span>
           <select
             className="input w-auto py-1.5"
@@ -43,7 +43,7 @@ export function CatalogToolbar({ total }: { total: number }) {
             <option value="newest">{t("sortNewest")}</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm text-muted">
+        <label className="flex items-center gap-2 text-sm text-secondary">
           <span>{t("show")}</span>
           <select
             className="input w-auto py-1.5"

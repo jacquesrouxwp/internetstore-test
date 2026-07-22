@@ -18,17 +18,20 @@ export function BrandGrid({
   const labelPrefix = locale === "ru" ? "Тепловизоры" : "Тепловізори";
 
   return (
-    <section className={cn("border-t border-white/10 py-12", className)}>
+    <section
+      className={cn("py-12", className)}
+      style={{ borderTop: "1px solid var(--border)" }}
+    >
       <div className="container-shop">
         {title && <h2 className="section-title mb-6">{title}</h2>}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {brands.map((b) => (
             <Link
               key={b.id}
               href={`/catalog/teplovizori?brand=${b.slug}`}
-              className="group flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.06] shadow-card backdrop-blur-sm transition-all duration-300 ease-premium hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/10 hover:shadow-lift"
+              className="product-card group flex flex-col overflow-hidden"
             >
-              <div className="flex aspect-[3/2] items-center justify-center bg-white px-4 py-5">
+              <div className="photo-plate flex aspect-[3/2] items-center justify-center px-4 py-5">
                 {b.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -43,8 +46,11 @@ export function BrandGrid({
                   </span>
                 )}
               </div>
-              <div className="border-t border-white/10 px-3 py-2.5 text-center">
-                <span className="text-xs font-medium text-emerald-400 transition group-hover:text-accent sm:text-sm">
+              <div
+                className="px-3 py-2.5 text-center"
+                style={{ borderTop: "1px solid var(--border)" }}
+              >
+                <span className="text-xs font-medium text-secondary transition group-hover:text-[var(--accent)] sm:text-sm">
                   {labelPrefix} {b.name}
                 </span>
               </div>

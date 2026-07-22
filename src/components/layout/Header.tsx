@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types";
 import { categoryName } from "@/types";
+
 export function Header({ categories }: { categories: Category[] }) {
   const t = useTranslations("nav");
   const locale = useLocale();
@@ -40,24 +41,33 @@ export function Header({ categories }: { categories: Category[] }) {
 
   return (
     <>
-      <div className="border-b border-white/10 bg-black/40 text-xs text-zinc-300 backdrop-blur-md">
+      <div
+        className="border-b text-xs backdrop-blur-md"
+        style={{
+          background: "var(--surface)",
+          borderColor: "var(--border)",
+          color: "var(--text-secondary)",
+        }}
+      >
         <div className="container-shop flex flex-wrap items-center gap-x-6 gap-y-2 py-2">
-          <span className="text-zinc-400">{t("workNote")}</span>
+          <span className="text-muted-ui">{t("workNote")}</span>
           <a
             href="tel:+380501112233"
-            className="inline-flex items-center gap-1.5 font-semibold text-white hover:text-white/90"
+            className="inline-flex items-center gap-1.5 font-semibold text-primary hover:opacity-90"
           >
             <Phone className="h-3.5 w-3.5" />
             +38 050 111-22-33
           </a>
-          <span className="hidden text-zinc-400 sm:inline">{t("hours")}</span>
+          <span className="hidden text-muted-ui sm:inline">{t("hours")}</span>
           <div className="ml-auto flex items-center gap-4">
             <button
               type="button"
               onClick={() => switchLocale("uk")}
               className={cn(
-                "font-medium uppercase tracking-wide",
-                locale === "uk" ? "text-white" : "text-zinc-500 hover:text-white"
+                "font-medium uppercase tracking-wide transition",
+                locale === "uk"
+                  ? "text-primary"
+                  : "text-faint hover:text-primary"
               )}
             >
               UA
@@ -66,8 +76,10 @@ export function Header({ categories }: { categories: Category[] }) {
               type="button"
               onClick={() => switchLocale("ru")}
               className={cn(
-                "font-medium uppercase tracking-wide",
-                locale === "ru" ? "text-white" : "text-zinc-500 hover:text-white"
+                "font-medium uppercase tracking-wide transition",
+                locale === "ru"
+                  ? "text-primary"
+                  : "text-faint hover:text-primary"
               )}
             >
               RU
@@ -76,14 +88,27 @@ export function Header({ categories }: { categories: Category[] }) {
         </div>
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0a0c14]/75 backdrop-blur-md">
+      <header
+        className="sticky top-0 z-50 border-b backdrop-blur-md"
+        style={{
+          background: "var(--surface)",
+          borderColor: "var(--border)",
+          boxShadow: "var(--shadow-card)",
+        }}
+      >
         <div className="container-shop flex items-center gap-4 py-3.5 sm:gap-6">
           <Link href="/" className="flex shrink-0 items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white">
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-[10px] text-primary"
+              style={{
+                border: "1px solid var(--border-strong)",
+                background: "var(--surface-elevated)",
+              }}
+            >
               <Aperture className="h-5 w-5" strokeWidth={1.75} />
             </span>
-            <span className="font-display text-lg font-semibold tracking-tight text-white">
-              Pro<span className="text-accent">-Optics</span>
+            <span className="font-display text-lg font-semibold tracking-tight text-primary">
+              Pro<span style={{ color: "var(--accent)" }}>-Optics</span>
             </span>
           </Link>
 
@@ -99,7 +124,7 @@ export function Header({ categories }: { categories: Category[] }) {
             />
             <button
               type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-ui hover:bg-white/[0.06] hover:text-primary"
               aria-label="Search"
             >
               <Search className="h-4 w-4" />
@@ -109,19 +134,33 @@ export function Header({ categories }: { categories: Category[] }) {
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <Link
               href="/cart"
-              className="relative inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:border-white/25 hover:bg-white/10"
+              className="relative inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium text-primary transition"
+              style={{
+                border: "1px solid var(--border-strong)",
+                background: "transparent",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
             >
               <ShoppingCart className="h-5 w-5" strokeWidth={1.75} />
               <span className="hidden sm:inline">{t("cart")}</span>
               {mounted && count > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">
+                <span
+                  className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold text-white"
+                  style={{ background: "var(--accent)" }}
+                >
                   {count}
                 </span>
               )}
             </Link>
             <button
               type="button"
-              className="rounded-lg border border-white/15 p-2 text-white md:hidden"
+              className="rounded-[10px] p-2 text-primary md:hidden"
+              style={{ border: "1px solid var(--border-strong)" }}
               onClick={() => setOpen(true)}
               aria-label="Menu"
             >
@@ -130,14 +169,14 @@ export function Header({ categories }: { categories: Category[] }) {
           </div>
         </div>
 
-        <nav className="hidden border-t border-white/10 md:block">
+        <nav className="hidden border-t md:block" style={{ borderColor: "var(--border)" }}>
           <div className="container-shop">
             <ul className="flex gap-1 overflow-x-auto py-2 no-scrollbar">
               {categories.map((c) => (
                 <li key={c.id}>
                   <Link
                     href={`/catalog/${c.slug}`}
-                    className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+                    className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-secondary transition hover:bg-white/[0.06] hover:text-primary"
                   >
                     {categoryName(c, locale as "uk" | "ru")}
                   </Link>
@@ -156,14 +195,27 @@ export function Header({ categories }: { categories: Category[] }) {
             onClick={() => setOpen(false)}
             aria-label="Close"
           />
-          <div className="absolute right-0 top-0 flex h-full w-[min(100%,320px)] flex-col border-l border-white/10 bg-[#0a0c14] shadow-lift">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
+          <div
+            className="absolute right-0 top-0 flex h-full w-[min(100%,320px)] flex-col shadow-lift"
+            style={{
+              background: "var(--surface-solid)",
+              borderLeft: "1px solid var(--border)",
+            }}
+          >
+            <div
+              className="flex items-center justify-between px-4 py-3 text-primary"
+              style={{ borderBottom: "1px solid var(--border)" }}
+            >
               <span className="font-semibold">Menu</span>
               <button type="button" onClick={() => setOpen(false)}>
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={onSearch} className="border-b border-white/10 p-4">
+            <form
+              onSubmit={onSearch}
+              className="p-4"
+              style={{ borderBottom: "1px solid var(--border)" }}
+            >
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -177,7 +229,7 @@ export function Header({ categories }: { categories: Category[] }) {
                   <Link
                     href={`/catalog/${c.slug}`}
                     onClick={() => setOpen(false)}
-                    className="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/10"
+                    className="block rounded-lg px-3 py-2.5 text-sm font-medium text-primary hover:bg-white/[0.06]"
                   >
                     {categoryName(c, locale as "uk" | "ru")}
                   </Link>
@@ -187,7 +239,7 @@ export function Header({ categories }: { categories: Category[] }) {
                 <Link
                   href="/about"
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-white/10"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-secondary hover:bg-white/[0.06]"
                 >
                   {t("about")}
                 </Link>
@@ -196,7 +248,7 @@ export function Header({ categories }: { categories: Category[] }) {
                 <Link
                   href="/contacts"
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 text-sm text-slate-300 hover:bg-white/10"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-secondary hover:bg-white/[0.06]"
                 >
                   {t("contacts")}
                 </Link>

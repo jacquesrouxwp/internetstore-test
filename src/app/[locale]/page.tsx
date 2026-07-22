@@ -39,16 +39,21 @@ export default async function HomePage({
         viewAllLabel={t("viewAll")}
       />
 
-      <section className="border-y border-white/10 py-10">
+      <section className="py-10" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
         <div className="container-shop">
           <h2 className="section-title mb-6">{t("whyTitle")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[t("why1"), t("why2"), t("why3"), t("why4")].map((text, i) => (
               <div key={text} className="card-surface p-5">
-                <span className="mb-3 block font-display text-2xl font-semibold text-accent">
+                <span
+                  className="mb-3 block font-display text-2xl font-semibold"
+                  style={{ color: "var(--accent)" }}
+                >
                   0{i + 1}
                 </span>
-                <p className="text-sm font-medium leading-snug text-slate-200">{text}</p>
+                <p className="text-sm font-medium leading-relaxed text-secondary">
+                  {text}
+                </p>
               </div>
             ))}
           </div>
@@ -82,14 +87,16 @@ export default async function HomePage({
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {reviews.slice(0, 6).map((r) => (
               <article key={r.id} className="card-surface p-5">
-                <div className="mb-2 flex gap-0.5 text-amber-400">
+                <div className="mb-2 flex gap-0.5" style={{ color: "var(--rating)" }}>
                   {Array.from({ length: r.rating }).map((_, i) => (
                     <Star key={i} className="h-3.5 w-3.5 fill-current" />
                   ))}
                 </div>
-                <p className="mb-3 text-xs font-medium text-slate-400">{r.productName}</p>
-                <p className="text-sm leading-relaxed text-slate-200">{r.text}</p>
-                <p className="mt-4 text-xs text-slate-500">
+                <p className="mb-3 text-xs font-medium text-muted-ui">
+                  {r.productName}
+                </p>
+                <p className="text-sm leading-relaxed text-secondary">{r.text}</p>
+                <p className="mt-4 text-xs text-faint">
                   {r.author} · {r.date}
                 </p>
               </article>

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Brand } from "@/types";
 import { useCallback, useState } from "react";
+import { cn } from "@/lib/utils";
 
 const RESOLUTIONS = [
   { value: "256", label: "256×192" },
@@ -48,42 +49,50 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
   return (
     <aside className="space-y-4">
       <div className="card-surface p-4">
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-ink">
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-primary">
           {t("filters")}
         </h3>
 
-        <details open className="group border-b border-line py-3">
-          <summary className="cursor-pointer list-none text-sm font-medium text-ink marker:content-none">
+        <details open className="group py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <summary className="cursor-pointer list-none text-sm font-medium text-primary marker:content-none">
             {t("brand")}
           </summary>
           <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto">
-            {brands.map((b) => (
-              <label
-                key={b.id}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-sm text-zinc-700 hover:bg-canvas"
-              >
-                <input
-                  type="checkbox"
-                  className="rounded border-line text-accent focus:ring-accent/30"
-                  checked={selectedBrands.includes(b.slug)}
-                  onChange={() => toggleMulti("brand", b.slug, selectedBrands)}
-                />
-                {b.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={b.logoUrl}
-                    alt=""
-                    className="h-5 w-10 object-contain"
+            {brands.map((b) => {
+              const active = selectedBrands.includes(b.slug);
+              return (
+                <label
+                  key={b.id}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 text-sm transition",
+                    active
+                      ? "bg-white/[0.06] text-primary"
+                      : "text-secondary hover:bg-white/[0.04]"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="rounded border-[var(--border-strong)] accent-[var(--accent)]"
+                    checked={active}
+                    onChange={() => toggleMulti("brand", b.slug, selectedBrands)}
                   />
-                ) : null}
-                <span className="truncate">{b.name}</span>
-              </label>
-            ))}
+                  {b.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={b.logoUrl}
+                      alt=""
+                      className="h-5 w-10 rounded bg-[var(--photo-bg)] object-contain p-0.5"
+                    />
+                  ) : null}
+                  <span className="truncate">{b.name}</span>
+                </label>
+              );
+            })}
           </div>
         </details>
 
-        <details open className="group border-b border-line py-3">
-          <summary className="cursor-pointer list-none text-sm font-medium text-ink">
+        <details open className="group py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <summary className="cursor-pointer list-none text-sm font-medium text-primary">
             {t("deviceType")}
           </summary>
           <div className="mt-3 space-y-2">
@@ -94,11 +103,15 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
             ].map(([val, label]) => (
               <label
                 key={val}
-                className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700"
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 text-sm",
+                  deviceType === val ? "text-primary font-medium" : "text-secondary"
+                )}
               >
                 <input
                   type="radio"
                   name="type"
+                  className="accent-[var(--accent)]"
                   checked={deviceType === val}
                   onChange={() =>
                     pushParams((p) => {
@@ -113,30 +126,36 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
           </div>
         </details>
 
-        <details open className="group border-b border-line py-3">
-          <summary className="cursor-pointer list-none text-sm font-medium text-ink">
+        <details open className="group py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <summary className="cursor-pointer list-none text-sm font-medium text-primary">
             {t("resolution")}
           </summary>
           <div className="mt-3 space-y-2">
-            {RESOLUTIONS.map((r) => (
-              <label
-                key={r.value}
-                className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700"
-              >
-                <input
-                  type="checkbox"
-                  className="rounded border-line"
-                  checked={selectedRes.includes(r.value)}
-                  onChange={() => toggleMulti("res", r.value, selectedRes)}
-                />
-                {r.label}
-              </label>
-            ))}
+            {RESOLUTIONS.map((r) => {
+              const active = selectedRes.includes(r.value);
+              return (
+                <label
+                  key={r.value}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2 text-sm",
+                    active ? "text-primary font-medium" : "text-secondary"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="rounded accent-[var(--accent)]"
+                    checked={active}
+                    onChange={() => toggleMulti("res", r.value, selectedRes)}
+                  />
+                  {r.label}
+                </label>
+              );
+            })}
           </div>
         </details>
 
         <details open className="group py-3">
-          <summary className="cursor-pointer list-none text-sm font-medium text-ink">
+          <summary className="cursor-pointer list-none text-sm font-medium text-primary">
             {t("price")}
           </summary>
           <div className="mt-3 flex items-center gap-2">
@@ -147,7 +166,7 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
               value={priceMin}
               onChange={(e) => setPriceMin(e.target.value)}
             />
-            <span className="text-muted">—</span>
+            <span className="text-muted-ui">—</span>
             <input
               type="number"
               placeholder={t("to")}
@@ -174,19 +193,19 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
 
         <button
           type="button"
-          className="btn-ghost mt-2 w-full border border-line"
+          className="btn-secondary mt-2 w-full"
           onClick={() => router.push(pathname)}
         >
           {t("reset")}
         </button>
       </div>
 
-      <div className="card-surface bg-ink p-5 text-white">
-        <p className="text-sm font-semibold">Безкоштовна консультація</p>
-        <p className="mt-1 text-xs text-zinc-400">
+      <div className="card-surface p-5">
+        <p className="text-sm font-semibold text-primary">Безкоштовна консультація</p>
+        <p className="mt-1 text-xs leading-relaxed text-secondary">
           Підберемо тепловізор під ваші завдання
         </p>
-        <a href="tel:+380501112233" className="btn-primary mt-4 w-full text-sm">
+        <a href="tel:+380501112233" className="btn-secondary mt-4 w-full text-sm">
           Подзвонити
         </a>
       </div>

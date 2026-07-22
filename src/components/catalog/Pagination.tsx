@@ -46,7 +46,7 @@ export function Pagination({
       </button>
       {items.map((i, idx) =>
         i === -1 ? (
-          <span key={`e-${idx}`} className="px-2 text-muted">
+          <span key={`e-${idx}`} className="px-2 text-muted-ui">
             …
           </span>
         ) : (
@@ -55,11 +55,16 @@ export function Pagination({
             type="button"
             onClick={() => go(i)}
             className={cn(
-              "min-w-9 rounded-lg px-3 py-2 text-sm font-medium",
+              "min-w-9 rounded-[10px] px-3 py-2 text-sm font-medium transition",
               i === page
-                ? "bg-ink text-white"
-                : "text-zinc-700 hover:bg-white"
+                ? "text-white"
+                : "text-secondary hover:bg-white/[0.06] hover:text-primary"
             )}
+            style={
+              i === page
+                ? { background: "var(--accent)" }
+                : undefined
+            }
           >
             {i}
           </button>
