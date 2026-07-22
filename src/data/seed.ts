@@ -1,5 +1,6 @@
 import type { Brand, Category, Product, Review } from "@/types";
 import { estimateDetectionRangeM } from "@/lib/detection-range";
+import productImages from "@/data/product-images.json";
 
 /**
  * Brand logos in public/brands (from optics-pro assets + reference grid photo).
@@ -121,7 +122,12 @@ function p(
   return {
     ...partial,
     detectionRangeM,
-    images: partial.images ?? [],
+    images:
+      partial.images?.length
+        ? partial.images
+        : productImages[partial.slug as keyof typeof productImages]
+          ? [productImages[partial.slug as keyof typeof productImages] as string]
+          : [],
     specs: {
       ...baseSpecs,
       "Дальність виявлення людини, м": String(detectionRangeM),
