@@ -101,11 +101,8 @@ export function CartView() {
         <Link href="/checkout" className="btn-buy mt-6">
           <span className="btn-buy__label">{t("checkout")}</span>
         </Link>
-        <Link
-          href="/catalog/teplovizori"
-          className="btn-secondary mt-2 w-full"
-        >
-          {t("continue")}
+        <Link href="/catalog/teplovizori" className="btn-buy mt-2">
+          <span className="btn-buy__label">{t("continue")}</span>
         </Link>
       </aside>
     </div>
