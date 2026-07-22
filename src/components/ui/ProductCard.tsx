@@ -9,6 +9,14 @@ import { formatPrice, cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-store";
 import { useState } from "react";
 
+/**
+ * Desktop-only hover: only devices with real hover + fine pointer
+ * (mouse/trackpad). Touch phones/tablets skip the "clean photo" effect —
+ * a tap simply opens the product page.
+ */
+const hoverDesk =
+  "[@media(hover:hover)_and_(pointer:fine)]";
+
 function ProductPlaceholder({ brand }: { brand?: string | null }) {
   const label = brand || "X";
   let hue = 0;
@@ -61,19 +69,20 @@ export function ProductCard({
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-xl border border-line bg-white shadow-card",
         "transition-all duration-300 ease-premium",
-        "hover:-translate-y-1 hover:z-20 hover:border-line hover:shadow-lift",
+        // lift only on desktop hover
+        `${hoverDesk}:hover:-translate-y-1 ${hoverDesk}:hover:z-20 ${hoverDesk}:hover:shadow-lift`,
+        // mobile: light press feedback without hiding content
+        "active:scale-[0.99]",
         compact && "min-w-[220px] max-w-[260px]"
       )}
     >
-      {/*
-        Photo — on hover covers the full card.
-        Badges / price / text fade out so the image stays clean to inspect.
-      */}
+      {/* Photo — desktop hover expands full card; mobile = normal + tap opens product */}
       <Link
         href={`/product/${product.slug}`}
         className={cn(
           "relative z-10 block aspect-square overflow-hidden bg-white",
-          "group-hover:absolute group-hover:inset-0 group-hover:z-20 group-hover:aspect-auto group-hover:h-full"
+          `${hoverDesk}:group-hover:absolute ${hoverDesk}:group-hover:inset-0`,
+          `${hoverDesk}:group-hover:z-20 ${hoverDesk}:group-hover:aspect-auto ${hoverDesk}:group-hover:h-full`
         )}
         aria-label={name}
       >
@@ -84,22 +93,29 @@ export function ProductCard({
               src={product.images[0]}
               alt={name}
               className={cn(
-                "h-full w-full object-contain transition-all duration-500 ease-premium",
-                "p-4 group-hover:p-8 group-hover:scale-[1.03]"
+                "h-full w-full object-contain p-4 transition-all duration-500 ease-premium",
+                `${hoverDesk}:group-hover:p-8 ${hoverDesk}:group-hover:scale-[1.03]`
               )}
             />
           ) : (
-            <div className="h-full transition-transform duration-500 ease-premium group-hover:scale-[1.03]">
+            <div
+              className={cn(
+                "h-full transition-transform duration-500 ease-premium",
+                `${hoverDesk}:group-hover:scale-[1.03]`
+              )}
+            >
               <ProductPlaceholder brand={product.brandName} />
             </div>
           )}
 
-          {/* Sale / hit / new badges — hide on hover */}
+          {/* Badges — hide only on desktop hover */}
           <div
             className={cn(
               "absolute left-2 top-2 z-[1] flex flex-col gap-1",
               "transition-all duration-250 ease-premium",
-              "group-hover:pointer-events-none group-hover:-translate-y-1 group-hover:opacity-0"
+              `${hoverDesk}:group-hover:pointer-events-none`,
+              `${hoverDesk}:group-hover:-translate-y-1`,
+              `${hoverDesk}:group-hover:opacity-0`
             )}
           >
             {sale != null && (
@@ -118,15 +134,13 @@ export function ProductCard({
         </div>
       </Link>
 
-      {/*
-        Info stays in document flow (keeps card height) but becomes
-        invisible on hover so only the photo is visible.
-      */}
+      {/* Info always visible on mobile; fades only on desktop hover */}
       <div
         className={cn(
           "relative z-0 flex flex-1 flex-col p-3.5 sm:p-4",
           "transition-opacity duration-300 ease-premium",
-          "group-hover:pointer-events-none group-hover:opacity-0"
+          `${hoverDesk}:group-hover:pointer-events-none`,
+          `${hoverDesk}:group-hover:opacity-0`
         )}
       >
         {product.brandName && (
