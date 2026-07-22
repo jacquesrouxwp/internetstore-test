@@ -22,15 +22,15 @@ export function AddToCartButton({
     <button
       type="button"
       disabled={product.stock <= 0}
-      className={className || "btn-primary"}
+      className={className || "btn-buy min-w-[180px]"}
       onClick={() => {
         add(product, locale);
         setOk(true);
         setTimeout(() => setOk(false), 1500);
       }}
     >
-      <ShoppingCart className="h-4 w-4" />
-      {ok ? "✓" : t("addToCart")}
+      <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
+      <span className="btn-buy__label">{ok ? "✓" : t("addToCart")}</span>
     </button>
   );
 }

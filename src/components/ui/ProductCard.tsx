@@ -164,10 +164,10 @@ export function ProductCard({
             type="button"
             onClick={handleAdd}
             disabled={product.stock <= 0}
-            className="btn-primary w-full text-sm"
+            className="btn-buy"
           >
-            <ShoppingCart className="h-4 w-4" />
-            {t("buy")}
+            <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
+            <span className="btn-buy__label">{t("buy")}</span>
           </button>
         </div>
       </div>
