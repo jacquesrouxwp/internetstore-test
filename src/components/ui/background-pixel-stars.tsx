@@ -2,29 +2,31 @@
 
 import { memo, useCallback, useEffect, useRef } from "react";
 
-// 16-bit color palette (reduced color options)
+// Soft muted palette — less contrast so UI sits clearly on top
 const STAR_COLORS = [
-  "#FFFFFF", // White
-  "#FFFFAA", // Light yellow
-  "#AAAAFF", // Light blue
-  "#FFAAAA", // Light red
-  "#AAFFAA", // Light green
-  "#FFAAFF", // Light purple
-  "#AAFFFF", // Light cyan
+  "#C8D4E8", // soft white-blue
+  "#B8C4D8", // steel
+  "#A8B8D0", // muted blue
+  "#C0C8D4", // cool gray
+  "#B0C0D8", // dusty blue
+  "#D0D8E4", // pale
+  "#A8C0D0", // cyan-gray
 ] as const;
 
 // Configuration constants
-const starDensity = 0.00004;
-const twinkleProbability = 0.7;
-const minTwinkleSpeed = 2;
-const maxTwinkleSpeed = 4;
-const pixelSize = 5;
+const starDensity = 0.000032;
+const twinkleProbability = 0.55;
+const minTwinkleSpeed = 2.5;
+const maxTwinkleSpeed = 5;
+const pixelSize = 4;
 const starRegenerationInterval = 5000;
-const percentToRegenerate = 0.15;
+const percentToRegenerate = 0.12;
 
 // Shooting star configuration
 const shootingStarPixelSize = 2;
 const targetFps = 16;
+/** Overall canvas dim — background stays atmospheric, not loud */
+const canvasOpacity = 0.45;
 
 type BackgroundStar = {
   x: number;
@@ -108,7 +110,7 @@ export const BackgroundPixelStars = memo(
         const gridY =
           Math.floor(Math.random() * (canvas.height / pixelSize)) * pixelSize;
         const colorIndex = Math.floor(Math.random() * STAR_COLORS.length);
-        const baseOpacity = Math.random() * 0.5 + 0.5;
+        const baseOpacity = Math.random() * 0.28 + 0.22;
 
         backgroundStarsRef.current.push({
           x: gridX,
@@ -145,7 +147,7 @@ export const BackgroundPixelStars = memo(
         const gridY =
           Math.floor(Math.random() * (canvas.height / pixelSize)) * pixelSize;
         const colorIndex = Math.floor(Math.random() * STAR_COLORS.length);
-        const baseOpacity = Math.random() * 0.5 + 0.5;
+        const baseOpacity = Math.random() * 0.28 + 0.22;
 
         backgroundStarsRef.current[randomIndex] = {
           x: gridX,
@@ -261,7 +263,7 @@ export const BackgroundPixelStars = memo(
               ctx.translate(point.x, point.y);
               ctx.rotate((star.angle * Math.PI) / 180);
               ctx.translate(-point.x, -point.y);
-              ctx.fillStyle = `rgba(180, 242, 255, ${point.opacity})`;
+              ctx.fillStyle = `rgba(160, 190, 220, ${point.opacity * 0.55})`;
               ctx.fillRect(
                 point.x,
                 point.y,
@@ -278,8 +280,8 @@ export const BackgroundPixelStars = memo(
             ctx.translate(star.x, star.y);
             ctx.rotate((star.angle * Math.PI) / 180);
             ctx.translate(-star.x, -star.y);
-            ctx.fillStyle = "#ffffff";
-            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = "#c8d8ec";
+            ctx.globalAlpha = 0.65;
 
             for (let y = 0; y < starHeight; y++) {
               for (let x = 0; x < starWidth; x++) {
@@ -357,6 +359,7 @@ export const BackgroundPixelStars = memo(
         ref={canvasRef}
         aria-hidden
         className="pointer-events-none fixed inset-0 z-0 h-full w-full"
+        style={{ opacity: canvasOpacity }}
       />
     );
   },
