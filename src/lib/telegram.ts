@@ -82,6 +82,12 @@ export function formatOrderTelegramHtml(order: Order): string {
   lines.push(
     `🚚 <b>Доставка:</b> Нова Пошта, ${escapeHtml(city)}, ${escapeHtml(wh)}`
   );
+  // Refs help support match warehouse in NP cabinet if needed
+  if (order.npCityRef || order.npWarehouseRef) {
+    lines.push(
+      `<i>Ref: ${escapeHtml(order.npCityRef || "—")} / ${escapeHtml(order.npWarehouseRef || "—")}</i>`
+    );
+  }
   lines.push(`💳 <b>Оплата:</b> ${escapeHtml(paymentLabel(order.paymentMethod))}`);
 
   if (order.comment) {

@@ -124,7 +124,17 @@
     "subtotal": "Товары",
     "orderTotal": "К оплате",
     "cityPlaceholder": "Начните вводить город…",
-    "warehousePlaceholder": "Выберите отделение"
+    "warehousePlaceholder": "Выберите отделение или почтомат",
+    "warehouseSearch": "Поиск отделения (номер или улица)…",
+    "selectCityFirst": "Сначала выберите город",
+    "loadingCities": "Поиск городов…",
+    "loadingWarehouses": "Загрузка отделений…",
+    "noCities": "Города не найдены",
+    "noWarehouses": "Отделения не найдены",
+    "npDemo": "Демо-режим НП (добавьте NOVA_POSHTA_API_KEY)",
+    "cityRequired": "Выберите город из списка",
+    "warehouseRequired": "Выберите отделение",
+    "freeDelivery": "Бесплатно"
   },
   "pages": {
     "aboutTitle": "О нас",

@@ -86,7 +86,9 @@ export interface Order {
   paymentMethod: PaymentMethod;
   paymentStatus: string;
   deliveryMethod: string;
+  npCityRef?: string | null;
   npCityName?: string | null;
+  npWarehouseRef?: string | null;
   npWarehouseName?: string | null;
   deliveryCost: number;
   subtotal: number;
