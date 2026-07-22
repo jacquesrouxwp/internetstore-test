@@ -14,6 +14,8 @@ export default function AdminProductsPage() {
     oldPrice: "",
     stock: "5",
     brandName: "",
+    detectionRangeM: "",
+    categorySlug: "teplovizori",
     isHit: false,
     isNew: false,
     isTop: false,
@@ -46,11 +48,14 @@ export default function AdminProductsPage() {
         stock: Number(form.stock),
         brandName: form.brandName,
         brandSlug: form.brandName.toLowerCase(),
+        detectionRangeM: form.detectionRangeM
+          ? Number(form.detectionRangeM)
+          : null,
         isHit: form.isHit,
         isNew: form.isNew,
         isTop: form.isTop,
         isSale: Boolean(form.oldPrice),
-        categorySlug: "teplovizori",
+        categorySlug: form.categorySlug || "teplovizori",
       }),
     });
     if (!res.ok) {
@@ -63,6 +68,8 @@ export default function AdminProductsPage() {
       oldPrice: "",
       stock: "5",
       brandName: "",
+      detectionRangeM: "",
+      categorySlug: "teplovizori",
       isHit: false,
       isNew: false,
       isTop: false,
@@ -135,6 +142,29 @@ export default function AdminProductsPage() {
           value={form.stock}
           onChange={(e) => setForm({ ...form, stock: e.target.value })}
         />
+        <input
+          className="input"
+          type="number"
+          min={0}
+          placeholder="Detection range (m)"
+          value={form.detectionRangeM}
+          onChange={(e) =>
+            setForm({ ...form, detectionRangeM: e.target.value })
+          }
+        />
+        <select
+          className="input"
+          value={form.categorySlug}
+          onChange={(e) => setForm({ ...form, categorySlug: e.target.value })}
+        >
+          <option value="teplovizori">Тепловізори</option>
+          <option value="pricili">Тепловізійні приціли</option>
+          <option value="pricili-pnb">Приціли нічного бачення</option>
+          <option value="binokli">Тепловізійні біноклі</option>
+          <option value="pnb">ПНБ / нічне бачення</option>
+          <option value="nasadky">Насадки</option>
+          <option value="aksesuary">Аксесуари</option>
+        </select>
         <div className="flex flex-wrap gap-4 text-sm sm:col-span-2">
           <label className="flex items-center gap-2">
             <input
@@ -172,7 +202,9 @@ export default function AdminProductsPage() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Brand</th>
+              <th className="px-4 py-3">Cat</th>
               <th className="px-4 py-3">Price</th>
+              <th className="px-4 py-3">Range m</th>
               <th className="px-4 py-3">Stock</th>
               <th className="px-4 py-3">Flags</th>
               <th className="px-4 py-3"></th>
@@ -183,7 +215,11 @@ export default function AdminProductsPage() {
               <tr key={p.id} className="border-b border-line last:border-0">
                 <td className="px-4 py-3 font-medium">{p.nameUk}</td>
                 <td className="px-4 py-3 text-muted">{p.brandName}</td>
+                <td className="px-4 py-3 text-xs text-muted">{p.categorySlug}</td>
                 <td className="px-4 py-3">{formatPrice(p.price)}</td>
+                <td className="px-4 py-3 tabular-nums">
+                  {p.detectionRangeM ?? "—"}
+                </td>
                 <td className="px-4 py-3">{p.stock}</td>
                 <td className="px-4 py-3 text-xs">
                   {[p.isHit && "hit", p.isNew && "new", p.isTop && "top"]

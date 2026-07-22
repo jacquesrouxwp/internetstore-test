@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { Brand } from "@/types";
 import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
+import { DualRangeSlider } from "@/components/ui/dual-range-slider";
 
 const RESOLUTIONS = [
   { value: "256", label: "256×192" },
@@ -13,7 +14,14 @@ const RESOLUTIONS = [
   { value: "640", label: "640×512" },
 ];
 
-export function CatalogFilters({ brands }: { brands: Brand[] }) {
+export function CatalogFilters({
+  brands,
+  detectionRangeBounds,
+}: {
+  brands: Brand[];
+  /** When set, shows detection-range dual slider for this category */
+  detectionRangeBounds?: { min: number; max: number } | null;
+}) {
   const t = useTranslations("catalog");
   const router = useRouter();
   const pathname = usePathname();
@@ -24,6 +32,18 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
   const deviceType = searchParams.get("type") || "all";
   const [priceMin, setPriceMin] = useState(searchParams.get("min") || "");
   const [priceMax, setPriceMax] = useState(searchParams.get("max") || "");
+
+  const bounds = detectionRangeBounds ?? null;
+  const urlRangeMin = searchParams.get("rmin");
+  const urlRangeMax = searchParams.get("rmax");
+  const rangeMin =
+    urlRangeMin != null && urlRangeMin !== ""
+      ? Number(urlRangeMin)
+      : bounds?.min ?? 0;
+  const rangeMax =
+    urlRangeMax != null && urlRangeMax !== ""
+      ? Number(urlRangeMax)
+      : bounds?.max ?? 0;
 
   const pushParams = useCallback(
     (mutate: (p: URLSearchParams) => void) => {
@@ -154,7 +174,7 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
           </div>
         </details>
 
-        <details open className="group py-3">
+        <details open className="group py-3" style={{ borderBottom: bounds ? "1px solid var(--border)" : undefined }}>
           <summary className="cursor-pointer list-none text-sm font-medium text-primary">
             {t("price")}
           </summary>
@@ -190,6 +210,40 @@ export function CatalogFilters({ brands }: { brands: Brand[] }) {
             </button>
           </div>
         </details>
+
+        {bounds && (
+          <details open className="group py-3">
+            <summary className="cursor-pointer list-none text-sm font-medium text-primary">
+              {t("detectionRange")}
+            </summary>
+            <div className="mt-3">
+              <DualRangeSlider
+                min={bounds.min}
+                max={bounds.max}
+                valueMin={
+                  Number.isFinite(rangeMin) ? rangeMin : bounds.min
+                }
+                valueMax={
+                  Number.isFinite(rangeMax) ? rangeMax : bounds.max
+                }
+                step={10}
+                unit="м"
+                onChange={(lo, hi) => {
+                  pushParams((p) => {
+                    // only set params when not at full category span
+                    if (lo <= bounds.min && hi >= bounds.max) {
+                      p.delete("rmin");
+                      p.delete("rmax");
+                    } else {
+                      p.set("rmin", String(lo));
+                      p.set("rmax", String(hi));
+                    }
+                  });
+                }}
+              />
+            </div>
+          </details>
+        )}
 
         <button
           type="button"

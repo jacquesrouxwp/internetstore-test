@@ -43,6 +43,8 @@ export interface Product {
   categorySlug?: string | null;
   resolution?: Resolution | null;
   deviceType?: DeviceType | null;
+  /** Human detection range in meters */
+  detectionRangeM?: number | null;
   rating: number;
   reviewsCount: number;
   isHit: boolean;
@@ -118,6 +120,9 @@ export interface CatalogFilters {
   deviceType?: string;
   priceMin?: number;
   priceMax?: number;
+  /** Detection range filter (meters) */
+  rangeMin?: number;
+  rangeMax?: number;
   q?: string;
   sort?: string;
   page?: number;
@@ -132,6 +137,31 @@ export interface CatalogResult {
   limit: number;
   brands: Brand[];
   categories: Category[];
+  /** Bounds for detection-range slider within current category */
+  detectionRangeBounds?: { min: number; max: number } | null;
+}
+
+/** Categories that show the human detection-range slider */
+export const DETECTION_RANGE_CATEGORY_SLUGS = [
+  "teplovizori",
+  "pricili",
+  "pricili-pnb",
+  "binokli",
+  "pnb",
+] as const;
+
+export type DetectionRangeCategorySlug =
+  (typeof DETECTION_RANGE_CATEGORY_SLUGS)[number];
+
+export function supportsDetectionRangeFilter(
+  categorySlug?: string | null
+): boolean {
+  return Boolean(
+    categorySlug &&
+      (DETECTION_RANGE_CATEGORY_SLUGS as readonly string[]).includes(
+        categorySlug
+      )
+  );
 }
 
 export function productName(p: Product, locale: Locale): string {

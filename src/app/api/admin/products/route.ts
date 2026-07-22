@@ -50,6 +50,10 @@ export async function POST(req: NextRequest) {
     categorySlug: body.categorySlug || "teplovizori",
     resolution: body.resolution || null,
     deviceType: body.deviceType || "mono",
+    detectionRangeM:
+      body.detectionRangeM != null && body.detectionRangeM !== ""
+        ? Number(body.detectionRangeM)
+        : null,
     rating: Number(body.rating ?? 0),
     reviewsCount: Number(body.reviewsCount ?? 0),
     isHit: Boolean(body.isHit),
@@ -57,7 +61,16 @@ export async function POST(req: NextRequest) {
     isTop: Boolean(body.isTop),
     isSale: Boolean(body.isSale || (body.oldPrice && body.oldPrice > body.price)),
     images: Array.isArray(body.images) ? body.images : [],
-    specs: body.specs || {},
+    specs: {
+      ...(body.specs || {}),
+      ...(body.detectionRangeM
+        ? {
+            "Дальність виявлення людини, м": String(
+              Number(body.detectionRangeM)
+            ),
+          }
+        : {}),
+    },
     published: body.published !== false,
     createdAt: body.createdAt || new Date().toISOString(),
   };

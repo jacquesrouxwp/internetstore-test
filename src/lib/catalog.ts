@@ -13,6 +13,7 @@ import type {
   Review,
 } from "@/types";
 import { createClient } from "@/lib/supabase/server";
+import { getDetectionRangeBounds } from "@/lib/detection-range";
 
 function hasSupabase() {
   return Boolean(
@@ -42,6 +43,8 @@ function mapDbProduct(row: Record<string, unknown>): Product {
     categorySlug: (row.categories as { slug?: string } | null)?.slug || null,
     resolution: (row.resolution as string) || null,
     deviceType: (row.device_type as Product["deviceType"]) || null,
+    detectionRangeM:
+      row.detection_range_m != null ? Number(row.detection_range_m) : null,
     rating: Number(row.rating ?? 0),
     reviewsCount: Number(row.reviews_count ?? 0),
     isHit: Boolean(row.is_hit),
@@ -55,8 +58,21 @@ function mapDbProduct(row: Record<string, unknown>): Product {
   };
 }
 
-function filterSeed(filters: CatalogFilters = {}): CatalogResult {
+function filterSeed(
+  filters: CatalogFilters = {},
+  categorySlug?: string
+): CatalogResult {
   let list = getRuntimeProducts().filter((p) => p.published);
+
+  if (categorySlug) {
+    list = list.filter((p) => p.categorySlug === categorySlug);
+  }
+
+  // Bounds from full category set (before range filter), so slider edges stay stable
+  const detectionRangeBounds = getDetectionRangeBounds(
+    getRuntimeProducts().filter((p) => p.published),
+    categorySlug
+  );
 
   if (filters.q) {
     const q = filters.q.toLowerCase();
@@ -96,13 +112,23 @@ function filterSeed(filters: CatalogFilters = {}): CatalogResult {
     list = list.filter((p) => p.price <= filters.priceMax!);
   }
 
+  if (filters.rangeMin != null) {
+    list = list.filter(
+      (p) =>
+        p.detectionRangeM != null && p.detectionRangeM >= filters.rangeMin!
+    );
+  }
+  if (filters.rangeMax != null) {
+    list = list.filter(
+      (p) =>
+        p.detectionRangeM != null && p.detectionRangeM <= filters.rangeMax!
+    );
+  }
+
   if (filters.flags?.includes("hit")) list = list.filter((p) => p.isHit);
   if (filters.flags?.includes("new")) list = list.filter((p) => p.isNew);
   if (filters.flags?.includes("top")) list = list.filter((p) => p.isTop);
   if (filters.flags?.includes("sale")) list = list.filter((p) => p.isSale);
-
-  // category via slug on product
-  // handled by caller when needed
 
   switch (filters.sort) {
     case "price_asc":
@@ -127,7 +153,9 @@ function filterSeed(filters: CatalogFilters = {}): CatalogResult {
       );
       break;
     default:
-      list.sort((a, b) => Number(b.isTop) - Number(a.isTop) || b.rating - a.rating);
+      list.sort(
+        (a, b) => Number(b.isTop) - Number(a.isTop) || b.rating - a.rating
+      );
   }
 
   const page = filters.page ?? 1;
@@ -143,6 +171,7 @@ function filterSeed(filters: CatalogFilters = {}): CatalogResult {
     limit,
     brands: SEED_BRANDS,
     categories: SEED_CATEGORIES,
+    detectionRangeBounds,
   };
 }
 
@@ -151,22 +180,7 @@ export async function getCatalog(
   categorySlug?: string
 ): Promise<CatalogResult> {
   if (!hasSupabase()) {
-    let result = filterSeed(filters);
-    if (categorySlug) {
-      const all = filterSeed({ ...filters, page: 1, limit: 10000 });
-      const filtered = all.products.filter((p) => p.categorySlug === categorySlug);
-      const page = filters.page ?? 1;
-      const limit = filters.limit ?? 12;
-      const start = (page - 1) * limit;
-      result = {
-        ...all,
-        products: filtered.slice(start, start + limit),
-        total: filtered.length,
-        page,
-        limit,
-      };
-    }
-    return result;
+    return filterSeed(filters, categorySlug);
   }
 
   try {
@@ -187,6 +201,12 @@ export async function getCatalog(
 
     if (filters.priceMin != null) query = query.gte("price", filters.priceMin);
     if (filters.priceMax != null) query = query.lte("price", filters.priceMax);
+    if (filters.rangeMin != null) {
+      query = query.gte("detection_range_m", filters.rangeMin);
+    }
+    if (filters.rangeMax != null) {
+      query = query.lte("detection_range_m", filters.rangeMax);
+    }
     if (filters.deviceType && filters.deviceType !== "all") {
       query = query.eq("device_type", filters.deviceType);
     }
@@ -233,8 +253,44 @@ export async function getCatalog(
     const { data: brands } = await supabase.from("brands").select("*");
     const { data: categories } = await supabase.from("categories").select("*");
 
+    let detectionRangeBounds: CatalogResult["detectionRangeBounds"] = null;
+    if (categorySlug) {
+      try {
+        let boundsQ = supabase
+          .from("products")
+          .select("detection_range_m")
+          .eq("published", true)
+          .not("detection_range_m", "is", null);
+        const { data: cat } = await supabase
+          .from("categories")
+          .select("id")
+          .eq("slug", categorySlug)
+          .maybeSingle();
+        if (cat) boundsQ = boundsQ.eq("category_id", cat.id);
+        const { data: rangeRows } = await boundsQ;
+        if (rangeRows?.length) {
+          const vals = rangeRows
+            .map((r) => Number(r.detection_range_m))
+            .filter((n) => Number.isFinite(n) && n > 0);
+          if (vals.length) {
+            detectionRangeBounds = {
+              min: Math.min(...vals),
+              max: Math.max(...vals),
+            };
+            if (detectionRangeBounds.max <= detectionRangeBounds.min) {
+              detectionRangeBounds.max = detectionRangeBounds.min + 1;
+            }
+          }
+        }
+      } catch {
+        /* ignore bounds errors */
+      }
+    }
+
     return {
-      products: (data || []).map((r) => mapDbProduct(r as Record<string, unknown>)),
+      products: (data || []).map((r) =>
+        mapDbProduct(r as Record<string, unknown>)
+      ),
       total: count ?? 0,
       page,
       limit,
@@ -258,10 +314,19 @@ export async function getCatalog(
           sortOrder: c.sort_order,
         })
       ),
+      detectionRangeBounds,
     };
   } catch {
-    return filterSeed(filters);
+    return filterSeed(filters, categorySlug);
   }
+}
+
+/** Public helper for category detection bounds (seed path) */
+export function getCategoryDetectionRangeBounds(categorySlug: string) {
+  return getDetectionRangeBounds(
+    getRuntimeProducts().filter((p) => p.published),
+    categorySlug
+  );
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {

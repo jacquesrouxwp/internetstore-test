@@ -4,7 +4,7 @@ import { Pagination } from "@/components/catalog/Pagination";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getCatalog, getCategoryBySlug } from "@/lib/catalog";
 import { Link } from "@/i18n/routing";
-import { categoryName } from "@/types";
+import { categoryName, supportsDetectionRangeFilter } from "@/types";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -51,6 +51,8 @@ export default async function CatalogPage({ params, searchParams }: Props) {
       deviceType: typeof sp.type === "string" ? sp.type : "all",
       priceMin: sp.min ? Number(sp.min) : undefined,
       priceMax: sp.max ? Number(sp.max) : undefined,
+      rangeMin: sp.rmin != null && sp.rmin !== "" ? Number(sp.rmin) : undefined,
+      rangeMax: sp.rmax != null && sp.rmax !== "" ? Number(sp.rmax) : undefined,
       q: typeof sp.q === "string" ? sp.q : undefined,
       sort: typeof sp.sort === "string" ? sp.sort : "default",
       page,
@@ -60,6 +62,9 @@ export default async function CatalogPage({ params, searchParams }: Props) {
   );
 
   const title = categoryName(cat, locale as "uk" | "ru");
+  const detectionBounds = supportsDetectionRangeFilter(category)
+    ? result.detectionRangeBounds ?? null
+    : null;
 
   return (
     <div className="container-shop py-6 sm:py-8">
@@ -75,7 +80,10 @@ export default async function CatalogPage({ params, searchParams }: Props) {
 
       <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
         <Suspense fallback={null}>
-          <CatalogFilters brands={result.brands} />
+          <CatalogFilters
+            brands={result.brands}
+            detectionRangeBounds={detectionBounds}
+          />
         </Suspense>
 
         <div>

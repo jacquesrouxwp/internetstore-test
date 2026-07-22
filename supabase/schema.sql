@@ -45,6 +45,7 @@ create table if not exists products (
   category_id uuid references categories(id) on delete set null,
   resolution text, -- 256x192 | 384x288 | 640x512
   device_type text, -- mono | scope | binocular | clipon
+  detection_range_m int, -- human detection range, meters
   rating numeric(2,1) default 0,
   reviews_count int default 0,
   is_hit boolean default false,
