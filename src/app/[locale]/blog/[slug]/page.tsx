@@ -1,8 +1,12 @@
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { notFound } from "next/navigation";
+import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 
-const BODIES: Record<string, { uk: string; ru: string; titleUk: string; titleRu: string }> = {
+const BODIES: Record<
+  string,
+  { uk: string; ru: string; titleUk: string; titleRu: string }
+> = {
   "yak-obraty-teplovizor": {
     titleUk: "Як обрати тепловізор: гід за характеристиками",
     titleRu: "Как выбрать тепловизор: гид по характеристикам",
@@ -18,8 +22,8 @@ const BODIES: Record<string, { uk: string; ru: string; titleUk: string; titleRu:
   "dostavka-nova-poshta": {
     titleUk: "Доставка тепловізорів Новою Поштою",
     titleRu: "Доставка тепловизоров Новой Почтой",
-    uk: "Кожен прилад пакуємо в оригінальну коробку з амортизацією. При отриманні перевірте комплектацію та увімкніть прилад у відділенні. Замовлення від 50 000 грн — доставка безкоштовна (демо-правило магазину).",
-    ru: "Каждый прибор упаковываем в оригинальную коробку с амортизацией. При получении проверьте комплектацию и включите прибор в отделении. Заказы от 50 000 грн — доставка бесплатная (демо-правило магазина).",
+    uk: "Кожен прилад пакуємо в оригінальну коробку з амортизацією. При отриманні перевірте комплектацію та увімкніть прилад у відділенні. Замовлення від 50 000 грн — доставка безкоштовна.",
+    ru: "Каждый прибор упаковываем в оригинальную коробку с амортизацией. При получении проверьте комплектацию и включите прибор в отделении. Заказы от 50 000 грн — доставка бесплатная.",
   },
 };
 
@@ -33,18 +37,20 @@ export default async function BlogPostPage({
   const post = BODIES[slug];
   if (!post) notFound();
   const loc = locale as "uk" | "ru";
+  const backLabel = loc === "ru" ? "← К новостям" : "← До новин";
 
   return (
-    <article className="container-shop max-w-3xl py-12">
-      <Link href="/blog" className="text-sm text-muted hover:text-accent">
-        ← Blog
-      </Link>
-      <h1 className="section-title mt-4 mb-6">
-        {loc === "ru" ? post.titleRu : post.titleUk}
-      </h1>
-      <div className="card-surface p-8 text-sm leading-relaxed text-zinc-700">
-        {loc === "ru" ? post.ru : post.uk}
-      </div>
-    </article>
+    <InfoPage
+      title={loc === "ru" ? post.titleRu : post.titleUk}
+      lead={
+        <Link href="/blog" className="info-page__back">
+          {backLabel}
+        </Link>
+      }
+    >
+      <InfoPanel>
+        <p>{loc === "ru" ? post.ru : post.uk}</p>
+      </InfoPanel>
+    </InfoPage>
   );
 }

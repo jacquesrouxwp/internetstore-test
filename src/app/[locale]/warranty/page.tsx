@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
+import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 
 export const metadata: Metadata = { title: "Гарантія та сервіс" };
 
@@ -11,18 +12,26 @@ export default async function WarrantyPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("pages");
+  const isRu = locale === "ru";
 
   return (
-    <div className="container-shop max-w-3xl py-12">
-      <h1 className="section-title mb-6">{t("warrantyTitle")}</h1>
-      <div className="card-surface space-y-4 p-8 text-sm leading-relaxed text-zinc-700">
+    <InfoPage title={t("warrantyTitle")}>
+      <InfoPanel>
         <p>{t("warrantyText")}</p>
-        <ul className="list-disc space-y-2 pl-5">
-          <li>Офіційна гарантія виробника від 12 до 36 місяців</li>
-          <li>Допомога з першим налаштуванням і оновленням ПЗ</li>
-          <li>Післягарантійний сервіс через партнерів</li>
-        </ul>
-      </div>
-    </div>
+        {isRu ? (
+          <ul>
+            <li>Официальная гарантия производителя от 12 до 36 месяцев</li>
+            <li>Помощь с первой настройкой и обновлением ПО</li>
+            <li>Послегарантийный сервис через партнёров</li>
+          </ul>
+        ) : (
+          <ul>
+            <li>Офіційна гарантія виробника від 12 до 36 місяців</li>
+            <li>Допомога з першим налаштуванням і оновленням ПЗ</li>
+            <li>Післягарантійний сервіс через партнерів</li>
+          </ul>
+        )}
+      </InfoPanel>
+    </InfoPage>
   );
 }

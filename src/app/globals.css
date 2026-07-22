@@ -388,6 +388,191 @@ body {
     }
   }
 
+  /* Info pages (About, Delivery, Warranty, Blog) — readable on starfield */
+  .info-page {
+    padding-top: 2.5rem;
+    padding-bottom: 3.5rem;
+  }
+
+  .info-page__inner {
+    width: 100%;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .info-page__title {
+    font-family: var(--font-inter), var(--font-manrope), system-ui, sans-serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary); /* #F5F6F7 */
+    line-height: 1.2;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .info-page__title {
+      font-size: 2rem;
+    }
+  }
+
+  .info-page__panel {
+    background: var(--surface-solid); /* #16181D */
+    border: 1px solid var(--border); /* rgba(255,255,255,0.08) */
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .info-page__panel {
+      padding: 2rem 2.25rem;
+    }
+  }
+
+  .info-page__body {
+    font-family: var(--font-manrope), var(--font-inter), system-ui, sans-serif;
+    font-size: 0.9375rem; /* 15px */
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--text-secondary); /* #B0B5BC — solid, no opacity */
+  }
+
+  @media (min-width: 640px) {
+    .info-page__body {
+      font-size: 1rem; /* 16px */
+    }
+  }
+
+  .info-page__body p {
+    margin: 0 0 1.125rem;
+  }
+
+  .info-page__body p:last-child {
+    margin-bottom: 0;
+  }
+
+  .info-page__body h2 {
+    font-family: var(--font-inter), var(--font-manrope), system-ui, sans-serif;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin: 1.75rem 0 0.75rem;
+  }
+
+  .info-page__body h2:first-child {
+    margin-top: 0;
+  }
+
+  .info-page__body ul {
+    margin: 0 0 1.125rem;
+    padding-left: 1.25rem;
+    list-style: disc;
+  }
+
+  .info-page__body ul:last-child {
+    margin-bottom: 0;
+  }
+
+  .info-page__body li {
+    margin-bottom: 0.5rem;
+    padding-left: 0.25rem;
+    color: var(--text-secondary);
+  }
+
+  .info-page__body li:last-child {
+    margin-bottom: 0;
+  }
+
+  .info-page__body li::marker {
+    color: var(--text-muted);
+  }
+
+  .info-page__body a {
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .info-page__body a:hover {
+    color: var(--accent);
+  }
+
+  .info-page__meta {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .info-page__back {
+    display: inline-block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    transition: color 0.15s;
+  }
+
+  .info-page__back:hover {
+    color: var(--accent);
+  }
+
+  /* Blog index cards */
+  .info-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .info-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .info-card__date {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .info-card__title {
+    font-family: var(--font-inter), var(--font-manrope), system-ui, sans-serif;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 0.625rem;
+  }
+
+  .info-card__excerpt {
+    flex: 1;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+  }
+
+  .info-card__link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .info-card__link:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
   .label-badge {
     display: inline-flex;
     align-items: center;

@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
+import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 
 export const metadata: Metadata = { title: "Доставка і оплата" };
 
@@ -11,29 +12,45 @@ export default async function DeliveryPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("pages");
+  const isRu = locale === "ru";
 
   return (
-    <div className="container-shop max-w-3xl py-12">
-      <h1 className="section-title mb-6">{t("deliveryTitle")}</h1>
-      <div className="card-surface space-y-6 p-8 text-sm leading-relaxed text-zinc-700">
+    <InfoPage title={t("deliveryTitle")}>
+      <InfoPanel>
         <p>{t("deliveryText")}</p>
-        <div>
-          <h2 className="mb-2 font-semibold text-ink">Нова Пошта</h2>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>Доставка 1–2 дні по Україні</li>
-            <li>Безкоштовна доставка від 50 000 грн (демо-правило)</li>
-            <li>Самовивіз з відділення або поштомат</li>
-          </ul>
-        </div>
-        <div>
-          <h2 className="mb-2 font-semibold text-ink">Оплата</h2>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>При отриманні (накладений платіж)</li>
-            <li>Monobank Acquiring</li>
-            <li>LiqPay / WayForPay</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+
+        {isRu ? (
+          <>
+            <h2>Новая Почта</h2>
+            <ul>
+              <li>Доставка 1–2 дня по Украине</li>
+              <li>Бесплатная доставка от 50 000 грн</li>
+              <li>Самовывоз из отделения или почтомат</li>
+            </ul>
+            <h2>Оплата</h2>
+            <ul>
+              <li>При получении (наложенный платёж)</li>
+              <li>Monobank Acquiring</li>
+              <li>LiqPay / WayForPay</li>
+            </ul>
+          </>
+        ) : (
+          <>
+            <h2>Нова Пошта</h2>
+            <ul>
+              <li>Доставка 1–2 дні по Україні</li>
+              <li>Безкоштовна доставка від 50 000 грн</li>
+              <li>Самовивіз з відділення або поштомат</li>
+            </ul>
+            <h2>Оплата</h2>
+            <ul>
+              <li>При отриманні (накладений платіж)</li>
+              <li>Monobank Acquiring</li>
+              <li>LiqPay / WayForPay</li>
+            </ul>
+          </>
+        )}
+      </InfoPanel>
+    </InfoPage>
   );
 }

@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/routing";
+import { InfoPage } from "@/components/layout/InfoPage";
 
 export const metadata: Metadata = { title: "Новини" };
 
@@ -42,29 +43,28 @@ export default async function BlogPage({
   setRequestLocale(locale);
   const t = await getTranslations("pages");
   const loc = locale as "uk" | "ru";
+  const readMore = loc === "ru" ? "Читать →" : "Читати →";
 
   return (
-    <div className="container-shop py-12">
-      <h1 className="section-title mb-8">{t("blogTitle")}</h1>
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+    <InfoPage title={t("blogTitle")} wide>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {POSTS.map((p) => (
-          <article key={p.slug} className="card-surface flex flex-col p-6">
-            <time className="text-xs text-muted">{p.date}</time>
-            <h2 className="mt-2 text-lg font-semibold text-ink">
+          <article key={p.slug} className="info-card">
+            <time className="info-card__date" dateTime={p.date}>
+              {p.date}
+            </time>
+            <h2 className="info-card__title">
               {loc === "ru" ? p.titleRu : p.titleUk}
             </h2>
-            <p className="mt-2 flex-1 text-sm text-muted">
+            <p className="info-card__excerpt">
               {loc === "ru" ? p.excerptRu : p.excerptUk}
             </p>
-            <Link
-              href={`/blog/${p.slug}`}
-              className="mt-4 text-sm font-medium text-accent hover:underline"
-            >
-              →
+            <Link href={`/blog/${p.slug}`} className="info-card__link">
+              {readMore}
             </Link>
           </article>
         ))}
       </div>
-    </div>
+    </InfoPage>
   );
 }
