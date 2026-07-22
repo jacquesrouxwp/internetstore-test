@@ -45,7 +45,7 @@
 
   /* Radius */
   --radius-card: 14px;
-  --radius-btn: 10px;
+  --radius-btn: 14px;
 
   /* Line-height */
   --leading-body: 1.5;
@@ -111,11 +111,54 @@ body {
     justify-content: center;
     gap: 0.5rem;
     border-radius: var(--radius-btn);
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9375rem;
     font-weight: 600;
     line-height: 1.25;
+    white-space: nowrap;
+    max-width: 100%;
     transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Hero CTAs — pill shape, text stays inside */
+  .btn-hero {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding: 0.875rem 1.75rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .btn-hero-primary {
+    background: var(--accent);
+    color: #ffffff;
+    border: 1px solid transparent;
+  }
+
+  .btn-hero-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-hero-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+  }
+
+  .btn-hero-secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.22);
   }
 
   .btn:focus-visible {

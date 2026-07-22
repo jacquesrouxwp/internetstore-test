@@ -39,19 +39,25 @@ export default async function HomePage({
         viewAllLabel={t("viewAll")}
       />
 
-      <section className="py-10" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+      <section
+        className="py-10"
+        style={{
+          borderTop: "1px solid var(--border)",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
         <div className="container-shop">
           <h2 className="section-title mb-6">{t("whyTitle")}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[t("why1"), t("why2"), t("why3"), t("why4")].map((text, i) => (
-              <div key={text} className="card-surface p-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[t("why2"), t("why3")].map((text, i) => (
+              <div key={text} className="card-surface p-6 sm:p-7">
                 <span
-                  className="mb-3 block font-display text-2xl font-semibold"
+                  className="mb-3 block font-display text-2xl font-semibold sm:text-3xl"
                   style={{ color: "var(--accent)" }}
                 >
                   0{i + 1}
                 </span>
-                <p className="text-sm font-medium leading-relaxed text-secondary">
+                <p className="text-base font-semibold leading-relaxed text-primary sm:text-lg">
                   {text}
                 </p>
               </div>
