@@ -2,31 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateOrderNumber } from "@/lib/utils";
 import { addRuntimeOrder } from "@/data/seed";
 import type { Order, OrderItem, PaymentMethod } from "@/types";
-
-async function notifyOwner(order: Order) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (token && chatId) {
-    const text = [
-      `🛒 Нове замовлення ${order.orderNumber}`,
-      `👤 ${order.customerName}`,
-      `📞 ${order.customerPhone}`,
-      order.customerEmail ? `✉️ ${order.customerEmail}` : "",
-      `💰 ${order.total} грн`,
-      order.npCityName ? `📦 ${order.npCityName}` : "",
-      order.npWarehouseName ? `   ${order.npWarehouseName}` : "",
-      `💳 ${order.paymentMethod}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
-    }).catch(() => null);
-  }
-}
+import { sendOrderToTelegram } from "@/lib/telegram";
 
 function createPaymentUrl(
   order: Order,
@@ -180,7 +156,9 @@ export async function POST(req: NextRequest) {
       addRuntimeOrder(order);
     }
 
-    await notifyOwner(order);
+    // After order is saved — notify Telegram (failures never break checkout)
+    await sendOrderToTelegram(order);
+
     const paymentUrl = createPaymentUrl(order, paymentMethod as PaymentMethod);
 
     return NextResponse.json({
