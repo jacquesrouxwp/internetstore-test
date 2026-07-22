@@ -3,10 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --background: #f4f4f5;
-  --foreground: #1a1a1a;
+  --background: #05060f;
+  --foreground: #f4f4f5;
   --accent: #c1121f;
-  --line: #e4e4e7;
+  --line: rgba(255, 255, 255, 0.12);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-solid: #0e111a;
 }
 
 html {
@@ -21,7 +23,7 @@ body {
 
 @layer base {
   * {
-    @apply border-line;
+    border-color: var(--line);
   }
 }
 
@@ -39,23 +41,23 @@ body {
   }
 
   .btn-secondary {
-    @apply btn border border-line bg-white text-ink hover:border-ink/30 hover:bg-canvas;
+    @apply btn border border-white/20 bg-white/5 text-white hover:border-white/35 hover:bg-white/10;
   }
 
   .btn-ghost {
-    @apply btn text-muted hover:bg-white hover:text-ink;
+    @apply btn text-slate-400 hover:bg-white/10 hover:text-white;
   }
 
   .input {
-    @apply w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-ink/30 focus:ring-2 focus:ring-accent/15;
+    @apply w-full rounded-lg border border-white/15 bg-black/30 px-3.5 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-white/30 focus:ring-2 focus:ring-accent/20;
   }
 
   .card-surface {
-    @apply rounded-xl border border-line bg-white shadow-card;
+    @apply rounded-xl border border-white/10 bg-white/[0.06] shadow-card backdrop-blur-md;
   }
 
   .section-title {
-    @apply font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl;
+    @apply font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl;
   }
 
   .label-badge {
@@ -70,18 +72,4 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-/* Site-wide ambient light mode (LightSwitch + ParticleHero mid-spot) */
-html[data-light="on"] {
-  --accent: #d4a017;
-}
-
-html[data-light="on"] .btn-primary {
-  background-color: #d4a017;
-  color: #1a1408;
-}
-
-html[data-light="on"] .btn-primary:hover {
-  background-color: #e0b020;
 }

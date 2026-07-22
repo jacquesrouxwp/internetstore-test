@@ -9,27 +9,27 @@ export async function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto border-t border-line bg-white">
+    <footer className="mt-auto border-t border-white/10 bg-black/40 backdrop-blur-md">
       <div className="container-shop grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="mb-4 flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-white">
               <Aperture className="h-4 w-4" />
             </span>
-            <span className="font-display text-lg font-semibold">
+            <span className="font-display text-lg font-semibold text-white">
               Pro<span className="text-accent">-Optics</span>
             </span>
           </div>
-          <p className="text-sm leading-relaxed text-muted">
+          <p className="text-sm leading-relaxed text-slate-400">
             {tp("aboutText").slice(0, 140)}…
           </p>
         </div>
 
         <div>
-          <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-ink">
+          <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white">
             {t("catalog")}
           </h4>
-          <ul className="space-y-2 text-sm text-muted">
+          <ul className="space-y-2 text-sm text-slate-400">
             <li>
               <Link href="/catalog/teplovizori" className="hover:text-accent">
                 {tn("thermal")}
@@ -49,10 +49,10 @@ export async function Footer() {
         </div>
 
         <div>
-          <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-ink">
+          <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white">
             {t("info")}
           </h4>
-          <ul className="space-y-2 text-sm text-muted">
+          <ul className="space-y-2 text-sm text-slate-400">
             <li>
               <Link href="/about" className="hover:text-accent">
                 {tn("about")}
@@ -77,15 +77,15 @@ export async function Footer() {
         </div>
 
         <div>
-          <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-ink">
+          <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white">
             {t("contacts")}
           </h4>
-          <ul className="space-y-3 text-sm text-muted">
+          <ul className="space-y-3 text-sm text-slate-400">
             <li>{tp("address")}</li>
             <li>
               <a
                 href="tel:+380686928675"
-                className="inline-flex items-center gap-2 font-medium text-ink hover:text-accent"
+                className="inline-flex items-center gap-2 font-medium text-white hover:text-accent"
               >
                 <Phone className="h-4 w-4" />
                 +38 068 692-86-75
@@ -105,7 +105,7 @@ export async function Footer() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-line py-4 text-center text-xs text-muted">
+      <div className="border-t border-white/10 py-4 text-center text-xs text-slate-500">
         © {year} Pro-Optics. {t("rights")}
       </div>
     </footer>

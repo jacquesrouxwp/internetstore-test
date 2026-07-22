@@ -1,23 +1,32 @@
-import { ParticleHero } from "@/components/ui/particle-hero";
+"use client";
 
-/** Isolated demo of ParticleHero (full light-switch scene) */
-export default function ParticleDemoPage() {
+import { BackgroundPixelStars } from "@/components/ui/background-pixel-stars";
+
+/** Isolated demo of the pixel-stars sky background */
+export default function StarsDemoPage() {
   return (
-    <main className="min-h-screen bg-[#05060f]">
-      <ParticleHero
-        title="Pro-Optics"
-        subtitle={
-          "Професійна оптика та тепловізори — каталог брендів, доставка по Україні"
-        }
-        ctaLabel="Каталог тепловізорів"
-        secondaryLabel="Консультація"
-      />
-      <div className="mx-auto max-w-2xl px-4 py-12 text-center text-sm text-slate-400">
-        <p>
-          Клікніть на приціл зверху по центру — gold / light mode.
-          Demo: <code className="text-sky-300">/demo/particle</code>
-        </p>
+    <div
+      className="relative h-dvh w-dvw bg-[#05060f]"
+      style={{
+        backgroundImage:
+          "url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAIElEQVR42mIUEhJiwAbevXuHVZyJgUQwqmEUDB0AEGAADd8DEPTX6ksAAAAASUVORK5CYII=\")",
+        backgroundSize: "10px 10px",
+      }}
+    >
+      <BackgroundPixelStars />
+      <div className="relative z-10 flex h-full items-center justify-center px-4 text-center">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-300/70">
+            Pro-Optics
+          </p>
+          <h1 className="mt-3 font-display text-3xl font-semibold text-white sm:text-4xl">
+            Pixel Stars Background
+          </h1>
+          <p className="mt-3 text-sm text-slate-400">
+            Demo: <code className="text-sky-300">/demo/particle</code>
+          </p>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

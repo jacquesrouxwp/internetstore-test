@@ -67,7 +67,7 @@ export function ProductCard({
   return (
     <article
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-xl border border-line bg-white shadow-card",
+        "group relative flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.06] shadow-card backdrop-blur-sm",
         "transition-all duration-300 ease-premium",
         // lift only on desktop hover
         `${hoverDesk}:hover:-translate-y-1 ${hoverDesk}:hover:z-20 ${hoverDesk}:hover:shadow-lift`,
@@ -122,7 +122,7 @@ export function ProductCard({
               <span className="label-badge bg-accent text-white">-{sale}%</span>
             )}
             {product.isHit && (
-              <span className="label-badge bg-ink text-white">{t("hit")}</span>
+              <span className="label-badge bg-zinc-900 text-white">{t("hit")}</span>
             )}
             {product.isNew && (
               <span className="label-badge bg-success text-white">{t("new")}</span>
@@ -144,22 +144,22 @@ export function ProductCard({
         )}
       >
         {product.brandName && (
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted">
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-slate-400">
             {product.brandName}
           </p>
         )}
         <Link href={`/product/${product.slug}`}>
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-ink">
+          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-white">
             {name}
           </h3>
         </Link>
         {short && !compact && (
-          <p className="mt-1 line-clamp-2 text-xs text-muted">{short}</p>
+          <p className="mt-1 line-clamp-2 text-xs text-slate-400">{short}</p>
         )}
 
-        <div className="mt-2 flex items-center gap-1 text-xs text-muted">
+        <div className="mt-2 flex items-center gap-1 text-xs text-slate-400">
           <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-          <span className="font-medium text-ink">{product.rating.toFixed(1)}</span>
+          <span className="font-medium text-white">{product.rating.toFixed(1)}</span>
           <span>
             ({product.reviewsCount} {t("reviews")})
           </span>
@@ -167,11 +167,11 @@ export function ProductCard({
 
         <div className="mt-auto pt-3">
           <div className="mb-3 flex flex-wrap items-baseline gap-2">
-            <span className="text-lg font-semibold tracking-tight text-ink">
+            <span className="text-lg font-semibold tracking-tight text-white">
               {formatPrice(product.price, locale)}
             </span>
             {product.oldPrice != null && product.oldPrice > product.price && (
-              <span className="text-sm text-muted line-through">
+              <span className="text-sm text-slate-500 line-through">
                 {formatPrice(product.oldPrice, locale)}
               </span>
             )}
@@ -189,7 +189,7 @@ export function ProductCard({
       </div>
 
       {toast && (
-        <div className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white shadow-lg">
+        <div className="absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg">
           ✓
         </div>
       )}
