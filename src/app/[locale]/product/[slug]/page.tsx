@@ -149,11 +149,11 @@ export default async function ProductPage({ params }: Props) {
           </div>
 
           <div className="mt-6 flex flex-wrap items-baseline gap-3">
-            <span className="text-3xl font-semibold tracking-tight text-ink">
+            <span className="text-3xl font-bold tracking-tight text-price">
               {formatPrice(product.price, locale)}
             </span>
             {product.oldPrice != null && product.oldPrice > product.price && (
-              <span className="text-lg text-muted line-through">
+              <span className="text-lg text-price-old">
                 {formatPrice(product.oldPrice, locale)}
               </span>
             )}
@@ -178,11 +178,11 @@ export default async function ProductPage({ params }: Props) {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <AddToCartButton product={product} className="btn-primary min-w-[180px]" />
+            <AddToCartButton product={product} className="btn-buy min-w-[200px] w-auto" />
           </div>
 
           {productShort(product, loc) && (
-            <p className="mt-8 text-sm leading-relaxed text-muted">
+            <p className="product-panel__body mt-8 max-w-xl text-base">
               {productShort(product, loc)}
             </p>
           )}
@@ -190,36 +190,42 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       <div className="mt-14 grid gap-8 lg:grid-cols-2">
-        <section className="card-surface p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t("specs")}</h2>
-          <table className="w-full text-sm">
+        <section className="product-panel">
+          <h2 className="product-panel__title">{t("specs")}</h2>
+          <table className="product-panel__specs">
             <tbody>
               {Object.entries(product.specs).map(([k, v]) => (
-                <tr key={k} className="border-b border-line last:border-0">
-                  <th className="py-2.5 pr-4 text-left font-normal text-muted">
-                    {k}
-                  </th>
-                  <td className="py-2.5 text-right font-medium text-ink">{v}</td>
+                <tr key={k}>
+                  <th>{k}</th>
+                  <td>{v}</td>
                 </tr>
               ))}
-              {product.resolution && (
-                <tr className="border-b border-line">
-                  <th className="py-2.5 pr-4 text-left font-normal text-muted">
-                    Resolution
-                  </th>
-                  <td className="py-2.5 text-right font-medium">
-                    {product.resolution}
-                  </td>
+              {product.resolution && !product.specs["Матриця"] && (
+                <tr>
+                  <th>Матриця</th>
+                  <td>{product.resolution}</td>
+                </tr>
+              )}
+              {product.detectionRangeM != null && (
+                <tr>
+                  <th>Дальність виявлення людини, м</th>
+                  <td>{product.detectionRangeM}</td>
                 </tr>
               )}
             </tbody>
           </table>
         </section>
 
-        <section className="card-surface p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t("description")}</h2>
-          <div className="text-sm leading-relaxed text-zinc-700 whitespace-pre-line">
-            {desc || productShort(product, loc)}
+        <section className="product-panel">
+          <h2 className="product-panel__title">{t("description")}</h2>
+          <div className="product-panel__body">
+            {(desc || productShort(product, loc) || "")
+              .split(/\n\s*\n|\n/)
+              .map((p) => p.trim())
+              .filter(Boolean)
+              .map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
           </div>
         </section>
       </div>

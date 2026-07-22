@@ -24,9 +24,9 @@ export function CartView() {
   if (!items.length) {
     return (
       <div className="card-surface mx-auto max-w-lg py-16 text-center">
-        <p className="text-lg font-medium text-ink">{t("empty")}</p>
-        <Link href="/catalog/teplovizori" className="btn-primary mt-6 inline-flex">
-          {t("continue")}
+        <p className="text-lg font-semibold text-primary">{t("empty")}</p>
+        <Link href="/catalog/teplovizori" className="btn-buy mt-6 inline-flex w-auto min-w-[200px]">
+          <span className="btn-buy__label">{t("continue")}</span>
         </Link>
       </div>
     );
@@ -40,43 +40,48 @@ export function CartView() {
             key={item.productId}
             className="card-surface flex flex-wrap items-center gap-4 p-4 sm:flex-nowrap"
           >
-            <div className="h-20 w-20 shrink-0 rounded-lg bg-canvas" />
+            <div
+              className="h-20 w-20 shrink-0 rounded-xl"
+              style={{ background: "var(--photo-bg)" }}
+            />
             <div className="min-w-0 flex-1">
               <Link
                 href={`/product/${item.slug}`}
-                className="font-medium text-ink hover:text-accent"
+                className="font-semibold text-primary hover:text-[var(--accent)]"
               >
                 {item.name}
               </Link>
-              <p className="mt-1 text-sm text-muted">
+              <p className="mt-1 text-sm text-secondary">
                 {formatPrice(item.price, locale)}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="rounded-md border border-line p-1.5 hover:bg-canvas"
+                className="rounded-full border p-1.5 text-primary transition hover:bg-white/[0.06]"
+                style={{ borderColor: "var(--border-strong)" }}
                 onClick={() => setQty(item.productId, item.quantity - 1)}
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="w-8 text-center text-sm font-medium">
+              <span className="w-8 text-center text-sm font-semibold text-primary">
                 {item.quantity}
               </span>
               <button
                 type="button"
-                className="rounded-md border border-line p-1.5 hover:bg-canvas"
+                className="rounded-full border p-1.5 text-primary transition hover:bg-white/[0.06]"
+                style={{ borderColor: "var(--border-strong)" }}
                 onClick={() => setQty(item.productId, item.quantity + 1)}
               >
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            <p className="w-24 text-right text-sm font-semibold">
+            <p className="w-24 text-right text-sm font-bold text-price">
               {formatPrice(item.price * item.quantity, locale)}
             </p>
             <button
               type="button"
-              className="rounded-md p-2 text-muted hover:bg-accent-soft hover:text-accent"
+              className="rounded-full p-2 text-muted-ui transition hover:bg-white/[0.06] hover:text-[var(--accent)]"
               onClick={() => remove(item.productId)}
               aria-label={t("remove")}
             >
@@ -88,17 +93,17 @@ export function CartView() {
 
       <aside className="card-surface h-fit p-6">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted">{t("total")}</span>
-          <span className="text-xl font-semibold tracking-tight">
+          <span className="text-secondary">{t("total")}</span>
+          <span className="text-xl font-bold tracking-tight text-price">
             {formatPrice(total(), locale)}
           </span>
         </div>
-        <Link href="/checkout" className="btn-primary mt-6 w-full">
-          {t("checkout")}
+        <Link href="/checkout" className="btn-buy mt-6">
+          <span className="btn-buy__label">{t("checkout")}</span>
         </Link>
         <Link
           href="/catalog/teplovizori"
-          className="btn-ghost mt-2 w-full text-sm"
+          className="btn-secondary mt-2 w-full"
         >
           {t("continue")}
         </Link>

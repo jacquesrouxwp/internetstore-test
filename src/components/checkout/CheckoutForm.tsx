@@ -80,7 +80,7 @@ export function CheckoutForm() {
         </p>
         <button
           type="button"
-          className="btn-primary mt-8"
+          className="btn-buy mt-8 w-auto min-w-[160px]"
           onClick={() => router.push("/")}
         >
           OK
@@ -306,7 +306,7 @@ export function CheckoutForm() {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary mt-6 w-full"
+          className="btn-buy mt-6"
         >
           {loading ? "…" : t("submit")}
         </button>
