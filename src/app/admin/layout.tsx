@@ -1,40 +1,41 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { cookies } from "next/headers";
+import { AdminShell } from "@/components/admin/AdminShell";
+import { ADMIN_COOKIE } from "@/lib/admin/auth";
 
 export const metadata: Metadata = {
-  title: "Admin · Pro-Optics",
+  title: "Адмін-кабінет · Pro-Optics",
   robots: { index: false, follow: false },
 };
+
+function isAuthed() {
+  const value = cookies().get(ADMIN_COOKIE)?.value;
+  if (!value) return false;
+  if (value === "1") return true;
+  const secret = process.env.ADMIN_SESSION_SECRET;
+  return Boolean(secret && value === secret);
+}
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="min-h-screen bg-canvas">
-      <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link href="/admin" className="font-semibold tracking-tight">
-            Pro-Optics <span className="text-muted">Admin</span>
-          </Link>
-          <nav className="flex gap-4 text-sm">
-            <Link href="/admin/products" className="text-muted hover:text-ink">
-              Products
-            </Link>
-            <Link href="/admin/orders" className="text-muted hover:text-ink">
-              Orders
-            </Link>
-            <Link href="/admin/import" className="text-muted hover:text-ink">
-              Import
-            </Link>
-            <Link href="/" className="text-muted hover:text-ink">
-              ← Site
-            </Link>
-          </nav>
+  // Login page renders without shell; protected pages get full nav
+  // We always wrap with light admin root; shell only when authed
+  // Client pages under /admin that need shell are nested; login is bare.
+  // Detect via cookie on server.
+  const authed = isAuthed();
+
+  if (!authed) {
+    return (
+      <div className="admin-root min-h-screen bg-[#f4f5f7] text-zinc-900">
+        <div className="mx-auto flex min-h-screen max-w-md items-center px-4 py-12">
+          {children}
         </div>
-      </header>
-      <div className="mx-auto max-w-6xl px-4 py-8">{children}</div>
-    </div>
-  );
+      </div>
+    );
+  }
+
+  return <AdminShell>{children}</AdminShell>;
 }

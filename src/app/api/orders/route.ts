@@ -195,7 +195,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/** Public GET disabled — use /api/admin/orders (admin only) */
 export async function GET() {
-  const { getRuntimeOrders } = await import("@/data/seed");
-  return NextResponse.json({ orders: getRuntimeOrders() });
+  return NextResponse.json(
+    { error: "Use /api/admin/orders" },
+    { status: 403 }
+  );
 }

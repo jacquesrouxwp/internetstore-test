@@ -1,7 +1,7 @@
 import {
-  SEED_BRANDS,
-  SEED_CATEGORIES,
   SEED_REVIEWS,
+  getRuntimeBrands,
+  getRuntimeCategories,
   getRuntimeProducts,
 } from "@/data/seed";
 import type {
@@ -169,8 +169,8 @@ function filterSeed(
     total,
     page,
     limit,
-    brands: SEED_BRANDS,
-    categories: SEED_CATEGORIES,
+    brands: getRuntimeBrands(),
+    categories: getRuntimeCategories(),
     detectionRangeBounds,
   };
 }
@@ -373,11 +373,11 @@ export async function getProductsByFlag(
 }
 
 export async function getBrands(): Promise<Brand[]> {
-  if (!hasSupabase()) return SEED_BRANDS;
+  if (!hasSupabase()) return getRuntimeBrands();
   try {
     const supabase = await createClient();
     const { data } = await supabase.from("brands").select("*").order("name");
-    if (!data?.length) return SEED_BRANDS;
+    if (!data?.length) return getRuntimeBrands();
     return data.map((b) => ({
       id: b.id,
       slug: b.slug,
@@ -385,19 +385,19 @@ export async function getBrands(): Promise<Brand[]> {
       logoUrl: b.logo_url,
     }));
   } catch {
-    return SEED_BRANDS;
+    return getRuntimeBrands();
   }
 }
 
 export async function getCategories(): Promise<Category[]> {
-  if (!hasSupabase()) return SEED_CATEGORIES;
+  if (!hasSupabase()) return getRuntimeCategories();
   try {
     const supabase = await createClient();
     const { data } = await supabase
       .from("categories")
       .select("*")
       .order("sort_order");
-    if (!data?.length) return SEED_CATEGORIES;
+    if (!data?.length) return getRuntimeCategories();
     return data.map((c) => ({
       id: c.id,
       slug: c.slug,
@@ -409,7 +409,7 @@ export async function getCategories(): Promise<Category[]> {
       sortOrder: c.sort_order,
     }));
   } catch {
-    return SEED_CATEGORIES;
+    return getRuntimeCategories();
   }
 }
 

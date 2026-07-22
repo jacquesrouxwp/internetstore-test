@@ -66,11 +66,11 @@ export interface CartItem {
   quantity: number;
 }
 
+/** Admin workflow: Новий → В обробці → Відправлено → Виконано */
 export type OrderStatus =
   | "new"
-  | "confirmed"
-  | "paid"
-  | "shipping"
+  | "processing"
+  | "shipped"
   | "done"
   | "cancelled";
 

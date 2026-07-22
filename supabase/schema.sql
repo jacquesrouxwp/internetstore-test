@@ -65,12 +65,18 @@ create index if not exists products_brand_idx on products(brand_id);
 create index if not exists products_price_idx on products(price);
 create index if not exists products_published_idx on products(published);
 
+-- Admin role: set on auth.users via Dashboard or SQL:
+--   update auth.users set raw_app_meta_data =
+--     raw_app_meta_data || '{"role":"admin"}'::jsonb
+--   where email = 'owner@example.com';
+-- Or match ADMIN_EMAIL / ADMIN_EMAILS env on the app side.
+
 -- Orders
 create table if not exists orders (
   id uuid primary key default gen_random_uuid(),
   order_number text unique not null,
   status text not null default 'new',
-  -- new | confirmed | paid | shipping | done | cancelled
+  -- new | processing | shipped | done | cancelled
   customer_name text not null,
   customer_phone text not null,
   customer_email text,
@@ -127,6 +133,7 @@ create table if not exists posts (
 );
 
 -- Storage bucket for product images (create in dashboard: product-images, public)
+-- Or let the app create it with SUPABASE_SERVICE_ROLE_KEY on first upload.
 
 -- RLS
 alter table products enable row level security;

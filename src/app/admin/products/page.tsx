@@ -1,245 +1,210 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import type { Product } from "@/types";
 import { formatPrice } from "@/lib/utils";
-import Link from "next/link";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    nameUk: "",
-    price: "",
-    oldPrice: "",
-    stock: "5",
-    brandName: "",
-    detectionRangeM: "",
-    categorySlug: "teplovizori",
-    isHit: false,
-    isNew: false,
-    isTop: false,
-  });
 
-  const load = async () => {
-    const res = await fetch("/api/admin/products");
+  const load = useCallback(async (search?: string) => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (search) params.set("q", search);
+    const res = await fetch(`/api/admin/products?${params}`);
     if (res.status === 401) {
-      setError("Unauthorized — login first");
+      setError("Unauthorized");
+      setLoading(false);
       return;
     }
     const data = await res.json();
     setProducts(data.products || []);
-  };
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const res = await fetch("/api/admin/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nameUk: form.nameUk,
-        nameRu: form.nameUk,
-        price: Number(form.price),
-        oldPrice: form.oldPrice ? Number(form.oldPrice) : null,
-        stock: Number(form.stock),
-        brandName: form.brandName,
-        brandSlug: form.brandName.toLowerCase(),
-        detectionRangeM: form.detectionRangeM
-          ? Number(form.detectionRangeM)
-          : null,
-        isHit: form.isHit,
-        isNew: form.isNew,
-        isTop: form.isTop,
-        isSale: Boolean(form.oldPrice),
-        categorySlug: form.categorySlug || "teplovizori",
-      }),
-    });
-    if (!res.ok) {
-      setError("Save failed");
-      return;
-    }
-    setForm({
-      nameUk: "",
-      price: "",
-      oldPrice: "",
-      stock: "5",
-      brandName: "",
-      detectionRangeM: "",
-      categorySlug: "teplovizori",
-      isHit: false,
-      isNew: false,
-      isTop: false,
-    });
-    load();
-  };
-
-  const remove = async (id: string) => {
-    if (!confirm("Delete product?")) return;
+  const remove = async (id: string, name: string) => {
+    if (!confirm(`Видалити товар «${name}»?`)) return;
     await fetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
-    load();
+    load(q);
   };
-
-  if (error === "Unauthorized — login first") {
-    return (
-      <div className="card-surface p-8 text-center">
-        <p className="mb-4">{error}</p>
-        <Link href="/admin" className="btn-primary">
-          Login
-        </Link>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Products</h1>
-        <p className="text-xs text-muted">
-          Demo mode: in-memory store (connect Supabase for production)
-        </p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Товари</h1>
+          <p className="text-sm text-zinc-500">
+            {products.length} позицій · додавання, редагування, видалення
+          </p>
+        </div>
+        <Link
+          href="/admin/products/new"
+          className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+        >
+          + Додати товар
+        </Link>
       </div>
 
-      <form onSubmit={save} className="card-surface grid gap-3 p-6 sm:grid-cols-2">
-        <h2 className="sm:col-span-2 text-sm font-semibold uppercase tracking-wider text-muted">
-          Add product
-        </h2>
+      <div className="flex gap-2">
         <input
-          className="input sm:col-span-2"
-          placeholder="Name (UK)"
-          value={form.nameUk}
-          onChange={(e) => setForm({ ...form, nameUk: e.target.value })}
-          required
+          className="w-full max-w-md rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
+          placeholder="Пошук за назвою, брендом, SKU…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load(q)}
         />
-        <input
-          className="input"
-          placeholder="Brand"
-          value={form.brandName}
-          onChange={(e) => setForm({ ...form, brandName: e.target.value })}
-        />
-        <input
-          className="input"
-          type="number"
-          placeholder="Price"
-          value={form.price}
-          onChange={(e) => setForm({ ...form, price: e.target.value })}
-          required
-        />
-        <input
-          className="input"
-          type="number"
-          placeholder="Old price"
-          value={form.oldPrice}
-          onChange={(e) => setForm({ ...form, oldPrice: e.target.value })}
-        />
-        <input
-          className="input"
-          type="number"
-          placeholder="Stock"
-          value={form.stock}
-          onChange={(e) => setForm({ ...form, stock: e.target.value })}
-        />
-        <input
-          className="input"
-          type="number"
-          min={0}
-          placeholder="Detection range (m)"
-          value={form.detectionRangeM}
-          onChange={(e) =>
-            setForm({ ...form, detectionRangeM: e.target.value })
-          }
-        />
-        <select
-          className="input"
-          value={form.categorySlug}
-          onChange={(e) => setForm({ ...form, categorySlug: e.target.value })}
+        <button
+          type="button"
+          onClick={() => load(q)}
+          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium hover:bg-zinc-50"
         >
-          <option value="teplovizori">Тепловізори</option>
-          <option value="pricili">Тепловізійні приціли</option>
-          <option value="pricili-pnb">Приціли нічного бачення</option>
-          <option value="binokli">Тепловізійні біноклі</option>
-          <option value="pnb">ПНБ / нічне бачення</option>
-          <option value="nasadky">Насадки</option>
-          <option value="aksesuary">Аксесуари</option>
-        </select>
-        <div className="flex flex-wrap gap-4 text-sm sm:col-span-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={form.isHit}
-              onChange={(e) => setForm({ ...form, isHit: e.target.checked })}
-            />
-            Hit
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={form.isNew}
-              onChange={(e) => setForm({ ...form, isNew: e.target.checked })}
-            />
-            New
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={form.isTop}
-              onChange={(e) => setForm({ ...form, isTop: e.target.checked })}
-            />
-            Top
-          </label>
-        </div>
-        <button type="submit" className="btn-primary sm:col-span-2">
-          Save
+          Знайти
         </button>
-      </form>
+      </div>
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-line bg-canvas text-xs uppercase text-muted">
+      {error && (
+        <p className="text-sm text-red-600">{error}</p>
+      )}
+
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Brand</th>
-              <th className="px-4 py-3">Cat</th>
-              <th className="px-4 py-3">Price</th>
-              <th className="px-4 py-3">Range m</th>
-              <th className="px-4 py-3">Stock</th>
-              <th className="px-4 py-3">Flags</th>
-              <th className="px-4 py-3"></th>
+              <th className="px-4 py-3 font-medium">Товар</th>
+              <th className="px-4 py-3 font-medium">Бренд</th>
+              <th className="px-4 py-3 font-medium">Категорія</th>
+              <th className="px-4 py-3 font-medium">Ціна</th>
+              <th className="px-4 py-3 font-medium">Склад</th>
+              <th className="px-4 py-3 font-medium">Мітки</th>
+              <th className="px-4 py-3 font-medium"></th>
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
-              <tr key={p.id} className="border-b border-line last:border-0">
-                <td className="px-4 py-3 font-medium">{p.nameUk}</td>
-                <td className="px-4 py-3 text-muted">{p.brandName}</td>
-                <td className="px-4 py-3 text-xs text-muted">{p.categorySlug}</td>
-                <td className="px-4 py-3">{formatPrice(p.price)}</td>
-                <td className="px-4 py-3 tabular-nums">
-                  {p.detectionRangeM ?? "—"}
-                </td>
-                <td className="px-4 py-3">{p.stock}</td>
-                <td className="px-4 py-3 text-xs">
-                  {[p.isHit && "hit", p.isNew && "new", p.isTop && "top"]
-                    .filter(Boolean)
-                    .join(", ")}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    className="text-accent hover:underline"
-                    onClick={() => remove(p.id)}
-                  >
-                    Delete
-                  </button>
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
+                  Завантаження…
                 </td>
               </tr>
-            ))}
+            ) : !products.length ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center text-zinc-400">
+                  Товарів не знайдено
+                </td>
+              </tr>
+            ) : (
+              products.map((p) => (
+                <tr
+                  key={p.id}
+                  className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50/80"
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-zinc-200 bg-zinc-100">
+                        {p.images[0] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={p.images[0]}
+                            alt=""
+                            className="h-full w-full object-contain"
+                          />
+                        ) : null}
+                      </div>
+                      <div>
+                        <p className="font-medium text-zinc-900">{p.nameUk}</p>
+                        <p className="text-xs text-zinc-400">{p.sku || p.slug}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-zinc-600">
+                    {p.brandName || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-zinc-500">
+                    {p.categorySlug || "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-medium tabular-nums">
+                      {formatPrice(p.price)}
+                    </span>
+                    {p.oldPrice ? (
+                      <span className="ml-1 text-xs text-zinc-400 line-through">
+                        {formatPrice(p.oldPrice)}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={
+                        p.stock <= 0
+                          ? "text-red-600"
+                          : p.stock <= 2
+                            ? "text-amber-600"
+                            : "text-zinc-700"
+                      }
+                    >
+                      {p.stock}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {p.isHit && <Badge>Хит</Badge>}
+                      {p.isNew && <Badge>Новинка</Badge>}
+                      {p.isTop && <Badge>Топ</Badge>}
+                      {p.isSale && <Badge tone="sale">Скидка</Badge>}
+                      {!p.published && <Badge tone="muted">Приховано</Badge>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <Link
+                      href={`/admin/products/${p.id}`}
+                      className="mr-3 text-sm font-medium text-sky-700 hover:underline"
+                    >
+                      Редагувати
+                    </Link>
+                    <button
+                      type="button"
+                      className="text-sm text-red-600 hover:underline"
+                      onClick={() => remove(p.id, p.nameUk)}
+                    >
+                      Видалити
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+function Badge({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone?: "sale" | "muted";
+}) {
+  return (
+    <span
+      className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+        tone === "sale"
+          ? "bg-red-100 text-red-700"
+          : tone === "muted"
+            ? "bg-zinc-100 text-zinc-500"
+            : "bg-zinc-900 text-white"
+      }`}
+    >
+      {children}
+    </span>
   );
 }

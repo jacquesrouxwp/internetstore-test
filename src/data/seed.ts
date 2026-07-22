@@ -1002,6 +1002,8 @@ export const SEED_REVIEWS: Review[] = [
 
 /** In-memory mutable store for demo admin CRUD when Supabase is not configured */
 let runtimeProducts: Product[] = [...SEED_PRODUCTS];
+let runtimeBrands: Brand[] = [...SEED_BRANDS];
+let runtimeCategories: Category[] = [...SEED_CATEGORIES];
 const runtimeOrders: import("@/types").Order[] = [];
 
 export function getRuntimeProducts() {
@@ -1023,8 +1025,62 @@ export function deleteRuntimeProduct(id: string) {
   runtimeProducts = runtimeProducts.filter((p) => p.id !== id);
 }
 
+export function getRuntimeProductById(id: string) {
+  return runtimeProducts.find((p) => p.id === id) || null;
+}
+
+/* —— Brands —— */
+export function getRuntimeBrands() {
+  return runtimeBrands;
+}
+
+export function upsertRuntimeBrand(brand: Brand) {
+  const idx = runtimeBrands.findIndex((b) => b.id === brand.id);
+  if (idx >= 0) runtimeBrands[idx] = brand;
+  else runtimeBrands.push(brand);
+  return brand;
+}
+
+export function deleteRuntimeBrand(id: string) {
+  runtimeBrands = runtimeBrands.filter((b) => b.id !== id);
+  // Unlink products
+  runtimeProducts = runtimeProducts.map((p) =>
+    p.brandId === id
+      ? { ...p, brandId: null, brandSlug: null, brandName: null }
+      : p
+  );
+}
+
+/* —— Categories —— */
+export function getRuntimeCategories() {
+  return [...runtimeCategories].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  );
+}
+
+export function upsertRuntimeCategory(cat: Category) {
+  const idx = runtimeCategories.findIndex((c) => c.id === cat.id);
+  if (idx >= 0) runtimeCategories[idx] = cat;
+  else runtimeCategories.push(cat);
+  return cat;
+}
+
+export function deleteRuntimeCategory(id: string) {
+  runtimeCategories = runtimeCategories.filter((c) => c.id !== id);
+  runtimeProducts = runtimeProducts.map((p) =>
+    p.categoryId === id
+      ? { ...p, categoryId: null, categorySlug: null }
+      : p
+  );
+}
+
+/* —— Orders —— */
 export function getRuntimeOrders() {
   return runtimeOrders;
+}
+
+export function getRuntimeOrderById(id: string) {
+  return runtimeOrders.find((o) => o.id === id) || null;
 }
 
 export function addRuntimeOrder(order: import("@/types").Order) {
