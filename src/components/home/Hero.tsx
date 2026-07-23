@@ -12,12 +12,13 @@ export async function Hero() {
         <div
           className="hero-glass w-full max-w-xl rounded-[var(--radius-card)] px-6 py-8 sm:max-w-2xl sm:px-9 sm:py-10 lg:max-w-3xl lg:mr-auto lg:px-10 lg:py-11"
           style={{
-            background: "rgba(22, 24, 29, 0.42)",
-            border: "1px solid rgba(255, 255, 255, 0.14)",
+            /* Semi-clear glass: background shows through, text stays readable */
+            background: "rgba(12, 14, 20, 0.28)",
+            border: "1px solid rgba(255, 255, 255, 0.16)",
             boxShadow:
-              "0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
+              "0 12px 40px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+            backdropFilter: "blur(6px) saturate(1.15)",
+            WebkitBackdropFilter: "blur(6px) saturate(1.15)",
           }}
         >
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-ui sm:text-xs">
