@@ -1,10 +1,11 @@
 "use client";
 
-import { GradientDots } from "@/components/ui/gradient-dots";
+import { StarsBackground } from "@/components/ui/stars";
 
 /**
- * Full-site animated gradient-dots background.
+ * Full-site stars background (parallax + drifting layers).
  * Fixed behind all UI (z-0); content uses relative z-10.
+ * globalMouse = parallax without blocking clicks.
  */
 export function SiteBackground() {
   return (
@@ -12,16 +13,15 @@ export function SiteBackground() {
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
       aria-hidden
     >
-      <GradientDots
-        duration={28}
-        colorCycleDuration={10}
-        dotSize={8}
-        spacing={10}
-        backgroundColor="var(--background)"
-        className="opacity-90"
+      <StarsBackground
+        className="h-full w-full"
+        factor={0.04}
+        speed={55}
+        starColor="#e8eef8"
+        globalMouse
       />
-      {/* Soft vignette so product panels stay readable */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.55)_100%)]" />
+      {/* Soft vignette — keeps product cards readable */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(0,0,0,0.55)_100%)]" />
     </div>
   );
 }
