@@ -41,10 +41,10 @@ export async function GET() {
   try {
     const supabase = createServiceClient();
     const [products, categories, brands, orders] = await Promise.all([
-      supabase.from("products").select("*", { count: "exact", head: true }),
-      supabase.from("categories").select("*", { count: "exact", head: true }),
-      supabase.from("brands").select("*", { count: "exact", head: true }),
-      supabase.from("orders").select("*", { count: "exact", head: true }),
+      supabase.from("products").select("id", { count: "exact", head: true }),
+      supabase.from("categories").select("id", { count: "exact", head: true }),
+      supabase.from("brands").select("id", { count: "exact", head: true }),
+      supabase.from("orders").select("id", { count: "exact", head: true }),
     ]);
 
     const err =
@@ -54,19 +54,23 @@ export async function GET() {
         {
           ok: false,
           error: err.message,
-          hint: "Run supabase/migrations/001_production.sql in Supabase SQL Editor",
+          hint: "Run supabase/migrations/001_production.sql in Supabase SQL Editor, then POST /api/admin/seed",
           env,
+          tablesReady: false,
         },
         { status: 500 }
       );
     }
 
+    const productsCount = products.count ?? 0;
     return NextResponse.json({
       ok: true,
-      productsCount: products.count ?? 0,
+      productsCount,
       categoriesCount: categories.count ?? 0,
       brandsCount: brands.count ?? 0,
       ordersCount: orders.count ?? 0,
+      tablesReady: true,
+      seeded: productsCount > 0,
       env: {
         urlPresent: env.urlPresent,
         anonPresent: env.anonPresent,
