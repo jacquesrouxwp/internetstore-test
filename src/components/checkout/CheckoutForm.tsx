@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { formatPrice } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "@/i18n/routing";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 type City = { Ref: string; Description: string; Area?: string };
 type Warehouse = {
@@ -318,8 +319,11 @@ export function CheckoutForm() {
         </section>
 
         <section className="card-surface p-6">
-          <h2 className="mb-4 text-lg font-semibold">{t("delivery")}</h2>
-          <p className="mb-3 text-sm text-muted">{t("novaPoshta")}</p>
+          <h2 className="mb-4 flex items-center gap-3 text-lg font-semibold">
+            <BrandMark brand="nova-poshta" size="md" />
+            <span>{t("delivery")}</span>
+          </h2>
+          <p className="mb-3 text-sm text-secondary">{t("novaPoshta")}</p>
           {npDemo && (
             <p className="mb-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200/90">
               {t("npDemo")}

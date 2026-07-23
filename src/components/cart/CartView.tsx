@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { formatPrice } from "@/lib/utils";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export function CartView() {
   const t = useTranslations("cart");
@@ -96,6 +97,19 @@ export function CartView() {
           <span className="text-secondary">{t("total")}</span>
           <span className="text-xl font-bold tracking-tight text-price">
             {formatPrice(total(), locale)}
+          </span>
+        </div>
+        <div className="mt-4 flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs text-secondary"
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <BrandMark brand="nova-poshta" size="sm" />
+          <span>
+            {locale === "ru"
+              ? "Доставка Новой Почтой по Украине"
+              : "Доставка Новою Поштою по Україні"}
           </span>
         </div>
         <Link href="/checkout" className="btn-buy mt-6">

@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/routing";
 import { getTranslations } from "next-intl/server";
-import { Aperture, MessageCircle, Phone } from "lucide-react";
+import { Aperture, Phone } from "lucide-react";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export async function Footer() {
   const t = await getTranslations("footer");
@@ -104,15 +105,39 @@ export async function Footer() {
                 +38 068 692-86-75
               </a>
             </li>
-            <li>
+            <li className="flex flex-wrap items-center gap-2.5 pt-1">
               <a
-                href="https://t.me/"
+                href={process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/pro_optics_ua"}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 hover:text-[var(--accent)]"
+                className="transition hover:opacity-90"
+                aria-label="Telegram"
               >
-                <MessageCircle className="h-4 w-4" />
-                Telegram / Viber
+                <BrandMark brand="telegram" size="md" />
+              </a>
+              <a
+                href={
+                  process.env.NEXT_PUBLIC_VIBER_URL ||
+                  "viber://chat?number=%2B380501112233"
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="transition hover:opacity-90"
+                aria-label="Viber"
+              >
+                <BrandMark brand="viber" size="md" />
+              </a>
+              <a
+                href={
+                  process.env.NEXT_PUBLIC_WHATSAPP_URL ||
+                  "https://wa.me/380501112233"
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="transition hover:opacity-90"
+                aria-label="WhatsApp"
+              >
+                <BrandMark brand="whatsapp" size="md" />
               </a>
             </li>
           </ul>

@@ -3,15 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
-  MessageCircle,
   X,
-  Send,
-  Phone,
   Bot,
   ChevronLeft,
   ExternalLink,
+  Send,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandMark, type BrandMarkId } from "@/components/ui/BrandMark";
 import {
   FAQ_RU,
   FAQ_UK,
@@ -186,22 +186,19 @@ export function ConsultWidget() {
             <ul className="shrink-0 p-2">
               <ChannelLink
                 href={TG}
-                color="#229ED9"
-                icon={<Send className="h-4 w-4" />}
+                brand="telegram"
                 title="Telegram"
                 hint={t("telegramHint")}
               />
               <ChannelLink
                 href={VIBER}
-                color="#7360F2"
-                icon={<Phone className="h-4 w-4" />}
+                brand="viber"
                 title="Viber"
                 hint={t("viberHint")}
               />
               <ChannelLink
                 href={WA}
-                color="#25D366"
-                icon={<MessageCircle className="h-4 w-4" />}
+                brand="whatsapp"
                 title="WhatsApp"
                 hint={t("whatsappHint")}
               />
@@ -383,14 +380,12 @@ export function ConsultWidget() {
 
 function ChannelLink({
   href,
-  color,
-  icon,
+  brand,
   title,
   hint,
 }: {
   href: string;
-  color: string;
-  icon: React.ReactNode;
+  brand: BrandMarkId;
   title: string;
   hint: string;
 }) {
@@ -402,12 +397,7 @@ function ChannelLink({
         rel="noreferrer"
         className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition hover:bg-white/[0.06]"
       >
-        <span
-          className="flex h-10 w-10 items-center justify-center rounded-full"
-          style={{ background: `${color}26`, color }}
-        >
-          {icon}
-        </span>
+        <BrandMark brand={brand} size="lg" />
         <span className="flex-1 text-left">
           <span className="block">{title}</span>
           <span className="block text-xs font-normal text-secondary">{hint}</span>

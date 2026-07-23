@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
+import { BrandMark } from "@/components/ui/BrandMark";
 
 export const metadata: Metadata = { title: "Доставка і оплата" };
 
@@ -21,7 +22,10 @@ export default async function DeliveryPage({
 
         {isRu ? (
           <>
-            <h2>Новая Почта</h2>
+            <h2 className="flex items-center gap-2.5">
+              <BrandMark brand="nova-poshta" size="md" />
+              <span>Новая Почта</span>
+            </h2>
             <ul>
               <li>Доставка 1–2 дня по Украине</li>
               <li>Бесплатная доставка от 50 000 грн</li>
@@ -36,7 +40,10 @@ export default async function DeliveryPage({
           </>
         ) : (
           <>
-            <h2>Нова Пошта</h2>
+            <h2 className="flex items-center gap-2.5">
+              <BrandMark brand="nova-poshta" size="md" />
+              <span>Нова Пошта</span>
+            </h2>
             <ul>
               <li>Доставка 1–2 дні по Україні</li>
               <li>Безкоштовна доставка від 50 000 грн</li>
