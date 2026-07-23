@@ -355,22 +355,85 @@ body {
   .input {
     width: 100%;
     border-radius: var(--radius-btn);
-    border: 1px solid var(--border);
-    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-strong);
+    background: rgba(12, 14, 18, 0.85);
     padding: 0.625rem 0.875rem;
-    font-size: 0.875rem;
-    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: #f5f6f7;
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
 
   .input::placeholder {
-    color: var(--text-faint);
+    color: #a8adb6; /* brighter than faint — readable on dark */
+    opacity: 1; /* browsers often dim placeholders */
+    font-weight: 450;
   }
 
   .input:focus {
-    border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 0 0 2px rgba(225, 29, 42, 0.18);
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(18, 20, 26, 0.95);
+    box-shadow: 0 0 0 2px rgba(225, 29, 42, 0.22);
+  }
+
+  /* Header / mobile search — max readability */
+  .search-field {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .search-field__input {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: #12141a;
+    padding: 0.7rem 2.75rem 0.7rem 1rem;
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 550;
+    letter-spacing: 0.015em;
+    color: #f5f6f7;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+
+  .search-field__input::placeholder {
+    color: #b0b5bc;
+    opacity: 1;
+    font-weight: 500;
+  }
+
+  .search-field__input:hover {
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .search-field__input:focus {
+    border-color: rgba(225, 29, 42, 0.55);
+    background: #16181d;
+    box-shadow: 0 0 0 3px rgba(225, 29, 42, 0.2);
+  }
+
+  .search-field__btn {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 8px;
+    color: #d0d4db;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .search-field__btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .section-title {

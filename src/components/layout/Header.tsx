@@ -114,20 +114,22 @@ export function Header({ categories }: { categories: Category[] }) {
 
           <form
             onSubmit={onSearch}
-            className="relative hidden min-w-0 flex-1 md:block"
+            className="search-field hidden min-w-0 flex-1 md:block"
           >
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={t("searchPlaceholder")}
-              className="input pr-11"
+              className="search-field__input"
+              autoComplete="off"
+              enterKeyHint="search"
             />
             <button
               type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-ui hover:bg-white/[0.06] hover:text-primary"
+              className="search-field__btn"
               aria-label="Search"
             >
-              <Search className="h-4 w-4" />
+              <Search className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.25} />
             </button>
           </form>
 
@@ -213,15 +215,24 @@ export function Header({ categories }: { categories: Category[] }) {
             </div>
             <form
               onSubmit={onSearch}
-              className="p-4"
+              className="search-field p-4"
               style={{ borderBottom: "1px solid var(--border)" }}
             >
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={t("searchPlaceholder")}
-                className="input"
+                className="search-field__input"
+                autoComplete="off"
+                enterKeyHint="search"
               />
+              <button
+                type="submit"
+                className="search-field__btn"
+                aria-label="Search"
+              >
+                <Search className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.25} />
+              </button>
             </form>
             <ul className="flex-1 overflow-y-auto p-2">
               {categories.map((c) => (
