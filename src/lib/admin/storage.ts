@@ -1,20 +1,20 @@
 /**
- * Product image helpers for admin.
- * - With Supabase service role: upload to Storage bucket product-images
- * - Without: keep remote URLs or accept already-hosted paths
+ * Product image helpers — Supabase Storage bucket product-images.
+ * Server-only.
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
 
 const BUCKET = "product-images";
 
 export function getServiceSupabase(): SupabaseClient | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  if (!hasServiceSupabase()) return null;
+  try {
+    return createServiceClient();
+  } catch {
+    return null;
+  }
 }
 
 export async function ensureProductImagesBucket(
@@ -29,14 +29,9 @@ export async function ensureProductImagesBucket(
   });
 }
 
-export function publicStorageUrl(path: string): string {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!base) return path;
-  return `${base}/storage/v1/object/public/${BUCKET}/${path}`;
-}
-
 /**
- * Upload a File/Blob to Supabase Storage. Returns public URL or null on failure.
+ * Upload File/Blob to Storage. Returns public URL or null.
+ * No data-URL fallback for production reliability.
  */
 export async function uploadProductImage(
   file: Blob,
@@ -44,12 +39,15 @@ export async function uploadProductImage(
   productKey?: string
 ): Promise<string | null> {
   const supabase = getServiceSupabase();
-  if (!supabase) return null;
+  if (!supabase) {
+    console.error("[storage] service role not configured");
+    return null;
+  }
 
   try {
     await ensureProductImagesBucket(supabase);
   } catch {
-    // bucket may already exist or creation blocked — continue
+    /* bucket may exist */
   }
 
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
@@ -71,16 +69,15 @@ export async function uploadProductImage(
   return data.publicUrl;
 }
 
-/**
- * Download image from external URL and store in Supabase Storage.
- * Falls back to original URL if Storage is unavailable.
- */
 export async function mirrorImageToStorage(
   imageUrl: string,
   productKey: string,
   index: number
 ): Promise<string> {
   if (!imageUrl || imageUrl.startsWith("/")) return imageUrl;
+  if (imageUrl.includes("/storage/v1/object/public/product-images/")) {
+    return imageUrl;
+  }
 
   const supabase = getServiceSupabase();
   if (!supabase) return imageUrl;
