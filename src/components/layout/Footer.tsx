@@ -1,7 +1,8 @@
 import { Link } from "@/i18n/routing";
 import { getTranslations } from "next-intl/server";
-import { Aperture, Phone } from "lucide-react";
+import { Phone } from "lucide-react";
 import { BrandMark } from "@/components/ui/BrandMark";
+import { SiteLogo } from "@/components/layout/SiteLogo";
 
 export async function Footer() {
   const t = await getTranslations("footer");
@@ -20,19 +21,8 @@ export async function Footer() {
     >
       <div className="container-shop grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <div className="mb-4 flex items-center gap-2">
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded-[10px] text-primary"
-              style={{
-                border: "1px solid var(--border-strong)",
-                background: "var(--surface-elevated)",
-              }}
-            >
-              <Aperture className="h-4 w-4" />
-            </span>
-            <span className="font-display text-lg font-semibold text-primary">
-              Pro<span style={{ color: "var(--accent)" }}>-Optics</span>
-            </span>
+          <div className="mb-4">
+            <SiteLogo size="sm" showWordmark />
           </div>
           <p className="text-sm leading-relaxed text-secondary">
             {tp("aboutText").slice(0, 140)}…

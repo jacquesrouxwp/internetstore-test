@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ConsultWidget } from "@/components/layout/ConsultWidget";
 import { SiteBackground } from "@/components/layout/SiteBackground";
+import { LogoIntro } from "@/components/layout/LogoIntro";
 import { getCategories } from "@/lib/catalog";
 import { Analytics } from "@/components/Analytics";
 
@@ -31,6 +32,7 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider messages={messages}>
       <SiteBackground />
+      <LogoIntro />
       <div className="relative z-10 flex min-h-screen flex-col">
         <Header categories={categories} />
         <main className="flex-1">{children}</main>

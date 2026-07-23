@@ -60,6 +60,19 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Logo intro: hide header mark until fly-in lands (slot still measures) */
+html.logo-intro-active .site-logo-header #site-logo-slot {
+  opacity: 0;
+}
+html.logo-intro-active .site-logo-header .font-display {
+  opacity: 0.35;
+}
+html.logo-intro-done .site-logo-header #site-logo-slot,
+html.logo-intro-done .site-logo-header .font-display {
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
 body {
   color: var(--text-primary);
   background: var(--background);

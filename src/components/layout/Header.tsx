@@ -8,13 +8,13 @@ import {
   ShoppingCart,
   Phone,
   X,
-  Aperture,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types";
 import { categoryName } from "@/types";
+import { SiteLogo } from "@/components/layout/SiteLogo";
 
 export function Header({ categories }: { categories: Category[] }) {
   const t = useTranslations("nav");
@@ -97,19 +97,11 @@ export function Header({ categories }: { categories: Category[] }) {
         }}
       >
         <div className="container-shop flex items-center gap-4 py-3.5 sm:gap-6">
-          <Link href="/" className="flex shrink-0 items-center gap-2">
-            <span
-              className="flex h-9 w-9 items-center justify-center rounded-[10px] text-primary"
-              style={{
-                border: "1px solid var(--border-strong)",
-                background: "var(--surface-elevated)",
-              }}
-            >
-              <Aperture className="h-5 w-5" strokeWidth={1.75} />
-            </span>
-            <span className="font-display text-lg font-semibold tracking-tight text-primary">
-              Pro<span style={{ color: "var(--accent)" }}>-Optics</span>
-            </span>
+          <Link
+            href="/"
+            className="site-logo-header flex shrink-0 items-center gap-2"
+          >
+            <SiteLogo slotId="site-logo-slot" size="md" showWordmark />
           </Link>
 
           <form
