@@ -11,7 +11,10 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BrandMark, type BrandMarkId } from "@/components/ui/BrandMark";
+import {
+  SOCIAL_BRAND,
+  type SocialBrandId,
+} from "@/components/ui/SocialIcons";
 import {
   FAQ_RU,
   FAQ_UK,
@@ -385,10 +388,11 @@ function ChannelLink({
   hint,
 }: {
   href: string;
-  brand: BrandMarkId;
+  brand: SocialBrandId;
   title: string;
   hint: string;
 }) {
+  const { color, Icon } = SOCIAL_BRAND[brand];
   return (
     <li>
       <a
@@ -397,7 +401,12 @@ function ChannelLink({
         rel="noreferrer"
         className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition hover:bg-white/[0.06]"
       >
-        <BrandMark brand={brand} size="lg" />
+        <span
+          className="flex h-10 w-10 shrink-0 items-center justify-center"
+          style={{ color }}
+        >
+          <Icon className="h-7 w-7" />
+        </span>
         <span className="flex-1 text-left">
           <span className="block">{title}</span>
           <span className="block text-xs font-normal text-secondary">{hint}</span>

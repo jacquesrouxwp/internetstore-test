@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/routing";
 import { getTranslations } from "next-intl/server";
 import { Phone } from "lucide-react";
-import { BrandMark } from "@/components/ui/BrandMark";
+import { SocialIconLink } from "@/components/ui/SocialIcons";
 import { SiteLogo } from "@/components/layout/SiteLogo";
 
 export async function Footer() {
@@ -95,40 +95,31 @@ export async function Footer() {
                 +38 068 692-86-75
               </a>
             </li>
-            <li className="flex flex-wrap items-center gap-2.5 pt-1">
-              <a
-                href={process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/pro_optics_ua"}
-                target="_blank"
-                rel="noreferrer"
-                className="transition hover:opacity-90"
-                aria-label="Telegram"
-              >
-                <BrandMark brand="telegram" size="md" />
-              </a>
-              <a
+            <li className="flex flex-wrap items-center gap-4 pt-1">
+              <SocialIconLink
+                brand="telegram"
+                href={
+                  process.env.NEXT_PUBLIC_TELEGRAM_URL ||
+                  "https://t.me/pro_optics_ua"
+                }
+                size={28}
+              />
+              <SocialIconLink
+                brand="viber"
                 href={
                   process.env.NEXT_PUBLIC_VIBER_URL ||
                   "viber://chat?number=%2B380501112233"
                 }
-                target="_blank"
-                rel="noreferrer"
-                className="transition hover:opacity-90"
-                aria-label="Viber"
-              >
-                <BrandMark brand="viber" size="md" />
-              </a>
-              <a
+                size={28}
+              />
+              <SocialIconLink
+                brand="whatsapp"
                 href={
                   process.env.NEXT_PUBLIC_WHATSAPP_URL ||
                   "https://wa.me/380501112233"
                 }
-                target="_blank"
-                rel="noreferrer"
-                className="transition hover:opacity-90"
-                aria-label="WhatsApp"
-              >
-                <BrandMark brand="whatsapp" size="md" />
-              </a>
+                size={28}
+              />
             </li>
           </ul>
         </div>
