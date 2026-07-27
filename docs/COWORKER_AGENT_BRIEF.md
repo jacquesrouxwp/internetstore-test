@@ -1,10 +1,89 @@
 # Бриф для AI-агента / коворкера — Pro-Optics (internetstore-test)
 
 **Кому:** AI-агент или разработчик, который должен **доделать прод** без «шарю в SQL» от владельца.  
+
+---
+
+## 0. Карта проекта (где что лежит)
+
+| Что | Значение |
+|-----|----------|
+| **Бренд / продукт** | **Pro-Optics** — e-commerce тепловизоры / оптика, Украина (uk/ru) |
+| **Локальная папка** | `C:\Users\User\optics-shop-skeleton` |
+| **npm name** | `optics-shop-skeleton` (`package.json`) |
+| **Git remote** | `https://github.com/jacquesrouxwp/internetstore-test.git` |
+| **GitHub org/user** | `jacquesrouxwp` |
+| **GitHub repo** | `internetstore-test` |
+| **Ветка** | `main` (деплой с main) |
+| **Vercel team/scope** | `jacqros-projects` |
+| **Vercel project name** | `optics-shop-skeleton` |
+| **Production URL** | https://optics-shop-skeleton.vercel.app |
+| **Vercel dashboard** | https://vercel.com/jacqros-projects/optics-shop-skeleton |
+| **Supabase project ref** | `wvbqacawttfzrzcqdfai` (host: `wvbqacawttfzrzcqdfai.supabase.co`) |
+| **Supabase dashboard** | https://supabase.com/dashboard/project/wvbqacawttfzrzcqdfai |
+| **Стек** | Next.js **14.2** App Router, React 18, TypeScript, Tailwind 3, next-intl, Supabase JS, Zustand (cart), framer-motion/motion, fast-xml-parser (Prom) |
+| **Админка** | https://optics-shop-skeleton.vercel.app/admin |
+| **Health DB** | https://optics-shop-skeleton.vercel.app/api/health/db |
+| **Бриф (этот файл)** | `docs/COWORKER_AGENT_BRIEF.md` |
+| **SQL одной вставкой** | `supabase/RUN_ME_IN_SUPABASE.sql` |
+
+### Связки (как связано)
+
+```
+Код (local / GitHub main)
+        │
+        │  git push origin main
+        ▼
+   GitHub: jacquesrouxwp/internetstore-test
+        │
+        │  Vercel auto-deploy (Production)
+        ▼
+   Vercel: jacqros-projects / optics-shop-skeleton
+   URL: optics-shop-skeleton.vercel.app
+        │
+        │  env: NEXT_PUBLIC_SUPABASE_*, SERVICE_ROLE, TELEGRAM_*, NP…
+        ▼
+   Supabase: wvbqacawttfzrzcqdfai.supabase.co
+   (Postgres + Auth + Storage product-images)
+```
+
+### Env на Vercel (ожидаемые)
+
+| Переменная | Зачем |
+|------------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL проекта Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Публичный ключ (каталог read) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Сервер: админ, заказы, sync, storage |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Уведомления о заказах |
+| `NOVA_POSHTA_API_KEY` | Города/отделения НП |
+| `CRON_SECRET` / `SEED_SECRET` | Cron price-sync / bootstrap seed |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Demo-логин админки (сменить на prod) |
+| `NEXT_PUBLIC_SITE_URL` | Канонический URL сайта |
+
+### 3 конкурента для сравнения цен
+
+1. **OpticStore** — https://opticstore.com.ua/catalog/teplovizory  
+2. **ProfOptica** — https://profoptica.com.ua/teplovizory/  
+3. **Optics-Pro** — https://www.optics-pro.com.ua/ua/teplovizori/  
+
+### Важные URL приложения
+
+| Страница | URL |
+|----------|-----|
+| Витрина | `/` (locale uk default, `/ru` для русского) |
+| Каталог | `/catalog/teplovizori` |
+| Админ | `/admin` |
+| Цены vs рынок | `/admin/price-compare` |
+| API health | `/api/health/db` |
+| API seed | `POST /api/admin/seed` |
+| API price sync | `POST/GET /api/admin/price-sync` |
+| API orders | `POST /api/orders` |
+
+---
+
 **Репо:** `https://github.com/jacquesrouxwp/internetstore-test` (ветка `main`)  
 **Live:** `https://optics-shop-skeleton.vercel.app`  
 **Локальный путь владельца:** `C:\Users\User\optics-shop-skeleton`  
-**Стек:** Next.js 14 App Router, TypeScript, Tailwind, Supabase, next-intl (uk/ru), Vercel  
 
 ---
 
