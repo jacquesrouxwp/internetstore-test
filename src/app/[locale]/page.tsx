@@ -9,6 +9,9 @@ import {
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star } from "lucide-react";
 
+/** Refresh catalog rails (incl. price compare badges) periodically */
+export const revalidate = 60;
+
 export default async function HomePage({
   params,
 }: {
