@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { PriceCompareSummary } from "@/lib/price-compare/types";
-import { MIN_SAVINGS_UAH } from "@/lib/price-compare/types";
 import { cn } from "@/lib/utils";
 import { useLocale } from "next-intl";
 
@@ -11,11 +10,11 @@ function shortUah(n: number, locale: string): string {
   const formatted = new Intl.NumberFormat(
     locale === "ru" ? "ru-UA" : "uk-UA",
     { maximumFractionDigits: 0 }
-  ).format(n);
+  ).format(Math.abs(n));
   return `${formatted} ₴`;
 }
 
-/** Delta without currency: −4 100 / +1 200 */
+/** Delta without currency: −4 100 / +1 200 (from our POV: + = we cheaper) */
 function shortDelta(n: number, locale: string): string {
   const abs = new Intl.NumberFormat(
     locale === "ru" ? "ru-UA" : "uk-UA",
@@ -24,6 +23,14 @@ function shortDelta(n: number, locale: string): string {
   if (n > 0) return `−${abs}`;
   if (n < 0) return `+${abs}`;
   return "≈";
+}
+
+type Tone = "cheaper" | "expensive" | "equal";
+
+function toneFrom(saving: number): Tone {
+  if (saving >= 100) return "cheaper";
+  if (saving <= -100) return "expensive";
+  return "equal";
 }
 
 export function PriceCompareBadge({
@@ -36,11 +43,66 @@ export function PriceCompareBadge({
   const locale = useLocale();
   const [open, setOpen] = useState(false);
 
-  if (!compare || compare.bestSavingUah < MIN_SAVINGS_UAH) return null;
+  // Always show when we have competitor price data (even if we are more expensive)
+  if (!compare?.lines?.length) return null;
 
   const isRu = locale === "ru";
-  const amount = shortUah(compare.bestSavingUah, locale);
+  const saving = compare.bestSavingUah;
   const name = compare.bestCompetitorName;
+  const tone = toneFrom(saving);
+
+  const styles =
+    tone === "cheaper"
+      ? {
+          bg: "rgba(22, 163, 74, 0.16)",
+          border: "rgba(52, 211, 153, 0.32)",
+          ring: "focus-visible:ring-emerald-500/40",
+          title: "text-emerald-300",
+          sub: "text-emerald-200/75",
+          subStrong: "text-emerald-100/90",
+          stale: "text-emerald-200/50",
+        }
+      : tone === "expensive"
+        ? {
+            bg: "rgba(245, 158, 11, 0.14)",
+            border: "rgba(251, 191, 36, 0.35)",
+            ring: "focus-visible:ring-amber-500/40",
+            title: "text-amber-300",
+            sub: "text-amber-200/75",
+            subStrong: "text-amber-100/90",
+            stale: "text-amber-200/50",
+          }
+        : {
+            bg: "rgba(148, 163, 184, 0.12)",
+            border: "rgba(148, 163, 184, 0.28)",
+            ring: "focus-visible:ring-slate-400/40",
+            title: "text-slate-300",
+            sub: "text-slate-400/90",
+            subStrong: "text-slate-200/90",
+            stale: "text-slate-500",
+          };
+
+  const headline =
+    tone === "cheaper"
+      ? {
+          arrow: "↓",
+          amount: shortUah(saving, locale),
+          word: isRu ? "дешевле" : "дешевше",
+          vs: isRu ? "чем" : "ніж",
+        }
+      : tone === "expensive"
+        ? {
+            arrow: "↑",
+            amount: shortUah(saving, locale),
+            word: isRu ? "дороже" : "дорожче",
+            vs: isRu ? "чем" : "ніж",
+          }
+        : {
+            arrow: "≈",
+            amount: "",
+            word: isRu ? "как у рынка" : "як у ринку",
+            vs: isRu ? "рядом с" : "поруч з",
+          };
 
   return (
     <div className={cn("relative min-w-0 w-full", className)}>
@@ -49,11 +111,12 @@ export function PriceCompareBadge({
         className={cn(
           "flex w-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-xl",
           "px-2.5 py-2 text-left transition",
-          "hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+          "hover:brightness-110 focus-visible:outline-none focus-visible:ring-2",
+          styles.ring
         )}
         style={{
-          background: "rgba(22, 163, 74, 0.16)",
-          border: "1px solid rgba(52, 211, 153, 0.32)",
+          background: styles.bg,
+          border: `1px solid ${styles.border}`,
         }}
         onClick={(e) => {
           e.preventDefault();
@@ -67,31 +130,39 @@ export function PriceCompareBadge({
           className={cn(
             "flex min-w-0 items-baseline gap-1 font-display",
             "text-[0.8125rem] font-semibold leading-snug tracking-tight",
-            "text-emerald-300 sm:text-[0.875rem]"
+            "sm:text-[0.875rem]",
+            styles.title
           )}
         >
           <span className="shrink-0 opacity-90" aria-hidden>
-            ↓
+            {headline.arrow}
           </span>
           <span className="min-w-0 truncate tabular-nums">
-            {amount}
-            <span className="ml-1 font-medium tracking-normal text-emerald-300/90">
-              {isRu ? "дешевле" : "дешевше"}
-            </span>
+            {headline.amount ? (
+              <>
+                {headline.amount}
+                <span className="ml-1 font-medium tracking-normal opacity-90">
+                  {headline.word}
+                </span>
+              </>
+            ) : (
+              <span className="font-medium tracking-normal">{headline.word}</span>
+            )}
           </span>
         </span>
         <span
           className={cn(
             "block min-w-0 truncate pl-4",
             "font-sans text-[0.6875rem] font-medium leading-snug",
-            "tracking-wide text-emerald-200/75 sm:text-[0.75rem]"
+            "tracking-wide sm:text-[0.75rem]",
+            styles.sub
           )}
-          title={isRu ? `чем ${name}` : `ніж ${name}`}
+          title={`${headline.vs} ${name}`}
         >
-          {isRu ? "чем" : "ніж"}{" "}
-          <span className="text-emerald-100/90">{name}</span>
+          {headline.vs}{" "}
+          <span className={styles.subStrong}>{name}</span>
           {compare.isStale ? (
-            <span className="text-emerald-200/50">
+            <span className={styles.stale}>
               {" "}
               · {isRu ? "устар." : "застар."}
             </span>
@@ -103,13 +174,11 @@ export function PriceCompareBadge({
         <div
           role="tooltip"
           className={cn(
-            /* Above badge — fits above price row without running off card bottom */
             "absolute bottom-full left-0 z-50 mb-1.5",
             "w-[min(100%,15rem)]",
             "rounded-lg px-2.5 py-2 shadow-xl"
           )}
           style={{
-            /* Fully opaque — no glass / alpha */
             background: "#12141a",
             border: "1px solid rgba(255,255,255,0.16)",
             boxShadow: "0 10px 28px rgba(0,0,0,0.65)",

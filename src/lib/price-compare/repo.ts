@@ -5,7 +5,6 @@ import {
 import { extractPriceFromUrl } from "@/lib/price-compare/extract-price";
 import {
   MAX_COMPETITORS,
-  MIN_SAVINGS_UAH,
   STALE_DAYS,
   type Competitor,
   type CompetitorProductLink,
@@ -74,8 +73,13 @@ export function buildPriceCompare(
 
   if (!lines.length) return null;
 
-  const cheaper = lines.filter((l) => l.savingUah >= MIN_SAVINGS_UAH);
-  const best = cheaper[0] || lines[0];
+  // Headline competitor:
+  // - if we beat anyone → show max saving (most green)
+  // - if we lose to all → show min saving (cheapest market = largest "дорожче")
+  const anyCheaper = lines.some((l) => l.savingUah > 0);
+  const best = anyCheaper
+    ? lines[0]
+    : lines[lines.length - 1];
 
   return {
     ourPrice,

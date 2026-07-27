@@ -1,5 +1,4 @@
 import type { PriceCompareSummary } from "@/lib/price-compare/types";
-import { MIN_SAVINGS_UAH } from "@/lib/price-compare/types";
 import { formatPrice } from "@/lib/utils";
 
 export function PriceCompareSection({
@@ -12,7 +11,9 @@ export function PriceCompareSection({
   if (!compare?.lines?.length) return null;
 
   const isRu = locale === "ru";
-  const hasSaving = compare.bestSavingUah >= MIN_SAVINGS_UAH;
+  const saving = compare.bestSavingUah;
+  const cheaper = saving >= 100;
+  const expensive = saving <= -100;
 
   return (
     <section
@@ -25,13 +26,14 @@ export function PriceCompareSection({
       <h2 className="text-sm font-semibold uppercase tracking-wide text-primary">
         {isRu ? "Цена на рынке" : "Ціна на ринку"}
       </h2>
-      {hasSaving && (
+
+      {cheaper && (
         <p className="mt-2 font-display text-[0.9375rem] font-semibold leading-snug tracking-tight text-emerald-300 sm:text-base">
           {isRu ? (
             <>
               На{" "}
               <span className="tabular-nums">
-                {formatPrice(compare.bestSavingUah, locale)}
+                {formatPrice(saving, locale)}
               </span>{" "}
               дешевле, чем у {compare.bestCompetitorName}
             </>
@@ -39,11 +41,39 @@ export function PriceCompareSection({
             <>
               На{" "}
               <span className="tabular-nums">
-                {formatPrice(compare.bestSavingUah, locale)}
+                {formatPrice(saving, locale)}
               </span>{" "}
               дешевше, ніж у {compare.bestCompetitorName}
             </>
           )}
+        </p>
+      )}
+      {expensive && (
+        <p className="mt-2 font-display text-[0.9375rem] font-semibold leading-snug tracking-tight text-amber-300 sm:text-base">
+          {isRu ? (
+            <>
+              На{" "}
+              <span className="tabular-nums">
+                {formatPrice(-saving, locale)}
+              </span>{" "}
+              дороже, чем у {compare.bestCompetitorName}
+            </>
+          ) : (
+            <>
+              На{" "}
+              <span className="tabular-nums">
+                {formatPrice(-saving, locale)}
+              </span>{" "}
+              дорожче, ніж у {compare.bestCompetitorName}
+            </>
+          )}
+        </p>
+      )}
+      {!cheaper && !expensive && (
+        <p className="mt-2 font-display text-[0.9375rem] font-semibold leading-snug tracking-tight text-slate-300 sm:text-base">
+          {isRu
+            ? `Цена сопоставима с ${compare.bestCompetitorName}`
+            : `Ціна співставна з ${compare.bestCompetitorName}`}
         </p>
       )}
 
@@ -72,7 +102,7 @@ export function PriceCompareSection({
               <td className="truncate py-2.5 pr-3 text-left font-semibold text-primary align-middle">
                 Pro-Optics
               </td>
-              <td className="py-2.5 px-2 text-right tabular-nums text-primary align-middle whitespace-nowrap">
+              <td className="py-2.5 px-2 text-right tabular-nums text-primary align-middle whitespace-nowrap text-emerald-400">
                 {formatPrice(compare.ourPrice, locale)}
               </td>
               <td className="py-2.5 pl-2 text-right text-secondary align-middle">
@@ -95,7 +125,7 @@ export function PriceCompareSection({
                     l.competitorName
                   )}
                 </td>
-                <td className="py-2.5 px-2 text-right tabular-nums text-secondary align-middle whitespace-nowrap">
+                <td className="py-2.5 px-2 text-right tabular-nums text-secondary align-middle whitespace-nowrap text-emerald-400/90">
                   {formatPrice(l.competitorPrice, locale)}
                 </td>
                 <td
