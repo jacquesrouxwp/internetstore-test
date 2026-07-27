@@ -48,33 +48,40 @@ export function PriceCompareSection({
       )}
 
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[280px] text-left text-sm">
+        <table className="w-full min-w-[280px] table-fixed border-collapse text-sm">
+          <colgroup>
+            <col className="w-[40%]" />
+            <col className="w-[32%]" />
+            <col className="w-[28%]" />
+          </colgroup>
           <thead>
             <tr className="border-b border-white/10 text-xs uppercase text-muted-ui">
-              <th className="py-2 pr-3 font-medium">
+              <th className="py-2 pr-3 text-left font-medium">
                 {isRu ? "Магазин" : "Магазин"}
               </th>
-              <th className="py-2 pr-3 font-medium">
+              <th className="py-2 px-2 text-right font-medium">
                 {isRu ? "Цена" : "Ціна"}
               </th>
-              <th className="py-2 font-medium">
+              <th className="py-2 pl-2 text-right font-medium">
                 {isRu ? "Разница" : "Різниця"}
               </th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-b border-white/5">
-              <td className="py-2.5 pr-3 font-semibold text-primary">
+              <td className="truncate py-2.5 pr-3 text-left font-semibold text-primary align-middle">
                 Pro-Optics
               </td>
-              <td className="py-2.5 pr-3 tabular-nums text-primary">
+              <td className="py-2.5 px-2 text-right tabular-nums text-primary align-middle whitespace-nowrap">
                 {formatPrice(compare.ourPrice, locale)}
               </td>
-              <td className="py-2.5 text-secondary">—</td>
+              <td className="py-2.5 pl-2 text-right text-secondary align-middle">
+                —
+              </td>
             </tr>
             {compare.lines.map((l) => (
               <tr key={l.competitorId} className="border-b border-white/5">
-                <td className="py-2.5 pr-3 text-secondary">
+                <td className="truncate py-2.5 pr-3 text-left text-secondary align-middle">
                   {l.url ? (
                     <a
                       href={l.url}
@@ -88,11 +95,11 @@ export function PriceCompareSection({
                     l.competitorName
                   )}
                 </td>
-                <td className="py-2.5 pr-3 tabular-nums text-secondary">
+                <td className="py-2.5 px-2 text-right tabular-nums text-secondary align-middle whitespace-nowrap">
                   {formatPrice(l.competitorPrice, locale)}
                 </td>
                 <td
-                  className={`py-2.5 tabular-nums ${
+                  className={`py-2.5 pl-2 text-right tabular-nums align-middle whitespace-nowrap ${
                     l.savingUah > 0
                       ? "text-emerald-400"
                       : l.savingUah < 0

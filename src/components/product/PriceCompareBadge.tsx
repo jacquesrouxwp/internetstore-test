@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { PriceCompareSummary } from "@/lib/price-compare/types";
 import { MIN_SAVINGS_UAH } from "@/lib/price-compare/types";
-import { formatPrice, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useLocale } from "next-intl";
 
 /** Compact number: 4100 → "4 100 ₴" */
@@ -13,6 +13,17 @@ function shortUah(n: number, locale: string): string {
     { maximumFractionDigits: 0 }
   ).format(n);
   return `${formatted} ₴`;
+}
+
+/** Delta without currency: −4 100 / +1 200 */
+function shortDelta(n: number, locale: string): string {
+  const abs = new Intl.NumberFormat(
+    locale === "ru" ? "ru-UA" : "uk-UA",
+    { maximumFractionDigits: 0 }
+  ).format(Math.abs(n));
+  if (n > 0) return `−${abs}`;
+  if (n < 0) return `+${abs}`;
+  return "≈";
 }
 
 export function PriceCompareBadge({
@@ -93,7 +104,7 @@ export function PriceCompareBadge({
           role="tooltip"
           className={cn(
             "absolute bottom-full left-0 z-30 mb-1.5",
-            "w-[min(calc(100vw-2rem),18rem)]",
+            "w-[min(calc(100vw-2rem),19.5rem)]",
             "rounded-xl p-3 shadow-lift"
           )}
           style={{
@@ -109,66 +120,66 @@ export function PriceCompareBadge({
             {isRu ? "Сравнение цен" : "Порівняння цін"}
           </p>
 
-          {/* Header row — fixed columns */}
-          <div
-            className="mb-1.5 grid gap-x-2 border-b border-white/[0.08] pb-1.5 font-sans text-[0.65rem] font-medium uppercase tracking-wide text-faint"
-            style={{ gridTemplateColumns: "1fr 5.5rem 4.25rem" }}
-          >
-            <span className="text-left">
-              {isRu ? "Магазин" : "Магазин"}
-            </span>
-            <span className="text-right">{isRu ? "Цена" : "Ціна"}</span>
-            <span className="text-right">Δ</span>
-          </div>
-
-          {/* Body rows — same grid, aligned */}
-          <ul className="font-sans text-[0.8125rem] leading-none">
-            <li
-              className="grid items-center gap-x-2 border-b border-white/[0.05] py-2 text-primary"
-              style={{ gridTemplateColumns: "1fr 5.5rem 4.25rem" }}
-            >
-              <span className="min-w-0 truncate text-left font-semibold">
-                Pro-Optics
-              </span>
-              <span className="text-right tabular-nums font-semibold tracking-tight">
-                {shortUah(compare.ourPrice, locale)}
-              </span>
-              <span className="text-right tabular-nums text-faint">—</span>
-            </li>
-            {compare.lines.map((l) => (
-              <li
-                key={l.competitorId}
-                className="grid items-center gap-x-2 border-b border-white/[0.05] py-2 last:border-0 text-secondary"
-                style={{ gridTemplateColumns: "1fr 5.5rem 4.25rem" }}
-              >
-                <span
-                  className="min-w-0 truncate text-left"
-                  title={l.competitorName}
+          {/* Real table = perfect column alignment */}
+          <table className="w-full table-fixed border-collapse font-sans text-[0.8125rem]">
+            <colgroup>
+              <col className="w-[42%]" />
+              <col className="w-[33%]" />
+              <col className="w-[25%]" />
+            </colgroup>
+            <thead>
+              <tr className="border-b border-white/[0.1] text-[0.65rem] font-medium uppercase tracking-wide text-faint">
+                <th className="pb-1.5 pr-2 text-left font-medium">
+                  {isRu ? "Магазин" : "Магазин"}
+                </th>
+                <th className="pb-1.5 px-1 text-right font-medium">
+                  {isRu ? "Цена" : "Ціна"}
+                </th>
+                <th className="pb-1.5 pl-1 text-right font-medium">Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-white/[0.06] text-primary">
+                <td className="truncate py-2 pr-2 text-left font-semibold align-middle">
+                  Pro-Optics
+                </td>
+                <td className="py-2 px-1 text-right tabular-nums font-semibold tracking-tight align-middle whitespace-nowrap">
+                  {shortUah(compare.ourPrice, locale)}
+                </td>
+                <td className="py-2 pl-1 text-right tabular-nums text-faint align-middle">
+                  —
+                </td>
+              </tr>
+              {compare.lines.map((l) => (
+                <tr
+                  key={l.competitorId}
+                  className="border-b border-white/[0.06] last:border-0 text-secondary"
                 >
-                  {l.competitorName}
-                </span>
-                <span className="text-right tabular-nums tracking-tight text-secondary">
-                  {shortUah(l.competitorPrice, locale)}
-                </span>
-                <span
-                  className={cn(
-                    "text-right tabular-nums text-[0.75rem] font-semibold tracking-tight",
-                    l.savingUah > 0
-                      ? "text-emerald-400"
-                      : l.savingUah < 0
-                        ? "text-amber-400"
-                        : "text-faint"
-                  )}
-                >
-                  {l.savingUah > 0
-                    ? `−${shortUah(l.savingUah, locale).replace(" ₴", "")}`
-                    : l.savingUah < 0
-                      ? `+${shortUah(-l.savingUah, locale).replace(" ₴", "")}`
-                      : "≈"}
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <td
+                    className="truncate py-2 pr-2 text-left align-middle"
+                    title={l.competitorName}
+                  >
+                    {l.competitorName}
+                  </td>
+                  <td className="py-2 px-1 text-right tabular-nums tracking-tight align-middle whitespace-nowrap">
+                    {shortUah(l.competitorPrice, locale)}
+                  </td>
+                  <td
+                    className={cn(
+                      "py-2 pl-1 text-right tabular-nums text-[0.75rem] font-semibold tracking-tight align-middle whitespace-nowrap",
+                      l.savingUah > 0
+                        ? "text-emerald-400"
+                        : l.savingUah < 0
+                          ? "text-amber-400"
+                          : "text-faint"
+                    )}
+                  >
+                    {shortDelta(l.savingUah, locale)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
           {compare.checkedAt && (
             <p className="mt-2.5 border-t border-white/[0.06] pt-2 font-sans text-[0.65rem] leading-relaxed text-faint">
