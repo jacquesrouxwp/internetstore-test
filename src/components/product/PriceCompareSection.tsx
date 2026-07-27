@@ -26,10 +26,24 @@ export function PriceCompareSection({
         {isRu ? "Цена на рынке" : "Ціна на ринку"}
       </h2>
       {hasSaving && (
-        <p className="mt-2 text-sm font-semibold text-emerald-300">
-          {isRu
-            ? `На ${formatPrice(compare.bestSavingUah, locale)} дешевле, чем у ${compare.bestCompetitorName}`
-            : `На ${formatPrice(compare.bestSavingUah, locale)} дешевше, ніж у ${compare.bestCompetitorName}`}
+        <p className="mt-2 font-display text-[0.9375rem] font-semibold leading-snug tracking-tight text-emerald-300 sm:text-base">
+          {isRu ? (
+            <>
+              На{" "}
+              <span className="tabular-nums">
+                {formatPrice(compare.bestSavingUah, locale)}
+              </span>{" "}
+              дешевле, чем у {compare.bestCompetitorName}
+            </>
+          ) : (
+            <>
+              На{" "}
+              <span className="tabular-nums">
+                {formatPrice(compare.bestSavingUah, locale)}
+              </span>{" "}
+              дешевше, ніж у {compare.bestCompetitorName}
+            </>
+          )}
         </p>
       )}
 
