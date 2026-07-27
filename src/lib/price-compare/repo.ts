@@ -205,6 +205,7 @@ export async function getPriceCompareMap(
 export async function syncLinkPrice(linkId: string): Promise<{
   ok: boolean;
   price?: number;
+  method?: string;
   error?: string;
 }> {
   if (!hasServiceSupabase()) {
@@ -243,7 +244,7 @@ export async function syncLinkPrice(linkId: string): Promise<{
     })
     .eq("id", linkId);
 
-  return { ok: true, price: result.price };
+  return { ok: true, price: result.price, method: result.method };
 }
 
 /** Sync all active links (or one product). Respects MAX_COMPETITORS active. */

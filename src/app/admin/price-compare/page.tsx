@@ -113,7 +113,7 @@ export default function AdminPriceComparePage() {
 
   const syncOne = async (linkId: string) => {
     setLoading(true);
-    setMsg("Синхронізація…");
+    setMsg("Парсер читає сторінку…");
     const res = await fetch("/api/admin/price-sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -122,11 +122,41 @@ export default function AdminPriceComparePage() {
     const data = await res.json();
     setLoading(false);
     if (data.ok) {
-      setMsg(`Ціну зчитано: ${data.price} ₴`);
+      setMsg(
+        `Ціну зчитано: ${Number(data.price).toLocaleString("uk-UA")} ₴` +
+          (data.method ? ` (${data.method})` : "")
+      );
     } else {
       setMsg(data.error || "Не вдалося зчитати ціну");
     }
     loadLinks(productId);
+  };
+
+  /** Dry-run parser without saving */
+  const testUrl = async (url: string) => {
+    const u = url.trim();
+    if (!u) {
+      setMsg("Вставте URL картки товару");
+      return;
+    }
+    setLoading(true);
+    setMsg("Тест парсера…");
+    const res = await fetch("/api/admin/price-sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ testUrl: u }),
+    });
+    const data = await res.json();
+    setLoading(false);
+    if (data.ok) {
+      setMsg(
+        `✓ Парсер OK: ${Number(data.price).toLocaleString("uk-UA")} ₴` +
+          (data.method ? ` · спосіб: ${data.method}` : "") +
+          " (не збережено — натисніть «Зберегти URL» + «Зчитати ціну»)"
+      );
+    } else {
+      setMsg(`✗ Парсер: ${data.error || "ціну не знайдено"}`);
+    }
   };
 
   const syncAll = async () => {
@@ -153,10 +183,30 @@ export default function AdminPriceComparePage() {
         <h1 className="text-2xl font-bold text-zinc-900">Порівняння цін</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Топ-3: <strong>OpticStore</strong>, <strong>ProfOptica</strong>,{" "}
-          <strong>Optics-Pro</strong>. Для кожного товару — URL <em>картки
-          товару</em> (не каталогу). «Синхронізувати» зчитує ціну (JSON-LD /
-          meta / грн).
+          <strong>Optics-Pro</strong>. Вставте URL <em>картки товару</em> (не
+          каталогу) → «Тест» перевіряє парсер → «Зберегти» + «Зчитати ціну».
+          Автооновлення щодня о 06:00.
         </p>
+        <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-xs text-zinc-500">
+          <li>
+            OpticStore:{" "}
+            <code className="rounded bg-zinc-100 px-1">
+              …/product/teplovizor-…
+            </code>
+          </li>
+          <li>
+            ProfOptica:{" "}
+            <code className="rounded bg-zinc-100 px-1">
+              …/teplovizor-nazva-modeli/
+            </code>
+          </li>
+          <li>
+            Optics-Pro:{" "}
+            <code className="rounded bg-zinc-100 px-1">
+              …/ua/teplovizori/…/teplovizor-…
+            </code>
+          </li>
+        </ol>
       </div>
 
       {msg && (
@@ -283,6 +333,14 @@ export default function AdminPriceComparePage() {
                         }))
                       }
                     />
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => testUrl(urls[c.id] || "")}
+                      className="rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800"
+                    >
+                      Тест парсера
+                    </button>
                     <button
                       type="button"
                       disabled={loading}

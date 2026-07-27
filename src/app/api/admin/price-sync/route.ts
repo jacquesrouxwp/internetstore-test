@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { hasServiceSupabase } from "@/lib/supabase/service";
+import { extractPriceFromUrl } from "@/lib/price-compare/extract-price";
 import { syncAllPrices, syncLinkPrice } from "@/lib/price-compare/repo";
 
 function isCronRequest(req: NextRequest): boolean {
@@ -32,6 +33,7 @@ async function runSync(body: {
 
 /**
  * POST /api/admin/price-sync — admin UI
+ * body: { linkId } | { productId } | { testUrl } | {} all
  * GET  /api/admin/price-sync — Vercel Cron (daily)
  */
 export async function POST(req: NextRequest) {
@@ -41,15 +43,26 @@ export async function POST(req: NextRequest) {
     if (denied) return denied;
   }
 
-  if (!hasServiceSupabase()) {
-    return NextResponse.json(
-      { error: "Supabase service role not configured" },
-      { status: 503 }
-    );
-  }
-
   try {
     const body = await req.json().catch(() => ({}));
+
+    // Dry-run: only parse URL, do not write DB
+    if (body.testUrl) {
+      const result = await extractPriceFromUrl(String(body.testUrl).trim());
+      return NextResponse.json({
+        ...result,
+        test: true,
+        url: String(body.testUrl).trim(),
+      });
+    }
+
+    if (!hasServiceSupabase()) {
+      return NextResponse.json(
+        { error: "Supabase service role not configured" },
+        { status: 503 }
+      );
+    }
+
     const result = await runSync(body);
     return NextResponse.json(result);
   } catch (e) {
