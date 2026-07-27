@@ -53,7 +53,8 @@ export function ProductCard({
   return (
     <article
       className={cn(
-        "product-card group relative flex flex-col overflow-hidden",
+        /* overflow-visible so price-compare popover is not clipped */
+        "product-card group relative flex flex-col overflow-visible",
         "active:scale-[0.99]",
         compact && "min-w-[220px] max-w-[260px]"
       )}
@@ -114,9 +115,10 @@ export function ProductCard({
         </div>
       </Link>
 
+      {/* Meta fades under photo hover; price plate is sibling (z-30) so popover stays opaque */}
       <div
         className={cn(
-          "relative z-0 flex flex-1 flex-col p-3.5 sm:p-4",
+          "relative z-10 flex flex-1 flex-col px-3.5 pt-3.5 sm:px-4 sm:pt-4",
           "transition-opacity duration-300 ease-premium",
           `${hoverDesk}:group-hover:pointer-events-none`,
           `${hoverDesk}:group-hover:opacity-0`
@@ -149,33 +151,38 @@ export function ProductCard({
             ({product.reviewsCount} {t("reviews")})
           </span>
         </div>
+      </div>
 
-        <div className="mt-auto pt-3">
-          <div className="mb-2 flex flex-wrap items-baseline gap-2">
-            <span className="text-lg tracking-tight text-price">
-              {formatPrice(product.price, locale)}
+      <div
+        className={cn(
+          "relative z-30 mt-auto px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4",
+          "rounded-b-[calc(var(--radius-card)-1px)] bg-[var(--surface)]"
+        )}
+      >
+        <div className="mb-2 flex flex-wrap items-baseline gap-2">
+          <span className="text-lg tracking-tight text-price">
+            {formatPrice(product.price, locale)}
+          </span>
+          {product.oldPrice != null && product.oldPrice > product.price && (
+            <span className="text-sm text-price-old">
+              {formatPrice(product.oldPrice, locale)}
             </span>
-            {product.oldPrice != null && product.oldPrice > product.price && (
-              <span className="text-sm text-price-old">
-                {formatPrice(product.oldPrice, locale)}
-              </span>
-            )}
-          </div>
-          {product.priceCompare && (
-            <div className="mb-3">
-              <PriceCompareBadge compare={product.priceCompare} />
-            </div>
           )}
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={product.stock <= 0}
-            className="btn-buy"
-          >
-            <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
-            <span className="btn-buy__label">{t("buy")}</span>
-          </button>
         </div>
+        {product.priceCompare && (
+          <div className="mb-3">
+            <PriceCompareBadge compare={product.priceCompare} />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={product.stock <= 0}
+          className="btn-buy"
+        >
+          <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
+          <span className="btn-buy__label">{t("buy")}</span>
+        </button>
       </div>
 
       {toast && (

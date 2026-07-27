@@ -103,70 +103,72 @@ export function PriceCompareBadge({
         <div
           role="tooltip"
           className={cn(
-            "absolute bottom-full left-0 z-30 mb-1.5",
-            "w-[min(calc(100vw-2rem),19.5rem)]",
-            "rounded-xl p-3 shadow-lift"
+            /* Above badge — fits above price row without running off card bottom */
+            "absolute bottom-full left-0 z-50 mb-1.5",
+            "w-[min(100%,15rem)]",
+            "rounded-lg px-2.5 py-2 shadow-xl"
           )}
           style={{
-            background: "rgba(18, 20, 26, 0.98)",
-            border: "1px solid rgba(255,255,255,0.12)",
+            /* Fully opaque — no glass / alpha */
+            background: "#12141a",
+            border: "1px solid rgba(255,255,255,0.16)",
+            boxShadow: "0 10px 28px rgba(0,0,0,0.65)",
           }}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
           }}
         >
-          <p className="mb-2.5 font-display text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-muted-ui">
+          <p className="mb-1.5 font-display text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-muted-ui">
             {isRu ? "Сравнение цен" : "Порівняння цін"}
           </p>
 
-          {/* Real table = perfect column alignment */}
-          <table className="w-full table-fixed border-collapse font-sans text-[0.8125rem]">
+          <table className="w-full table-fixed border-collapse font-sans text-[0.7rem] leading-tight">
             <colgroup>
-              <col className="w-[42%]" />
-              <col className="w-[33%]" />
+              <col className="w-[40%]" />
+              <col className="w-[35%]" />
               <col className="w-[25%]" />
             </colgroup>
             <thead>
-              <tr className="border-b border-white/[0.1] text-[0.65rem] font-medium uppercase tracking-wide text-faint">
-                <th className="pb-1.5 pr-2 text-left font-medium">
+              <tr className="border-b border-white/[0.12] text-[0.58rem] font-medium uppercase tracking-wide text-faint">
+                <th className="pb-1 pr-1.5 text-left font-medium">
                   {isRu ? "Магазин" : "Магазин"}
                 </th>
-                <th className="pb-1.5 px-1 text-right font-medium">
+                <th className="pb-1 px-0.5 text-right font-medium">
                   {isRu ? "Цена" : "Ціна"}
                 </th>
-                <th className="pb-1.5 pl-1 text-right font-medium">Δ</th>
+                <th className="pb-1 pl-0.5 text-right font-medium">Δ</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-white/[0.06] text-primary">
-                <td className="truncate py-2 pr-2 text-left font-semibold align-middle">
+              <tr className="border-b border-white/[0.08] text-primary">
+                <td className="truncate py-1.5 pr-1.5 text-left font-semibold align-middle">
                   Pro-Optics
                 </td>
-                <td className="py-2 px-1 text-right tabular-nums font-semibold tracking-tight align-middle whitespace-nowrap">
+                <td className="py-1.5 px-0.5 text-right tabular-nums font-semibold tracking-tight align-middle whitespace-nowrap text-emerald-400">
                   {shortUah(compare.ourPrice, locale)}
                 </td>
-                <td className="py-2 pl-1 text-right tabular-nums text-faint align-middle">
+                <td className="py-1.5 pl-0.5 text-right tabular-nums text-faint align-middle">
                   —
                 </td>
               </tr>
               {compare.lines.map((l) => (
                 <tr
                   key={l.competitorId}
-                  className="border-b border-white/[0.06] last:border-0 text-secondary"
+                  className="border-b border-white/[0.08] last:border-0 text-secondary"
                 >
                   <td
-                    className="truncate py-2 pr-2 text-left align-middle"
+                    className="truncate py-1.5 pr-1.5 text-left align-middle"
                     title={l.competitorName}
                   >
                     {l.competitorName}
                   </td>
-                  <td className="py-2 px-1 text-right tabular-nums tracking-tight align-middle whitespace-nowrap">
+                  <td className="py-1.5 px-0.5 text-right tabular-nums tracking-tight align-middle whitespace-nowrap text-emerald-400/90">
                     {shortUah(l.competitorPrice, locale)}
                   </td>
                   <td
                     className={cn(
-                      "py-2 pl-1 text-right tabular-nums text-[0.75rem] font-semibold tracking-tight align-middle whitespace-nowrap",
+                      "py-1.5 pl-0.5 text-right tabular-nums text-[0.65rem] font-semibold tracking-tight align-middle whitespace-nowrap",
                       l.savingUah > 0
                         ? "text-emerald-400"
                         : l.savingUah < 0
@@ -182,7 +184,7 @@ export function PriceCompareBadge({
           </table>
 
           {compare.checkedAt && (
-            <p className="mt-2.5 border-t border-white/[0.06] pt-2 font-sans text-[0.65rem] leading-relaxed text-faint">
+            <p className="mt-1.5 border-t border-white/[0.08] pt-1.5 font-sans text-[0.58rem] leading-snug text-faint">
               {isRu ? "Данные на" : "Дані на"}{" "}
               {new Date(compare.checkedAt).toLocaleDateString(
                 isRu ? "ru-UA" : "uk-UA"
