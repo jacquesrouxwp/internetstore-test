@@ -44,10 +44,14 @@ create policy "public read competitor links"
 
 -- Writes only via service_role (bypass RLS)
 
--- Seed 3 competitor slots (owner renames/fills websites)
+-- Top-3 competitors (catalog URLs; product-level links added in admin)
 insert into competitors (slug, name, website, sort_order)
 values
-  ('competitor-1', 'Конкурент 1', null, 1),
-  ('competitor-2', 'Конкурент 2', null, 2),
-  ('competitor-3', 'Конкурент 3', null, 3)
-on conflict (slug) do nothing;
+  ('opticstore', 'OpticStore', 'https://opticstore.com.ua/catalog/teplovizory', 1),
+  ('profoptica', 'ProfOptica', 'https://profoptica.com.ua/teplovizory/', 2),
+  ('optics-pro', 'Optics-Pro', 'https://www.optics-pro.com.ua/ua/teplovizori/', 3)
+on conflict (slug) do update set
+  name = excluded.name,
+  website = excluded.website,
+  sort_order = excluded.sort_order,
+  is_active = true;

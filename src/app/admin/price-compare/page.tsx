@@ -152,8 +152,10 @@ export default function AdminPriceComparePage() {
       <div>
         <h1 className="text-2xl font-bold text-zinc-900">Порівняння цін</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          До 3 конкурентів. Для кожного товару — URL картки. Кнопка «Синхронізувати»
-          автоматично зчитує ціну зі сторінки (JSON-LD / meta / грн).
+          Топ-3: <strong>OpticStore</strong>, <strong>ProfOptica</strong>,{" "}
+          <strong>Optics-Pro</strong>. Для кожного товару — URL <em>картки
+          товару</em> (не каталогу). «Синхронізувати» зчитує ціну (JSON-LD /
+          meta / грн).
         </p>
       </div>
 

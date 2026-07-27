@@ -295,13 +295,31 @@ export async function ensureThreeCompetitors(): Promise<Competitor[]> {
   const list = await listCompetitors();
   if (list.length >= MAX_COMPETITORS) return list.slice(0, MAX_COMPETITORS);
   // try seed if empty
-  if (!list.length && hasServiceSupabase()) {
+  if (hasServiceSupabase()) {
     const supabase = createServiceClient();
     await supabase.from("competitors").upsert(
       [
-        { slug: "competitor-1", name: "Конкурент 1", sort_order: 1 },
-        { slug: "competitor-2", name: "Конкурент 2", sort_order: 2 },
-        { slug: "competitor-3", name: "Конкурент 3", sort_order: 3 },
+        {
+          slug: "opticstore",
+          name: "OpticStore",
+          website: "https://opticstore.com.ua/catalog/teplovizory",
+          sort_order: 1,
+          is_active: true,
+        },
+        {
+          slug: "profoptica",
+          name: "ProfOptica",
+          website: "https://profoptica.com.ua/teplovizory/",
+          sort_order: 2,
+          is_active: true,
+        },
+        {
+          slug: "optics-pro",
+          name: "Optics-Pro",
+          website: "https://www.optics-pro.com.ua/ua/teplovizori/",
+          sort_order: 3,
+          is_active: true,
+        },
       ],
       { onConflict: "slug" }
     );
