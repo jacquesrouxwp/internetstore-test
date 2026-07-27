@@ -8,6 +8,7 @@ import { productName, productShort, salePercent } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-store";
 import { useState } from "react";
+import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
 
 /**
  * Desktop-only hover: only devices with real hover + fine pointer
@@ -150,7 +151,7 @@ export function ProductCard({
         </div>
 
         <div className="mt-auto pt-3">
-          <div className="mb-3 flex flex-wrap items-baseline gap-2">
+          <div className="mb-2 flex flex-wrap items-baseline gap-2">
             <span className="text-lg tracking-tight text-price">
               {formatPrice(product.price, locale)}
             </span>
@@ -160,6 +161,11 @@ export function ProductCard({
               </span>
             )}
           </div>
+          {product.priceCompare && (
+            <div className="mb-3">
+              <PriceCompareBadge compare={product.priceCompare} />
+            </div>
+          )}
           <button
             type="button"
             onClick={handleAdd}

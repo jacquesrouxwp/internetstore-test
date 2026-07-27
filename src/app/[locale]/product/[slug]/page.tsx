@@ -13,6 +13,7 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
+import { PriceCompareSection } from "@/components/product/PriceCompareSection";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
@@ -180,6 +181,8 @@ export default async function ProductPage({ params }: Props) {
           <div className="mt-8 flex flex-wrap gap-3">
             <AddToCartButton product={product} className="btn-buy min-w-[200px] w-auto" />
           </div>
+
+          <PriceCompareSection compare={product.priceCompare} locale={locale} />
 
           {productShort(product, loc) && (
             <p className="product-panel__body mt-8 max-w-xl text-base">

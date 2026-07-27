@@ -55,6 +55,8 @@ export interface Product {
   specs: Record<string, string>;
   published: boolean;
   createdAt: string;
+  /** Filled when competitor price links exist */
+  priceCompare?: import("@/lib/price-compare/types").PriceCompareSummary | null;
 }
 
 export interface CartItem {

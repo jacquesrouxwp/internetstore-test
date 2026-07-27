@@ -20,6 +20,25 @@ import {
   SEED_REVIEWS,
 } from "@/data/seed";
 import type { Review } from "@/types";
+import { getPriceCompareMap } from "@/lib/price-compare/repo";
+
+async function attachPriceCompare(products: Product[]): Promise<Product[]> {
+  if (!products.length || !hasServiceSupabase()) return products;
+  try {
+    const pricesById: Record<string, number> = {};
+    for (const p of products) pricesById[p.id] = p.price;
+    const map = await getPriceCompareMap(
+      products.map((p) => p.id),
+      pricesById
+    );
+    return products.map((p) => ({
+      ...p,
+      priceCompare: map[p.id] || null,
+    }));
+  } catch {
+    return products;
+  }
+}
 
 async function getReadClient() {
   if (hasServiceSupabase()) {
@@ -141,10 +160,12 @@ export async function dbGetCatalog(
       detectionRangeBounds = await dbDetectionBounds(categorySlug);
     }
 
+    const products = await attachPriceCompare(
+      (data || []).map((r) => mapDbProduct(r as Record<string, unknown>))
+    );
+
     return {
-      products: (data || []).map((r) =>
-        mapDbProduct(r as Record<string, unknown>)
-      ),
+      products,
       total: count ?? 0,
       page,
       limit,
@@ -183,7 +204,9 @@ export async function dbGetProductBySlug(
       .eq("published", true)
       .maybeSingle();
     if (error || !data) return null;
-    return mapDbProduct(data as Record<string, unknown>);
+    const product = mapDbProduct(data as Record<string, unknown>);
+    const [withCompare] = await attachPriceCompare([product]);
+    return withCompare;
   } catch {
     return null;
   }
