@@ -96,12 +96,12 @@ function buildProduct(
         : existing?.oldPrice ?? null;
 
   const price = Number(body.price ?? existing?.price ?? 0);
-  let images = Array.isArray(body.images)
-    ? (body.images as string[]).filter(Boolean)
-    : existing?.images || [];
+  const images = Array.isArray(body.images)
+    ? [...(body.images as string[]).filter(Boolean)]
+    : [...(existing?.images || [])];
   let imageAlts = Array.isArray(body.imageAlts)
     ? (body.imageAlts as string[]).map(String)
-    : existing?.imageAlts || [];
+    : [...(existing?.imageAlts || [])];
 
   const mainIndex =
     typeof body.mainImageIndex === "number" ? body.mainImageIndex : 0;

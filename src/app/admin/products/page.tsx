@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Brand, Category, Product } from "@/types";
-import { formatPrice } from "@/lib/utils";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
