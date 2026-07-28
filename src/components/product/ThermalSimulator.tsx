@@ -14,8 +14,8 @@ type Palette = "whitehot" | "ironhot";
 type Weather = "clear" | "fog";
 
 /**
- * Layered scenes: forest (zooms with distance) + subject (static).
- * Add boar/human as new entries later.
+ * Unified scene: forest + subject composed once, then optical zoom
+ * around a fixed anchor (deer's feet) so subject never drifts relative to trees.
  */
 export type ThermalScene = {
   id: string;
@@ -25,11 +25,17 @@ export type ThermalScene = {
   forestIron: string;
   subjectWhite: string;
   subjectIron: string;
-  /** Feet line as fraction of frame height */
-  groundY: number;
-  subjectX: number;
-  /** Fixed subject height as fraction of frame (does NOT change with distance) */
+  /**
+   * Anchor in scene UV (0–1): deer's feet, locked to forest ground.
+   * Zoom is always centered so this point stays at viewAnchor.
+   */
+  anchorX: number;
+  anchorY: number;
+  /** Subject height as fraction of scene height (fixed in scene space) */
   subjectHeightFrac: number;
+  /** Where the anchor lands in the view (0–1). Slightly below center = natural framing */
+  viewAnchorX: number;
+  viewAnchorY: number;
 };
 
 const SCENES: ThermalScene[] = [
@@ -41,15 +47,30 @@ const SCENES: ThermalScene[] = [
     forestIron: "/thermal/forest_ironhot.jpg",
     subjectWhite: "/thermal/deer_subject_whitehot.jpg",
     subjectIron: "/thermal/deer_subject_ironhot.jpg",
-    groundY: 0.82,
-    subjectX: 0.52,
-    subjectHeightFrac: 0.55,
+    // Planted among mid-ground trees on the forest floor.
+    // viewAnchor = anchor → full-scene far zoom keeps deer locked with no clamp drift.
+    anchorX: 0.52,
+    anchorY: 0.78,
+    subjectHeightFrac: 0.28,
+    viewAnchorX: 0.52,
+    viewAnchorY: 0.78,
   },
 ];
 
 /** Fixed logical display size — pixel-identical on all devices */
 const LOGIC_W = 480;
 const LOGIC_H = 270;
+
+/**
+ * Internal scene buffer (forest + deer baked together).
+ * Larger than view so zoom-in has detail and zoom-out still covers.
+ */
+const SCENE_W = 960;
+const SCENE_H = 540;
+
+/** Zoom multipliers: 50 m = max in, detectionRange = max out (cover scene) */
+const ZOOM_NEAR = 2.35;
+const ZOOM_FAR = 1.0;
 
 type Props = {
   params: ThermalSimParams;
@@ -131,32 +152,21 @@ function ironLut(v: number): [number, number, number] {
   return [255, Math.round(190 + k * 65), Math.round(20 + k * 200)];
 }
 
-/**
- * Draw forest with object-fit:cover and zoom.
- * zoom=1 → tightest crop (close / 50m), zoom=0 → widest view (far / maxRange).
- * Higher zoomIn factor = more magnified (less of the source visible).
- */
-function drawForestZoom(
+/** Forest: object-fit cover into scene rect */
+function drawForestCover(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   dw: number,
-  dh: number,
-  /** 0 = max distance (wide), 1 = 50m (zoomed in) */
-  closeAmount: number
+  dh: number
 ) {
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
   if (!iw || !ih) return;
-
-  // Base cover scale
-  const cover = Math.max(dw / iw, dh / ih);
-  // At 50m (close=1): strong zoom-in; at max (close=0): mild cover
-  const zoomMult = 1.05 + closeAmount * 1.35; // ~1.05 far … ~2.4 near
-  const scale = cover * zoomMult;
+  const scale = Math.max(dw / iw, dh / ih);
   const sw = dw / scale;
   const sh = dh / scale;
   const sx = (iw - sw) / 2;
-  const sy = (ih - sh) / 2 + (1 - closeAmount) * ih * 0.02;
+  const sy = (ih - sh) / 2;
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
 }
 
@@ -191,6 +201,101 @@ function drawSubjectKeyed(
   ctx.drawImage(tmp, dx, dy);
 }
 
+/**
+ * Bake forest + deer into one scene buffer.
+ * Deer is planted once at anchor — never moved relative to trees.
+ */
+function composeScene(
+  out: HTMLCanvasElement,
+  forest: HTMLImageElement | null,
+  subject: HTMLImageElement | null,
+  scene: ThermalScene,
+  palette: Palette
+): boolean {
+  out.width = SCENE_W;
+  out.height = SCENE_H;
+  const ctx = out.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return false;
+
+  ctx.fillStyle = "#0a0b10";
+  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+  ctx.imageSmoothingEnabled = true;
+
+  if (forest && forest.complete && forest.naturalWidth > 0) {
+    drawForestCover(ctx, forest, SCENE_W, SCENE_H);
+  }
+
+  const ax = SCENE_W * scene.anchorX;
+  const ay = SCENE_H * scene.anchorY;
+  const subjH = SCENE_H * scene.subjectHeightFrac;
+  const subjW = subjH * 0.85;
+  const subjX = ax - subjW / 2;
+  const subjY = ay - subjH;
+
+  if (subject && subject.complete && subject.naturalWidth > 0) {
+    drawSubjectKeyed(ctx, subject, subjX, subjY, subjW, subjH);
+  } else {
+    ctx.fillStyle = palette === "ironhot" ? "#ff6b1a" : "#e8eaed";
+    ctx.beginPath();
+    ctx.ellipse(
+      ax,
+      ay - subjH * 0.45,
+      subjW * 0.35,
+      subjH * 0.28,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  }
+
+  return true;
+}
+
+/**
+ * Optical zoom of the whole scene around the deer anchor.
+ * One transform only — subject and trees scale/translate together.
+ */
+function drawSceneZoomed(
+  ctx: CanvasRenderingContext2D,
+  sceneCanvas: HTMLCanvasElement,
+  scene: ThermalScene,
+  /** 1 = 50 m (near), 0 = maxRange (far) */
+  closeAmount: number,
+  dw: number,
+  dh: number
+) {
+  const zoom = ZOOM_FAR + closeAmount * (ZOOM_NEAR - ZOOM_FAR);
+
+  // Base cover: scene fills view at ZOOM_FAR
+  const cover = Math.max(dw / SCENE_W, dh / SCENE_H);
+  const scale = cover * zoom;
+
+  // Map scene anchor → fixed view point
+  const ax = SCENE_W * scene.anchorX;
+  const ay = SCENE_H * scene.anchorY;
+  const vx = dw * scene.viewAnchorX;
+  const vy = dh * scene.viewAnchorY;
+
+  // Source rect in scene space (what the camera sees)
+  let sw = dw / scale;
+  let sh = dh / scale;
+  let sx = ax - vx / scale;
+  let sy = ay - vy / scale;
+
+  // Clamp so we never sample outside the scene (may slightly bias edge zoom-out)
+  if (sx < 0) sx = 0;
+  if (sy < 0) sy = 0;
+  if (sx + sw > SCENE_W) sx = Math.max(0, SCENE_W - sw);
+  if (sy + sh > SCENE_H) sy = Math.max(0, SCENE_H - sh);
+  // If scene still smaller than crop (shouldn't happen with cover), shrink crop
+  sw = Math.min(sw, SCENE_W);
+  sh = Math.min(sh, SCENE_H);
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(sceneCanvas, sx, sy, sw, sh, 0, 0, dw, dh);
+}
+
 export function ThermalSimulator({
   params,
   locale = "uk",
@@ -217,6 +322,9 @@ export function ThermalSimulator({
   const forestIron = useRef<HTMLImageElement | null>(null);
   const subjWhite = useRef<HTMLImageElement | null>(null);
   const subjIron = useRef<HTMLImageElement | null>(null);
+  /** Baked scene (forest+deer); rebuilt when palette/assets change */
+  const sceneRef = useRef<HTMLCanvasElement | null>(null);
+  const sceneKeyRef = useRef<string>("");
   const composeRef = useRef<HTMLCanvasElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -230,7 +338,10 @@ export function ThermalSimulator({
     let n = 0;
     const done = () => {
       n += 1;
-      if (n >= 4 && !cancelled) setReady(true);
+      if (n >= 4 && !cancelled) {
+        sceneKeyRef.current = ""; // force re-bake
+        setReady(true);
+      }
     };
     const load = (src: string, ref: { current: HTMLImageElement | null }) => {
       const img = new Image();
@@ -274,6 +385,23 @@ export function ThermalSimulator({
     [distance, maxRange, params.netdMk, weather]
   );
 
+  const ensureScene = useCallback(() => {
+    const key = `${scene.id}|${palette}`;
+    if (sceneRef.current && sceneKeyRef.current === key) {
+      return sceneRef.current;
+    }
+    if (!sceneRef.current) {
+      sceneRef.current = document.createElement("canvas");
+    }
+    const forest =
+      palette === "whitehot" ? forestWhite.current : forestIron.current;
+    const subject =
+      palette === "whitehot" ? subjWhite.current : subjIron.current;
+    composeScene(sceneRef.current, forest, subject, scene, palette);
+    sceneKeyRef.current = key;
+    return sceneRef.current;
+  }, [scene, palette]);
+
   const render = useCallback(
     (
       canvas: HTMLCanvasElement | null,
@@ -290,12 +418,9 @@ export function ThermalSimulator({
         canvas.height = LOGIC_H;
       }
 
-      const forest =
-        palette === "whitehot" ? forestWhite.current : forestIron.current;
-      const subject =
-        palette === "whitehot" ? subjWhite.current : subjIron.current;
+      const sceneCanvas = ensureScene();
 
-      // ── 1) Compose at full logical resolution ──
+      // ── 1) Optical zoom of unified scene → compose buffer ──
       if (!composeRef.current) {
         composeRef.current = document.createElement("canvas");
       }
@@ -307,45 +432,24 @@ export function ThermalSimulator({
 
       cctx.fillStyle = "#0a0b10";
       cctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
-      cctx.imageSmoothingEnabled = true;
 
-      // Distance → forest zoom (INVERTED): near = zoomed in, far = zoomed out
+      // Distance → camera zoom (1 at 50 m, 0 at maxRange)
       const t = Math.max(
         0,
         Math.min(1, (distance - 50) / Math.max(1, maxRange - 50))
       );
-      // closeAmount: 1 at 50m, 0 at maxRange
       const closeAmount = 1 - Math.pow(t, 0.9);
 
-      if (forest && forest.complete && forest.naturalWidth > 0) {
-        drawForestZoom(cctx, forest, LOGIC_W, LOGIC_H, closeAmount);
-      }
+      drawSceneZoomed(
+        cctx,
+        sceneCanvas,
+        scene,
+        closeAmount,
+        LOGIC_W,
+        LOGIC_H
+      );
 
-      // Static deer — fixed size & position on ground line
-      const subjH = LOGIC_H * scene.subjectHeightFrac;
-      const subjW = subjH * 0.85;
-      const feetY = LOGIC_H * scene.groundY;
-      const subjX = LOGIC_W * scene.subjectX - subjW / 2;
-      const subjY = feetY - subjH;
-
-      if (subject && subject.complete && subject.naturalWidth > 0) {
-        drawSubjectKeyed(cctx, subject, subjX, subjY, subjW, subjH);
-      } else {
-        cctx.fillStyle = palette === "ironhot" ? "#ff6b1a" : "#e8eaed";
-        cctx.beginPath();
-        cctx.ellipse(
-          subjX + subjW * 0.5,
-          subjY + subjH * 0.55,
-          subjW * 0.35,
-          subjH * 0.28,
-          0,
-          0,
-          Math.PI * 2
-        );
-        cctx.fill();
-      }
-
-      // ── 2) Deterministic FX (seeded noise) on full composite ──
+      // ── 2) Deterministic FX (seeded noise) on final zoomed frame ──
       const seed = hashSeed(
         scene.id,
         matrixUse,
@@ -353,7 +457,7 @@ export function ThermalSimulator({
         distance,
         weather,
         palette,
-        "v2"
+        "v3-anchor-zoom"
       );
       const rand = mulberry32(seed);
 
@@ -402,12 +506,11 @@ export function ThermalSimulator({
       mctx.imageSmoothingEnabled = true;
       mctx.drawImage(compose, 0, 0, pixW, pixH);
 
-      // Final: nearest-neighbor to fixed logical canvas
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
       ctx.drawImage(mCan, 0, 0, LOGIC_W, LOGIC_H);
 
-      // Vignette (deterministic, no random)
+      // Vignette (deterministic)
       const grd = ctx.createRadialGradient(
         LOGIC_W / 2,
         LOGIC_H / 2,
@@ -437,10 +540,8 @@ export function ThermalSimulator({
       distance,
       maxRange,
       params.refreshRateHz,
-      scene.groundY,
-      scene.subjectX,
-      scene.subjectHeightFrac,
-      scene.id,
+      scene,
+      ensureScene,
     ]
   );
 
@@ -513,7 +614,6 @@ export function ThermalSimulator({
                 "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)",
             }}
           >
-            {/* Fixed internal 480×270; CSS scales width — same pixels everywhere */}
             <canvas
               ref={canvasRef}
               width={LOGIC_W}
@@ -579,8 +679,8 @@ export function ThermalSimulator({
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `Олень неподвижен; лес зумится. 50 м — крупный план, ${maxRange} м — широкий вид. Картинка одинаковая на всех устройствах.`
-                : `Олень нерухомий; ліс зумиться. 50 м — крупний план, ${maxRange} м — широкий вид. Картинка однакова на всіх пристроях.`}
+                ? `Оптический зум одной сцены: олень закреплён у деревьев. 50 м — крупно, ${maxRange} м — больше леса вокруг.`
+                : `Оптичний зум однієї сцени: олень закріплений біля дерев. 50 м — крупно, ${maxRange} м — більше лісу навколо.`}
             </span>
           </label>
         </div>
@@ -674,8 +774,8 @@ export function ThermalSimulator({
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
         {isRu
-          ? "Симуляция: олень фиксирован, зум леса = дистанция. Пикселизация/NETD/туман — на финальном кадре. Один и тот же кадр на любом устройстве (seeded noise, 480×270)."
-          : "Симуляція: олень фіксований, зум лісу = дистанція. Пікселізація/NETD/туман — на фінальному кадрі. Той самий кадр на будь-якому пристрої (seeded noise, 480×270)."}
+          ? "Олень вкопан в точку леса; зум — одна камера вокруг якоря. Лес и олень масштабируются вместе. Пикселизация/NETD/туман — после зума. Кадр одинаковый на всех устройствах (480×270, seeded noise)."
+          : "Олень вкопаний у точку лісу; зум — одна камера навколо якоря. Ліс і олень масштабуються разом. Пікселізація/NETD/туман — після зуму. Кадр однаковий на всіх пристроях (480×270, seeded noise)."}
       </p>
 
       <style jsx>{`
