@@ -95,7 +95,9 @@ export async function listRelatedPosts(
     .limit(limit);
   if (post.category) q = q.eq("category", post.category);
   const { data } = await q;
-  let posts = (data || []).map((r) => mapDbPost(r as Record<string, unknown>));
+  const posts = (data || []).map((r) =>
+    mapDbPost(r as Record<string, unknown>)
+  );
   if (posts.length < limit) {
     const { data: more } = await sb
       .from("posts")
