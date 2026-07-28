@@ -231,9 +231,9 @@ export function ThermalSimulator({
       const fogLift = fog ? 28 : 0;
 
       for (let i = 0; i < d.length; i += 4) {
-        let r = d[i];
-        let g = d[i + 1];
-        let b = d[i + 2];
+        const r = d[i];
+        const g = d[i + 1];
+        const b = d[i + 2];
         // luminance
         let y = 0.299 * r + 0.587 * g + 0.114 * b;
         // contrast around mid
