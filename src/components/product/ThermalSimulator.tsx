@@ -14,8 +14,8 @@ type Palette = "whitehot" | "ironhot";
 type Weather = "clear" | "fog";
 
 /**
- * Layered thermal scenes: forest (full-frame) + subject (scales with distance).
- * Easy to add boar / human later.
+ * Layered scenes: forest (zooms with distance) + subject (static).
+ * Add boar/human as new entries later.
  */
 export type ThermalScene = {
   id: string;
@@ -25,10 +25,11 @@ export type ThermalScene = {
   forestIron: string;
   subjectWhite: string;
   subjectIron: string;
-  /** Ground line as fraction of frame height (0–1), feet of subject sit here */
+  /** Feet line as fraction of frame height */
   groundY: number;
-  /** Horizontal center of subject (0–1) */
   subjectX: number;
+  /** Fixed subject height as fraction of frame (does NOT change with distance) */
+  subjectHeightFrac: number;
 };
 
 const SCENES: ThermalScene[] = [
@@ -40,16 +41,20 @@ const SCENES: ThermalScene[] = [
     forestIron: "/thermal/forest_ironhot.jpg",
     subjectWhite: "/thermal/deer_subject_whitehot.jpg",
     subjectIron: "/thermal/deer_subject_ironhot.jpg",
-    groundY: 0.78,
+    groundY: 0.82,
     subjectX: 0.52,
+    subjectHeightFrac: 0.55,
   },
 ];
+
+/** Fixed logical display size — pixel-identical on all devices */
+const LOGIC_W = 480;
+const LOGIC_H = 270;
 
 type Props = {
   params: ThermalSimParams;
   locale?: string;
   allowMatrixPick?: boolean;
-  /** Default scene id */
   sceneId?: string;
   className?: string;
 };
@@ -73,6 +78,28 @@ const STATUS_COLOR: Record<DetectStatus, string> = {
   detect: "text-amber-300 border-amber-500/40 bg-amber-500/10",
   none: "text-zinc-400 border-zinc-500/30 bg-zinc-500/10",
 };
+
+/** Deterministic PRNG (mulberry32) */
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return function next() {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashSeed(...parts: (string | number | boolean)[]): number {
+  const s = parts.join("|");
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
 
 function ironLut(v: number): [number, number, number] {
   const t = Math.max(0, Math.min(1, v));
@@ -104,32 +131,36 @@ function ironLut(v: number): [number, number, number] {
   return [255, Math.round(190 + k * 65), Math.round(20 + k * 200)];
 }
 
-/** Cover-draw image into rect (like object-fit: cover) */
-function drawCover(
+/**
+ * Draw forest with object-fit:cover and zoom.
+ * zoom=1 → tightest crop (close / 50m), zoom=0 → widest view (far / maxRange).
+ * Higher zoomIn factor = more magnified (less of the source visible).
+ */
+function drawForestZoom(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  dx: number,
-  dy: number,
   dw: number,
   dh: number,
-  /** slight zoom >1 for parallax room */
-  zoom = 1.08
+  /** 0 = max distance (wide), 1 = 50m (zoomed in) */
+  closeAmount: number
 ) {
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
   if (!iw || !ih) return;
-  const scale = Math.max(dw / iw, dh / ih) * zoom;
+
+  // Base cover scale
+  const cover = Math.max(dw / iw, dh / ih);
+  // At 50m (close=1): strong zoom-in; at max (close=0): mild cover
+  const zoomMult = 1.05 + closeAmount * 1.35; // ~1.05 far … ~2.4 near
+  const scale = cover * zoomMult;
   const sw = dw / scale;
   const sh = dh / scale;
   const sx = (iw - sw) / 2;
-  const sy = (ih - sh) / 2;
-  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  const sy = (ih - sh) / 2 + (1 - closeAmount) * ih * 0.02;
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
 }
 
-/**
- * Draw subject with black/near-black treated as transparent (chroma key).
- * Works with JPG assets that have solid black backgrounds.
- */
+/** Subject: black → transparent key */
 function drawSubjectKeyed(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -145,7 +176,7 @@ function drawSubjectKeyed(
   const tmp = document.createElement("canvas");
   tmp.width = Math.max(1, Math.round(dw));
   tmp.height = Math.max(1, Math.round(dh));
-  const tctx = tmp.getContext("2d");
+  const tctx = tmp.getContext("2d", { willReadFrequently: true });
   if (!tctx) return;
 
   tctx.drawImage(img, 0, 0, tmp.width, tmp.height);
@@ -153,29 +184,11 @@ function drawSubjectKeyed(
   const d = id.data;
   for (let i = 0; i < d.length; i += 4) {
     const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    // Soft key: pure black → transparent, keep warm/bright body
-    if (y < 18) {
-      d[i + 3] = 0;
-    } else if (y < 40) {
-      d[i + 3] = Math.round(((y - 18) / 22) * 255);
-    }
+    if (y < 18) d[i + 3] = 0;
+    else if (y < 40) d[i + 3] = Math.round(((y - 18) / 22) * 255);
   }
   tctx.putImageData(id, 0, 0);
   ctx.drawImage(tmp, dx, dy);
-}
-
-/**
- * Distance → subject height as fraction of frame.
- * 50 m → ~65%, maxRange → ~11%
- */
-function subjectHeightFrac(distanceM: number, maxRangeM: number): number {
-  const t = Math.max(
-    0,
-    Math.min(1, (distanceM - 50) / Math.max(1, maxRangeM - 50))
-  );
-  // ease so mid-range still readable
-  const e = Math.pow(t, 0.85);
-  return 0.65 * (1 - e) + 0.11 * e;
 }
 
 export function ThermalSimulator({
@@ -204,7 +217,8 @@ export function ThermalSimulator({
   const forestIron = useRef<HTMLImageElement | null>(null);
   const subjWhite = useRef<HTMLImageElement | null>(null);
   const subjIron = useRef<HTMLImageElement | null>(null);
-  const offRef = useRef<HTMLCanvasElement | null>(null);
+  const composeRef = useRef<HTMLCanvasElement | null>(null);
+  const matrixRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     setMatrix(params.matrix);
@@ -270,69 +284,56 @@ export function ThermalSimulator({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const cssW = canvas.clientWidth || 640;
-      const cssH = Math.round(cssW * (9 / 16));
-      if (
-        canvas.width !== Math.round(cssW * dpr) ||
-        canvas.height !== Math.round(cssH * dpr)
-      ) {
-        canvas.width = Math.round(cssW * dpr);
-        canvas.height = Math.round(cssH * dpr);
+      // Fixed logical size — CSS scales; content identical on all devices
+      if (canvas.width !== LOGIC_W || canvas.height !== LOGIC_H) {
+        canvas.width = LOGIC_W;
+        canvas.height = LOGIC_H;
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const forest =
         palette === "whitehot" ? forestWhite.current : forestIron.current;
       const subject =
         palette === "whitehot" ? subjWhite.current : subjIron.current;
 
-      const pixW = matrixPixelWidth(matrixUse);
-      const pixH = Math.round(pixW * (9 / 16));
-
-      if (!offRef.current) offRef.current = document.createElement("canvas");
-      const off = offRef.current;
-      off.width = pixW;
-      off.height = pixH;
-      const octx = off.getContext("2d");
-      if (!octx) return;
-
-      // ── Layer 1: forest always full-frame cover ──
-      octx.fillStyle = "#0a0b10";
-      octx.fillRect(0, 0, pixW, pixH);
-      octx.imageSmoothingEnabled = true;
-      if (forest && forest.complete && forest.naturalWidth > 0) {
-        // slight zoom + tiny parallax shift with distance
-        const t = Math.max(
-          0,
-          Math.min(1, (distance - 50) / Math.max(1, maxRange - 50))
-        );
-        const zoom = 1.06 + t * 0.04;
-        drawCover(octx, forest, 0, 0, pixW, pixH, zoom);
+      // ── 1) Compose at full logical resolution ──
+      if (!composeRef.current) {
+        composeRef.current = document.createElement("canvas");
       }
+      const compose = composeRef.current;
+      compose.width = LOGIC_W;
+      compose.height = LOGIC_H;
+      const cctx = compose.getContext("2d", { willReadFrequently: true });
+      if (!cctx) return;
 
-      // ── Layer 2: subject scales with distance, feet on ground line ──
-      const hFrac = subjectHeightFrac(distance, maxRange);
-      const subjH = pixH * hFrac;
-      // aspect ~ square-ish subject assets
-      const subjW = subjH * 0.85;
-      // perspective: farther → slightly higher in frame (toward horizon)
+      cctx.fillStyle = "#0a0b10";
+      cctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
+      cctx.imageSmoothingEnabled = true;
+
+      // Distance → forest zoom (INVERTED): near = zoomed in, far = zoomed out
       const t = Math.max(
         0,
         Math.min(1, (distance - 50) / Math.max(1, maxRange - 50))
       );
-      const groundY = scene.groundY - t * 0.08;
-      const feetY = pixH * groundY;
-      const subjX = pixW * scene.subjectX - subjW / 2;
+      // closeAmount: 1 at 50m, 0 at maxRange
+      const closeAmount = 1 - Math.pow(t, 0.9);
+
+      if (forest && forest.complete && forest.naturalWidth > 0) {
+        drawForestZoom(cctx, forest, LOGIC_W, LOGIC_H, closeAmount);
+      }
+
+      // Static deer — fixed size & position on ground line
+      const subjH = LOGIC_H * scene.subjectHeightFrac;
+      const subjW = subjH * 0.85;
+      const feetY = LOGIC_H * scene.groundY;
+      const subjX = LOGIC_W * scene.subjectX - subjW / 2;
       const subjY = feetY - subjH;
 
       if (subject && subject.complete && subject.naturalWidth > 0) {
-        drawSubjectKeyed(octx, subject, subjX, subjY, subjW, subjH);
+        drawSubjectKeyed(cctx, subject, subjX, subjY, subjW, subjH);
       } else {
-        // Fallback deer blob
-        octx.fillStyle = palette === "ironhot" ? "#ff6b1a" : "#e8eaed";
-        octx.beginPath();
-        octx.ellipse(
+        cctx.fillStyle = palette === "ironhot" ? "#ff6b1a" : "#e8eaed";
+        cctx.beginPath();
+        cctx.ellipse(
           subjX + subjW * 0.5,
           subjY + subjH * 0.55,
           subjW * 0.35,
@@ -341,22 +342,22 @@ export function ThermalSimulator({
           0,
           Math.PI * 2
         );
-        octx.fill();
-        octx.beginPath();
-        octx.ellipse(
-          subjX + subjW * 0.72,
-          subjY + subjH * 0.32,
-          subjW * 0.16,
-          subjH * 0.14,
-          0,
-          0,
-          Math.PI * 2
-        );
-        octx.fill();
+        cctx.fill();
       }
 
-      // ── Post-FX on FINAL composite (matrix noise, NETD, fog, palette) ──
-      const imageData = octx.getImageData(0, 0, pixW, pixH);
+      // ── 2) Deterministic FX (seeded noise) on full composite ──
+      const seed = hashSeed(
+        scene.id,
+        matrixUse,
+        netdUse,
+        distance,
+        weather,
+        palette,
+        "v2"
+      );
+      const rand = mulberry32(seed);
+
+      const imageData = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
       const d = imageData.data;
       const fog = weather === "fog";
       const noiseAmp = (netdUse / 35) * (fog ? 1.55 : 1) * 26;
@@ -370,40 +371,55 @@ export function ThermalSimulator({
         const b = d[i + 2];
         let y = 0.299 * r + 0.587 * g + 0.114 * b;
         y = (y - 128) * contrast + 128 + fogLift;
-        y += (Math.random() - 0.5) * noiseAmp;
+        y += (rand() - 0.5) * noiseAmp;
         y = Math.max(0, Math.min(255, y));
 
         if (palette === "whitehot") {
           d[i] = d[i + 1] = d[i + 2] = y;
         } else {
-          // Keep iron character but unify contrast/noise
           const [rr, gg, bb] = ironLut(y / 255);
-          // blend with original iron hues for warmer look
           d[i] = Math.round(rr * 0.55 + r * 0.45);
           d[i + 1] = Math.round(gg * 0.55 + g * 0.45);
           d[i + 2] = Math.round(bb * 0.55 + b * 0.45);
         }
         d[i + 3] = 255;
       }
-      octx.putImageData(imageData, 0, 0);
+      cctx.putImageData(imageData, 0, 0);
 
-      // Upscale nearest-neighbor → matrix pixels
+      // ── 3) Matrix pixelation: downscale → upscale nearest ──
+      const pixW = matrixPixelWidth(matrixUse);
+      const pixH = Math.round(pixW * (9 / 16));
+
+      if (!matrixRef.current) {
+        matrixRef.current = document.createElement("canvas");
+      }
+      const mCan = matrixRef.current;
+      mCan.width = pixW;
+      mCan.height = pixH;
+      const mctx = mCan.getContext("2d");
+      if (!mctx) return;
+
+      mctx.imageSmoothingEnabled = true;
+      mctx.drawImage(compose, 0, 0, pixW, pixH);
+
+      // Final: nearest-neighbor to fixed logical canvas
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(off, 0, 0, cssW, cssH);
+      ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
+      ctx.drawImage(mCan, 0, 0, LOGIC_W, LOGIC_H);
 
-      // Display vignette
+      // Vignette (deterministic, no random)
       const grd = ctx.createRadialGradient(
-        cssW / 2,
-        cssH / 2,
-        cssH * 0.28,
-        cssW / 2,
-        cssH / 2,
-        cssH * 0.78
+        LOGIC_W / 2,
+        LOGIC_H / 2,
+        LOGIC_H * 0.28,
+        LOGIC_W / 2,
+        LOGIC_H / 2,
+        LOGIC_H * 0.78
       );
       grd.addColorStop(0, "rgba(0,0,0,0)");
       grd.addColorStop(1, "rgba(0,0,0,0.42)");
       ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, cssW, cssH);
+      ctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
 
       // HUD
       ctx.fillStyle = "rgba(225,29,42,0.95)";
@@ -423,6 +439,8 @@ export function ThermalSimulator({
       params.refreshRateHz,
       scene.groundY,
       scene.subjectX,
+      scene.subjectHeightFrac,
+      scene.id,
     ]
   );
 
@@ -442,18 +460,6 @@ export function ThermalSimulator({
     weather,
     palette,
   ]);
-
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      render(canvasRef.current, matrix, params.netdMk);
-      if (compare)
-        render(canvasWeakRef.current, 256, Math.max(params.netdMk, 40));
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [render, matrix, params.netdMk, compare]);
 
   const statusLabel = isRu ? STATUS_RU[status] : STATUS_UK[status];
 
@@ -477,8 +483,8 @@ export function ThermalSimulator({
           </h2>
           <p className="mt-1 text-sm text-secondary">
             {isRu
-              ? `Симуляция: матрица ${matrix}, NETD ≤${params.netdMk} mK, дальность до ${maxRange} м · ${scene.labelRu}`
-              : `Симуляція: матриця ${matrix}, NETD ≤${params.netdMk} mK, дальність до ${maxRange} м · ${scene.labelUk}`}
+              ? `Симуляция: матрица ${matrix}, NETD ≤${params.netdMk} mK, до ${maxRange} м · ${scene.labelRu}`
+              : `Симуляція: матриця ${matrix}, NETD ≤${params.netdMk} mK, до ${maxRange} м · ${scene.labelUk}`}
           </p>
         </div>
         <div
@@ -507,10 +513,13 @@ export function ThermalSimulator({
                 "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)",
             }}
           >
+            {/* Fixed internal 480×270; CSS scales width — same pixels everywhere */}
             <canvas
               ref={canvasRef}
-              className="block w-full"
-              style={{ aspectRatio: "16 / 9" }}
+              width={LOGIC_W}
+              height={LOGIC_H}
+              className="block h-auto w-full"
+              style={{ aspectRatio: `${LOGIC_W} / ${LOGIC_H}` }}
               role="img"
               aria-label={
                 isRu
@@ -532,8 +541,10 @@ export function ThermalSimulator({
             >
               <canvas
                 ref={canvasWeakRef}
-                className="block w-full"
-                style={{ aspectRatio: "16 / 9" }}
+                width={LOGIC_W}
+                height={LOGIC_H}
+                className="block h-auto w-full"
+                style={{ aspectRatio: `${LOGIC_W} / ${LOGIC_H}` }}
                 role="img"
                 aria-label={
                   isRu
@@ -568,8 +579,8 @@ export function ThermalSimulator({
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `Олень уменьшается с дистанцией; лес всегда на весь кадр. Прибор — до ${maxRange} м`
-                : `Олень зменшується з дистанцією; ліс завжди на весь кадр. Прилад — до ${maxRange} м`}
+                ? `Олень неподвижен; лес зумится. 50 м — крупный план, ${maxRange} м — широкий вид. Картинка одинаковая на всех устройствах.`
+                : `Олень нерухомий; ліс зумиться. 50 м — крупний план, ${maxRange} м — широкий вид. Картинка однакова на всіх пристроях.`}
             </span>
           </label>
         </div>
@@ -663,8 +674,8 @@ export function ThermalSimulator({
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
         {isRu
-          ? "Двухслойная сцена: лес всегда на весь кадр, цель масштабируется. Пикселизация, NETD и туман — на финальном кадре. Приближение."
-          : "Двошарова сцена: ліс завжди на весь кадр, ціль масштабується. Пікселізація, NETD і туман — на фінальному кадрі. Наближення."}
+          ? "Симуляция: олень фиксирован, зум леса = дистанция. Пикселизация/NETD/туман — на финальном кадре. Один и тот же кадр на любом устройстве (seeded noise, 480×270)."
+          : "Симуляція: олень фіксований, зум лісу = дистанція. Пікселізація/NETD/туман — на фінальному кадрі. Той самий кадр на будь-якому пристрої (seeded noise, 480×270)."}
       </p>
 
       <style jsx>{`
@@ -690,5 +701,4 @@ export function ThermalSimulator({
   );
 }
 
-/** Export scene registry for blog / future targets */
 export { SCENES };
