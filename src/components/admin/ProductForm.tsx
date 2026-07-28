@@ -27,7 +27,12 @@ export type ProductFormState = {
   isSale: boolean;
   published: boolean;
   images: string[];
+  imageAlts: string[];
   specs: Record<string, string>;
+  metaTitleUk: string;
+  metaTitleRu: string;
+  metaDescriptionUk: string;
+  metaDescriptionRu: string;
 };
 
 export function productToForm(p?: Product | null): ProductFormState {
@@ -54,7 +59,12 @@ export function productToForm(p?: Product | null): ProductFormState {
     isSale: Boolean(p?.isSale),
     published: p?.published !== false,
     images: p?.images ? [...p.images] : [],
+    imageAlts: p?.imageAlts ? [...p.imageAlts] : [],
     specs: { ...(p?.specs || {}) },
+    metaTitleUk: p?.metaTitleUk || "",
+    metaTitleRu: p?.metaTitleRu || "",
+    metaDescriptionUk: p?.metaDescriptionUk || "",
+    metaDescriptionRu: p?.metaDescriptionRu || "",
   };
 }
 
@@ -92,8 +102,13 @@ export function formToPayload(form: ProductFormState, id?: string) {
     isSale: form.isSale || Boolean(form.oldPrice && Number(form.oldPrice) > Number(form.price)),
     published: form.published,
     images: form.images,
+    imageAlts: form.imageAlts,
     mainImageIndex: 0,
     specs,
+    metaTitleUk: form.metaTitleUk || null,
+    metaTitleRu: form.metaTitleRu || null,
+    metaDescriptionUk: form.metaDescriptionUk || null,
+    metaDescriptionRu: form.metaDescriptionRu || null,
   };
 }
 
@@ -153,7 +168,14 @@ export function ProductForm({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Помилка завантаження");
       if (data.urls?.length) {
-        setForm((f) => ({ ...f, images: [...f.images, ...data.urls] }));
+        setForm((f) => ({
+          ...f,
+          images: [...f.images, ...data.urls],
+          imageAlts: [
+            ...f.imageAlts,
+            ...data.urls.map(() => ""),
+          ],
+        }));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Помилка завантаження фото");
@@ -165,16 +187,38 @@ export function ProductForm({
   const addImageUrl = () => {
     const url = prompt("URL зображення:");
     if (url?.trim()) {
-      setForm((f) => ({ ...f, images: [...f.images, url.trim()] }));
+      setForm((f) => ({
+        ...f,
+        images: [...f.images, url.trim()],
+        imageAlts: [...f.imageAlts, ""],
+      }));
     }
   };
 
   const setMain = (index: number) => {
     setForm((f) => {
       const images = [...f.images];
+      const alts = [...f.imageAlts];
       const [main] = images.splice(index, 1);
       images.unshift(main);
-      return { ...f, images };
+      if (alts.length > index) {
+        const [a] = alts.splice(index, 1);
+        alts.unshift(a || "");
+      }
+      return { ...f, images, imageAlts: alts };
+    });
+  };
+
+  const moveImage = (index: number, dir: -1 | 1) => {
+    setForm((f) => {
+      const j = index + dir;
+      if (j < 0 || j >= f.images.length) return f;
+      const images = [...f.images];
+      const alts = [...f.imageAlts];
+      while (alts.length < images.length) alts.push("");
+      [images[index], images[j]] = [images[j], images[index]];
+      [alts[index], alts[j]] = [alts[j], alts[index]];
+      return { ...f, images, imageAlts: alts };
     });
   };
 
@@ -182,6 +226,7 @@ export function ProductForm({
     setForm((f) => ({
       ...f,
       images: f.images.filter((_, i) => i !== index),
+      imageAlts: f.imageAlts.filter((_, i) => i !== index),
     }));
   };
 
@@ -504,31 +549,57 @@ export function ProductForm({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={src}
-                  alt=""
+                  alt={form.imageAlts[i] || ""}
                   className="aspect-square w-full object-contain p-1"
                 />
-                <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/60 p-1">
-                  {i !== 0 && (
+                <div className="absolute inset-x-0 bottom-0 space-y-0.5 bg-black/70 p-1">
+                  <div className="flex gap-1">
                     <button
                       type="button"
-                      className="flex-1 rounded bg-white/90 px-1 py-0.5 text-[10px] font-medium"
-                      onClick={() => setMain(i)}
+                      className="rounded bg-white/90 px-1 py-0.5 text-[10px]"
+                      onClick={() => moveImage(i, -1)}
                     >
-                      Головне
+                      ←
                     </button>
-                  )}
-                  {i === 0 && (
-                    <span className="flex-1 text-center text-[10px] font-medium text-emerald-300">
-                      Головне
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    className="rounded bg-red-500/90 px-1.5 py-0.5 text-[10px] text-white"
-                    onClick={() => removeImage(i)}
-                  >
-                    ×
-                  </button>
+                    <button
+                      type="button"
+                      className="rounded bg-white/90 px-1 py-0.5 text-[10px]"
+                      onClick={() => moveImage(i, 1)}
+                    >
+                      →
+                    </button>
+                    {i !== 0 ? (
+                      <button
+                        type="button"
+                        className="flex-1 rounded bg-white/90 px-1 py-0.5 text-[10px] font-medium"
+                        onClick={() => setMain(i)}
+                      >
+                        Головне
+                      </button>
+                    ) : (
+                      <span className="flex-1 text-center text-[10px] font-medium text-emerald-300">
+                        Головне
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="rounded bg-red-500/90 px-1.5 py-0.5 text-[10px] text-white"
+                      onClick={() => removeImage(i)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <input
+                    className="w-full rounded px-1 py-0.5 text-[10px] text-zinc-900"
+                    placeholder="Alt-текст"
+                    value={form.imageAlts[i] || ""}
+                    onChange={(e) => {
+                      const alts = [...form.imageAlts];
+                      while (alts.length < form.images.length) alts.push("");
+                      alts[i] = e.target.value;
+                      set("imageAlts", alts);
+                    }}
+                  />
                 </div>
               </div>
             ))}
@@ -538,6 +609,47 @@ export function ProductForm({
             Фото ще немає
           </p>
         )}
+      </section>
+
+      {/* SEO */}
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          SEO
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className={label}>Meta title (UK)</span>
+            <input
+              className={field}
+              value={form.metaTitleUk}
+              onChange={(e) => set("metaTitleUk", e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className={label}>Meta title (RU)</span>
+            <input
+              className={field}
+              value={form.metaTitleRu}
+              onChange={(e) => set("metaTitleRu", e.target.value)}
+            />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className={label}>Meta description (UK)</span>
+            <textarea
+              className={cn(field, "min-h-[60px]")}
+              value={form.metaDescriptionUk}
+              onChange={(e) => set("metaDescriptionUk", e.target.value)}
+            />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className={label}>Meta description (RU)</span>
+            <textarea
+              className={cn(field, "min-h-[60px]")}
+              value={form.metaDescriptionRu}
+              onChange={(e) => set("metaDescriptionRu", e.target.value)}
+            />
+          </label>
+        </div>
       </section>
 
       {/* Flags */}

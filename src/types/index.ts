@@ -52,9 +52,15 @@ export interface Product {
   isTop: boolean;
   isSale: boolean;
   images: string[];
+  /** Parallel to images[] — alt text per photo */
+  imageAlts?: string[];
   specs: Record<string, string>;
   published: boolean;
   createdAt: string;
+  metaTitleUk?: string | null;
+  metaTitleRu?: string | null;
+  metaDescriptionUk?: string | null;
+  metaDescriptionRu?: string | null;
   /** Filled when competitor price links exist */
   priceCompare?: import("@/lib/price-compare/types").PriceCompareSummary | null;
 }
@@ -68,13 +74,14 @@ export interface CartItem {
   quantity: number;
 }
 
-/** Admin workflow: Новий → В обробці → Відправлено → Виконано */
+/** Admin workflow: new → processing → shipped → done (+ cancelled, returned) */
 export type OrderStatus =
   | "new"
   | "processing"
   | "shipped"
   | "done"
-  | "cancelled";
+  | "cancelled"
+  | "returned";
 
 export type PaymentMethod = "cod" | "monobank" | "liqpay" | "wayforpay";
 
@@ -96,7 +103,13 @@ export interface Order {
   subtotal: number;
   total: number;
   comment?: string | null;
+  /** Internal note — not shown to customer */
+  managerComment?: string | null;
+  trackingNumber?: string | null;
+  trackingUrl?: string | null;
+  statusNotifiedAt?: string | null;
   createdAt: string;
+  updatedAt?: string | null;
   items?: OrderItem[];
 }
 

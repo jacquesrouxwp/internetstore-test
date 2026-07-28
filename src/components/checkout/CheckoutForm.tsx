@@ -34,6 +34,8 @@ export function CheckoutForm() {
   const [email, setEmail] = useState("");
   const [comment, setComment] = useState("");
   const [payment, setPayment] = useState("cod");
+  /** Honeypot — bots fill this; humans never see it */
+  const [website, setWebsite] = useState("");
 
   // City autocomplete
   const [cityQuery, setCityQuery] = useState("");
@@ -225,6 +227,12 @@ export function CheckoutForm() {
     e.preventDefault();
     setError("");
 
+    if (website.trim()) {
+      // Silent success for bots
+      setDone("OK");
+      return;
+    }
+
     if (!city?.Ref) {
       setError(t("cityRequired"));
       return;
@@ -245,6 +253,7 @@ export function CheckoutForm() {
           customerEmail: email,
           paymentMethod: payment,
           comment,
+          website,
           npCityRef: city.Ref,
           npCityName: city.Description,
           npWarehouseRef: warehouse.Ref,
@@ -280,6 +289,21 @@ export function CheckoutForm() {
   return (
     <form onSubmit={submit} className="grid gap-8 lg:grid-cols-[1fr_340px]">
       <div className="space-y-6">
+        {/* Honeypot — off-screen */}
+        <div
+          aria-hidden
+          className="absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+        >
+          <label>
+            Website
+            <input
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </label>
+        </div>
         <section className="card-surface p-6">
           <h2 className="mb-4 text-lg font-semibold">{t("contact")}</h2>
           <div className="grid gap-4 sm:grid-cols-2">

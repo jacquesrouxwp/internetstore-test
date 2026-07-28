@@ -13,28 +13,80 @@ import {
   productToDbRow,
 } from "@/lib/supabase/mappers";
 
-export async function adminListProducts(q?: string): Promise<Product[]> {
+export type AdminProductListParams = {
+  q?: string;
+  categoryId?: string;
+  brandId?: string;
+  published?: "all" | "yes" | "no";
+  stock?: "all" | "in" | "out" | "low";
+  sort?: string;
+  page?: number;
+  limit?: number;
+  lowThreshold?: number;
+};
+
+export async function adminListProducts(
+  params: string | AdminProductListParams = {}
+): Promise<{ products: Product[]; total: number; page: number; limit: number }> {
   if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
+  const p: AdminProductListParams =
+    typeof params === "string" ? { q: params } : params || {};
+  const page = Math.max(1, p.page || 1);
+  const limit = Math.min(100, Math.max(1, p.limit || 50));
+  const low = p.lowThreshold ?? 2;
   const supabase = createServiceClient();
-  const { data, error } = await supabase
+
+  let q = supabase
     .from("products")
-    .select("*, brands(slug, name), categories(slug)")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  let products = (data || []).map((r) =>
-    mapDbProduct(r as Record<string, unknown>)
-  );
-  if (q) {
-    const s = q.toLowerCase();
-    products = products.filter(
-      (p) =>
-        p.nameUk.toLowerCase().includes(s) ||
-        p.nameRu.toLowerCase().includes(s) ||
-        (p.sku || "").toLowerCase().includes(s) ||
-        (p.brandName || "").toLowerCase().includes(s)
+    .select("*, brands(slug, name), categories(slug)", { count: "exact" });
+
+  if (p.categoryId) q = q.eq("category_id", p.categoryId);
+  if (p.brandId) q = q.eq("brand_id", p.brandId);
+  if (p.published === "yes") q = q.eq("published", true);
+  if (p.published === "no") q = q.eq("published", false);
+  if (p.stock === "in") q = q.gt("stock", 0);
+  if (p.stock === "out") q = q.eq("stock", 0);
+  if (p.stock === "low") q = q.gt("stock", 0).lte("stock", low);
+  if (p.q?.trim()) {
+    const s = p.q.trim().replace(/%/g, "");
+    q = q.or(
+      `name_uk.ilike.%${s}%,name_ru.ilike.%${s}%,sku.ilike.%${s}%,slug.ilike.%${s}%`
     );
   }
-  return products;
+
+  switch (p.sort) {
+    case "price_asc":
+      q = q.order("price", { ascending: true });
+      break;
+    case "price_desc":
+      q = q.order("price", { ascending: false });
+      break;
+    case "stock_asc":
+      q = q.order("stock", { ascending: true });
+      break;
+    case "stock_desc":
+      q = q.order("stock", { ascending: false });
+      break;
+    case "name":
+      q = q.order("name_uk", { ascending: true });
+      break;
+    default:
+      q = q.order("created_at", { ascending: false });
+  }
+
+  const from = (page - 1) * limit;
+  q = q.range(from, from + limit - 1);
+
+  const { data, error, count } = await q;
+  if (error) throw error;
+  return {
+    products: (data || []).map((r) =>
+      mapDbProduct(r as Record<string, unknown>)
+    ),
+    total: count ?? 0,
+    page,
+    limit,
+  };
 }
 
 export async function adminGetProduct(id: string): Promise<Product | null> {
@@ -180,17 +232,52 @@ export async function adminDeleteCategory(id: string) {
   if (error) throw error;
 }
 
+export type AdminOrderListParams = {
+  status?: string | null;
+  q?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  limit?: number;
+};
+
 export async function adminListOrders(
-  status?: string | null
-): Promise<Order[]> {
+  statusOrParams?: string | null | AdminOrderListParams
+): Promise<{ orders: Order[]; total: number; page: number; limit: number }> {
   if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
+  const p: AdminOrderListParams =
+    typeof statusOrParams === "object" && statusOrParams !== null
+      ? statusOrParams
+      : { status: statusOrParams as string | null };
+  const page = Math.max(1, p.page || 1);
+  const limit = Math.min(100, Math.max(1, p.limit || 30));
   const supabase = createServiceClient();
+
   let q = supabase
     .from("orders")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("created_at", { ascending: false });
-  if (status && status !== "all") q = q.eq("status", status);
-  const { data, error } = await q;
+
+  if (p.status && p.status !== "all") q = q.eq("status", p.status);
+  if (p.dateFrom) q = q.gte("created_at", p.dateFrom);
+  if (p.dateTo) {
+    // inclusive end day
+    const end = p.dateTo.includes("T")
+      ? p.dateTo
+      : `${p.dateTo}T23:59:59.999Z`;
+    q = q.lte("created_at", end);
+  }
+  if (p.q?.trim()) {
+    const s = p.q.trim().replace(/%/g, "");
+    q = q.or(
+      `order_number.ilike.%${s}%,customer_phone.ilike.%${s}%,customer_name.ilike.%${s}%,customer_email.ilike.%${s}%`
+    );
+  }
+
+  const from = (page - 1) * limit;
+  q = q.range(from, from + limit - 1);
+
+  const { data, error, count } = await q;
   if (error) throw error;
 
   const orders: Order[] = [];
@@ -206,7 +293,7 @@ export async function adminListOrders(
       )
     );
   }
-  return orders;
+  return { orders, total: count ?? 0, page, limit };
 }
 
 export async function adminGetOrder(id: string): Promise<Order | null> {
@@ -233,15 +320,123 @@ export async function adminUpdateOrderStatus(
   id: string,
   status: OrderStatus
 ): Promise<Order | null> {
+  return adminPatchOrder(id, { status });
+}
+
+export async function adminPatchOrder(
+  id: string,
+  patch: {
+    status?: OrderStatus;
+    managerComment?: string | null;
+    trackingNumber?: string | null;
+    trackingUrl?: string | null;
+    statusNotifiedAt?: string | null;
+    paymentStatus?: string;
+  }
+): Promise<Order | null> {
   if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
   const supabase = createServiceClient();
+  const row: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (patch.status != null) row.status = patch.status;
+  if (patch.managerComment !== undefined)
+    row.manager_comment = patch.managerComment;
+  if (patch.trackingNumber !== undefined)
+    row.tracking_number = patch.trackingNumber;
+  if (patch.trackingUrl !== undefined) row.tracking_url = patch.trackingUrl;
+  if (patch.statusNotifiedAt !== undefined)
+    row.status_notified_at = patch.statusNotifiedAt;
+  if (patch.paymentStatus != null) row.payment_status = patch.paymentStatus;
+
   const { data, error } = await supabase
     .from("orders")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update(row)
     .eq("id", id)
     .select("*")
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
   return adminGetOrder(id);
+}
+
+export async function adminBulkProducts(
+  ids: string[],
+  action:
+    | { type: "publish"; published: boolean }
+    | { type: "delete" }
+    | { type: "pricePercent"; percent: number }
+): Promise<number> {
+  if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
+  if (!ids.length) return 0;
+  const supabase = createServiceClient();
+  if (action.type === "delete") {
+    const { error } = await supabase.from("products").delete().in("id", ids);
+    if (error) throw error;
+    return ids.length;
+  }
+  if (action.type === "publish") {
+    const { error, count } = await supabase
+      .from("products")
+      .update({
+        published: action.published,
+        updated_at: new Date().toISOString(),
+      })
+      .in("id", ids);
+    if (error) throw error;
+    return count ?? ids.length;
+  }
+  if (action.type === "pricePercent") {
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, price")
+      .in("id", ids);
+    if (error) throw error;
+    let n = 0;
+    const factor = 1 + action.percent / 100;
+    for (const row of data || []) {
+      const price = Math.max(0, Math.round(Number(row.price) * factor));
+      await supabase
+        .from("products")
+        .update({ price, updated_at: new Date().toISOString() })
+        .eq("id", row.id);
+      n++;
+    }
+    return n;
+  }
+  return 0;
+}
+
+export async function adminDuplicateProduct(
+  id: string
+): Promise<Product | null> {
+  const src = await adminGetProduct(id);
+  if (!src) return null;
+  const copy: Product = {
+    ...src,
+    id: `new-${Date.now()}`,
+    slug: `${src.slug}-copy-${Date.now().toString(36).slice(-4)}`,
+    nameUk: `${src.nameUk} (копія)`,
+    nameRu: `${src.nameRu} (копія)`,
+    published: false,
+    sku: src.sku ? `${src.sku}-COPY` : null,
+  };
+  return adminUpsertProduct(copy, true);
+}
+
+export async function adminPatchProductFields(
+  id: string,
+  fields: { price?: number; stock?: number; published?: boolean }
+): Promise<Product | null> {
+  if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
+  const supabase = createServiceClient();
+  const row: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (fields.price != null) row.price = fields.price;
+  if (fields.stock != null) row.stock = fields.stock;
+  if (fields.published != null) row.published = fields.published;
+  const { error } = await supabase.from("products").update(row).eq("id", id);
+  if (error) throw error;
+  return adminGetProduct(id);
 }

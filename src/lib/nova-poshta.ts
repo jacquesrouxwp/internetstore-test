@@ -364,6 +364,107 @@ export async function getWarehouses(
   return demo;
 }
 
+/**
+ * Create express waybill (ТТН). Requires full sender refs in env or store_settings.
+ */
+export async function createInternetDocument(props: {
+  citySender: string;
+  sender: string;
+  senderAddress: string;
+  contactSender: string;
+  sendersPhone: string;
+  cityRecipient: string;
+  recipient: string;
+  recipientAddress: string;
+  contactRecipient: string;
+  recipientsPhone: string;
+  weight?: string;
+  cost: number;
+  seatsAmount?: string;
+  description?: string;
+  serviceType?: string;
+  payerType?: string;
+  paymentMethod?: string;
+}): Promise<
+  | { ok: true; intDocNumber: string; ref: string; costOnSite?: number }
+  | { ok: false; error: string }
+> {
+  if (!hasNovaPoshtaKey()) {
+    return { ok: false, error: "NOVA_POSHTA_API_KEY not set" };
+  }
+  const required = [
+    props.citySender,
+    props.sender,
+    props.senderAddress,
+    props.contactSender,
+    props.sendersPhone,
+    props.cityRecipient,
+    props.recipientAddress,
+    props.contactRecipient,
+    props.recipientsPhone,
+  ];
+  if (required.some((x) => !String(x || "").trim())) {
+    return {
+      ok: false,
+      error:
+        "Неповні реквізити відправника/отримувача. Заповніть НП в /admin/settings",
+    };
+  }
+
+  const res = await npCall<
+    Array<{
+      IntDocNumber?: string;
+      Ref?: string;
+      CostOnSite?: string | number;
+    }>
+  >("InternetDocument", "save", {
+    PayerType: props.payerType || "Recipient",
+    PaymentMethod: props.paymentMethod || "Cash",
+    DateTime: new Date().toLocaleDateString("uk-UA"),
+    CargoType: "Cargo",
+    Weight: props.weight || "1",
+    ServiceType: props.serviceType || "WarehouseWarehouse",
+    SeatsAmount: props.seatsAmount || "1",
+    Description: props.description || "Оптика",
+    Cost: String(Math.max(1, Math.round(props.cost))),
+    CitySender: props.citySender,
+    Sender: props.sender,
+    SenderAddress: props.senderAddress,
+    ContactSender: props.contactSender,
+    SendersPhone: props.sendersPhone.replace(/[^\d+]/g, ""),
+    CityRecipient: props.cityRecipient,
+    // Recipient can be empty string for warehouse — NP creates contact
+    Recipient: props.recipient || "",
+    RecipientAddress: props.recipientAddress,
+    ContactRecipient: props.contactRecipient,
+    RecipientsPhone: props.recipientsPhone.replace(/[^\d+]/g, ""),
+  });
+
+  if (!res.ok) return { ok: false, error: res.error };
+  const row = res.data?.[0];
+  const num = row?.IntDocNumber ? String(row.IntDocNumber) : "";
+  if (!num) return { ok: false, error: "НП не повернула номер ТТН" };
+  return {
+    ok: true,
+    intDocNumber: num,
+    ref: String(row?.Ref || ""),
+    costOnSite:
+      row?.CostOnSite != null ? Number(row.CostOnSite) : undefined,
+  };
+}
+
+export function npTrackingUrl(ttn: string): string {
+  return `https://novaposhta.ua/tracking/?cargo_number=${encodeURIComponent(ttn)}`;
+}
+
+export function hasNpSenderEnv(): boolean {
+  return Boolean(
+    process.env.NOVA_POSHTA_API_KEY?.trim() &&
+      (process.env.NOVA_POSHTA_SENDER_CITY_REF?.trim() ||
+        process.env.NOVA_POSHTA_SENDER_REF?.trim())
+  );
+}
+
 export async function getDeliveryCost(opts: {
   cityRef: string;
   weight?: string;

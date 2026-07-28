@@ -78,6 +78,15 @@ export async function POST(req: NextRequest) {
       items?: RequestItem[];
     };
 
+    // Honeypot (bots)
+    if (body.website || body.company || body.url) {
+      return NextResponse.json({
+        ok: true,
+        orderNumber: "OK",
+        honeypot: true,
+      });
+    }
+
     if (!customerName || !customerPhone || !items?.length) {
       return NextResponse.json(
         { error: "Name, phone and items are required" },

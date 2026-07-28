@@ -4,11 +4,14 @@ import { slugify } from "@/lib/utils";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { hasServiceSupabase } from "@/lib/supabase/service";
 import {
+  adminBulkProducts,
   adminDeleteProduct,
+  adminDuplicateProduct,
   adminGetProduct,
   adminListBrands,
   adminListCategories,
   adminListProducts,
+  adminPatchProductFields,
   adminUpsertProduct,
 } from "@/lib/db/admin-repo";
 import {
@@ -93,16 +96,25 @@ function buildProduct(
         : existing?.oldPrice ?? null;
 
   const price = Number(body.price ?? existing?.price ?? 0);
-  const images = Array.isArray(body.images)
+  let images = Array.isArray(body.images)
     ? (body.images as string[]).filter(Boolean)
     : existing?.images || [];
+  let imageAlts = Array.isArray(body.imageAlts)
+    ? (body.imageAlts as string[]).map(String)
+    : existing?.imageAlts || [];
 
   const mainIndex =
     typeof body.mainImageIndex === "number" ? body.mainImageIndex : 0;
   if (images.length > 1 && mainIndex > 0 && mainIndex < images.length) {
     const [main] = images.splice(mainIndex, 1);
     images.unshift(main);
+    if (imageAlts.length > mainIndex) {
+      const [alt] = imageAlts.splice(mainIndex, 1);
+      imageAlts.unshift(alt || "");
+    }
   }
+  while (imageAlts.length < images.length) imageAlts.push("");
+  imageAlts = imageAlts.slice(0, images.length);
 
   return {
     id,
@@ -142,12 +154,25 @@ function buildProduct(
         ? Boolean(body.isSale)
         : Boolean(oldPrice && oldPrice > price),
     images,
+    imageAlts,
     specs,
     published:
       body.published != null
         ? Boolean(body.published)
         : existing?.published !== false,
     createdAt: existing?.createdAt || new Date().toISOString(),
+    metaTitleUk:
+      (body.metaTitleUk as string) ?? existing?.metaTitleUk ?? null,
+    metaTitleRu:
+      (body.metaTitleRu as string) ?? existing?.metaTitleRu ?? null,
+    metaDescriptionUk:
+      (body.metaDescriptionUk as string) ??
+      existing?.metaDescriptionUk ??
+      null,
+    metaDescriptionRu:
+      (body.metaDescriptionRu as string) ??
+      existing?.metaDescriptionRu ??
+      null,
   };
 }
 
@@ -165,14 +190,27 @@ export async function GET(req: NextRequest) {
         }
         return NextResponse.json({ product, source: "supabase" });
       }
-      const q = req.nextUrl.searchParams.get("q") || undefined;
-      const [products, brands, categories] = await Promise.all([
-        adminListProducts(q),
+      const sp = req.nextUrl.searchParams;
+      const [list, brands, categories] = await Promise.all([
+        adminListProducts({
+          q: sp.get("q") || undefined,
+          categoryId: sp.get("categoryId") || undefined,
+          brandId: sp.get("brandId") || undefined,
+          published: (sp.get("published") as "all" | "yes" | "no") || "all",
+          stock: (sp.get("stock") as "all" | "in" | "out" | "low") || "all",
+          sort: sp.get("sort") || undefined,
+          page: Number(sp.get("page") || 1),
+          limit: Number(sp.get("limit") || 50),
+          lowThreshold: Number(sp.get("lowThreshold") || 2),
+        }),
         adminListBrands(),
         adminListCategories(),
       ]);
       return NextResponse.json({
-        products,
+        products: list.products,
+        total: list.total,
+        page: list.page,
+        limit: list.limit,
         brands,
         categories,
         source: "supabase",
@@ -296,6 +334,96 @@ export async function DELETE(req: NextRequest) {
     }
     deleteRuntimeProduct(id);
     return NextResponse.json({ ok: true, source: "memory" });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH — bulk / inline / duplicate
+ * body: { action, ids?, id?, price?, stock?, published?, percent? }
+ */
+export async function PATCH(req: NextRequest) {
+  const denied = requireAdminApi(req);
+  if (denied) return denied;
+  if (!hasServiceSupabase()) {
+    return NextResponse.json(
+      { error: "Supabase not configured" },
+      { status: 503 }
+    );
+  }
+
+  try {
+    const body = await req.json();
+    const action = String(body.action || "");
+
+    if (action === "duplicate") {
+      const id = String(body.id || "");
+      if (!id) {
+        return NextResponse.json({ error: "id required" }, { status: 400 });
+      }
+      const product = await adminDuplicateProduct(id);
+      if (!product) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      return NextResponse.json({ product });
+    }
+
+    if (action === "inline") {
+      const id = String(body.id || "");
+      if (!id) {
+        return NextResponse.json({ error: "id required" }, { status: 400 });
+      }
+      const product = await adminPatchProductFields(id, {
+        price: body.price != null ? Number(body.price) : undefined,
+        stock: body.stock != null ? Number(body.stock) : undefined,
+        published:
+          body.published != null ? Boolean(body.published) : undefined,
+      });
+      return NextResponse.json({ product });
+    }
+
+    const ids = Array.isArray(body.ids)
+      ? (body.ids as string[]).map(String)
+      : [];
+    if (!ids.length) {
+      return NextResponse.json({ error: "ids required" }, { status: 400 });
+    }
+
+    if (action === "publish") {
+      const n = await adminBulkProducts(ids, {
+        type: "publish",
+        published: true,
+      });
+      return NextResponse.json({ ok: true, affected: n });
+    }
+    if (action === "unpublish") {
+      const n = await adminBulkProducts(ids, {
+        type: "publish",
+        published: false,
+      });
+      return NextResponse.json({ ok: true, affected: n });
+    }
+    if (action === "delete") {
+      const n = await adminBulkProducts(ids, { type: "delete" });
+      return NextResponse.json({ ok: true, affected: n });
+    }
+    if (action === "pricePercent") {
+      const percent = Number(body.percent);
+      if (!Number.isFinite(percent)) {
+        return NextResponse.json(
+          { error: "percent required" },
+          { status: 400 }
+        );
+      }
+      const n = await adminBulkProducts(ids, { type: "pricePercent", percent });
+      return NextResponse.json({ ok: true, affected: n });
+    }
+
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Error" },

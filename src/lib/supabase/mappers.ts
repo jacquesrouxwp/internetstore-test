@@ -57,9 +57,16 @@ export function mapDbProduct(row: Record<string, unknown>): Product {
     isTop: Boolean(row.is_top),
     isSale: Boolean(row.is_sale),
     images,
+    imageAlts: Array.isArray(row.image_alts)
+      ? (row.image_alts as unknown[]).map(String)
+      : [],
     specs,
     published: Boolean(row.published ?? true),
     createdAt: String(row.created_at || new Date().toISOString()),
+    metaTitleUk: (row.meta_title_uk as string) || null,
+    metaTitleRu: (row.meta_title_ru as string) || null,
+    metaDescriptionUk: (row.meta_description_uk as string) || null,
+    metaDescriptionRu: (row.meta_description_ru as string) || null,
   };
 }
 
@@ -111,8 +118,13 @@ export function productToDbRow(p: Partial<Product> & { slug?: string }) {
     is_top: Boolean(p.isTop),
     is_sale: Boolean(p.isSale),
     images: p.images ?? [],
+    image_alts: p.imageAlts ?? [],
     specs: p.specs ?? {},
     published: p.published !== false,
+    meta_title_uk: p.metaTitleUk ?? null,
+    meta_title_ru: p.metaTitleRu ?? null,
+    meta_description_uk: p.metaDescriptionUk ?? null,
+    meta_description_ru: p.metaDescriptionRu ?? null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -139,7 +151,12 @@ export function mapDbOrder(
     subtotal: Number(row.subtotal ?? 0),
     total: Number(row.total ?? 0),
     comment: (row.comment as string) || null,
+    managerComment: (row.manager_comment as string) || null,
+    trackingNumber: (row.tracking_number as string) || null,
+    trackingUrl: (row.tracking_url as string) || null,
+    statusNotifiedAt: (row.status_notified_at as string) || null,
     createdAt: String(row.created_at || new Date().toISOString()),
+    updatedAt: (row.updated_at as string) || null,
     items,
   };
 }

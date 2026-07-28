@@ -284,3 +284,90 @@ on conflict (slug) do update set
   website = excluded.website,
   sort_order = excluded.sort_order,
   is_active = true;
+-- P0 admin: store settings, order extras, product SEO, admin password
+-- Apply in Supabase SQL Editor after 001+002
+
+-- â”€â”€â”€ Orders: manager note, tracking, returned status allowed as text â”€â”€â”€
+alter table orders add column if not exists manager_comment text;
+alter table orders add column if not exists tracking_number text;
+alter table orders add column if not exists tracking_url text;
+alter table orders add column if not exists status_notified_at timestamptz;
+
+create index if not exists orders_status_idx on orders(status);
+create index if not exists orders_created_idx on orders(created_at desc);
+create index if not exists orders_phone_idx on orders(customer_phone);
+create index if not exists orders_number_idx on orders(order_number);
+
+-- â”€â”€â”€ Products: SEO + gallery alts â”€â”€â”€
+alter table products add column if not exists meta_title_uk text;
+alter table products add column if not exists meta_title_ru text;
+alter table products add column if not exists meta_description_uk text;
+alter table products add column if not exists meta_description_ru text;
+alter table products add column if not exists image_alts jsonb default '[]'::jsonb;
+
+-- â”€â”€â”€ Store settings (key/value JSON) â”€â”€â”€
+create table if not exists store_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz default now()
+);
+
+alter table store_settings enable row level security;
+drop policy if exists "public read store_settings" on store_settings;
+-- Public can read non-secret settings (site contact, social, legal for footer)
+create policy "public read store_settings"
+  on store_settings for select
+  using (key in ('site', 'social', 'legal', 'delivery', 'notify_templates'));
+
+-- Seed defaults (safe upsert)
+insert into store_settings (key, value) values
+  ('site', '{
+    "phones": ["+38 068 692-86-75", "+38 050 111-22-33"],
+    "email": "info@pro-optics.ua",
+    "address": "ÐšÐ¸Ñ—Ð², Ð£ÐºÑ€Ð°Ñ—Ð½Ð°",
+    "hours": "ÐŸÐ½â€“ÐŸÑ‚: 9:00â€“18:00 Â· Ð¡Ð±: 12:00â€“15:00",
+    "siteName": "Pro-Optics"
+  }'::jsonb),
+  ('social', '{
+    "telegram": "https://t.me/pro_optics_ua",
+    "viber": "viber://chat?number=%2B380501112233",
+    "whatsapp": "https://wa.me/380501112233"
+  }'::jsonb),
+  ('legal', '{
+    "entityName": "",
+    "edrpou": "",
+    "ipn": "",
+    "legalAddress": ""
+  }'::jsonb),
+  ('delivery', '{
+    "defaultCost": 0,
+    "freeFrom": 0,
+    "note": "Ð”Ð¾ÑÑ‚Ð°Ð²ÐºÐ° ÐÐ¾Ð²Ð¾ÑŽ ÐŸÐ¾ÑˆÑ‚Ð¾ÑŽ"
+  }'::jsonb),
+  ('nova_poshta_sender', '{
+    "cityRef": "",
+    "cityName": "",
+    "senderRef": "",
+    "senderAddressRef": "",
+    "contactSender": "",
+    "sendersPhone": "",
+    "warehouseRef": ""
+  }'::jsonb),
+  ('notify_templates', '{
+    "new": "Ð’Ð°ÑˆÐµ Ð·Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ {orderNumber} Ð¿Ñ€Ð¸Ð¹Ð½ÑÑ‚Ð¾. Ð”ÑÐºÑƒÑ”Ð¼Ð¾!",
+    "processing": "Ð—Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ {orderNumber} Ð² Ð¾Ð±Ñ€Ð¾Ð±Ñ†Ñ–.",
+    "shipped": "Ð—Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ {orderNumber} Ð²Ñ–Ð´Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¾. Ð¢Ð¢Ð: {trackingNumber}",
+    "done": "Ð—Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ {orderNumber} Ð²Ð¸ÐºÐ¾Ð½Ð°Ð½Ð¾. Ð”ÑÐºÑƒÑ”Ð¼Ð¾ Ð·Ð° Ð¿Ð¾ÐºÑƒÐ¿ÐºÑƒ!",
+    "cancelled": "Ð—Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ {orderNumber} ÑÐºÐ°ÑÐ¾Ð²Ð°Ð½Ð¾.",
+    "returned": "Ð—Ð°Ð¼Ð¾Ð²Ð»ÐµÐ½Ð½Ñ {orderNumber} Ð¾Ñ„Ð¾Ñ€Ð¼Ð»ÐµÐ½Ð¾ ÑÐº Ð¿Ð¾Ð²ÐµÑ€Ð½ÐµÐ½Ð½Ñ."
+  }'::jsonb),
+  ('security', '{
+    "passwordHash": null,
+    "adminEmail": null
+  }'::jsonb)
+on conflict (key) do nothing;
+
+-- â”€â”€â”€ Low stock threshold in settings â”€â”€â”€
+insert into store_settings (key, value) values
+  ('inventory', '{"lowStockThreshold": 2}'::jsonb)
+on conflict (key) do nothing;

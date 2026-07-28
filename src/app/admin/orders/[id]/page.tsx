@@ -16,6 +16,10 @@ export default function AdminOrderDetailPage() {
   const id = String(params.id || "");
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState("");
+  const [managerComment, setManagerComment] = useState("");
+  const [msg, setMsg] = useState("");
+  const [ttnReady, setTtnReady] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     const res = await fetch(`/api/admin/orders?id=${encodeURIComponent(id)}`);
@@ -25,24 +29,62 @@ export default function AdminOrderDetailPage() {
     }
     const data = await res.json();
     setOrder(data.order || null);
+    setManagerComment(data.order?.managerComment || "");
   };
 
   useEffect(() => {
     if (id) load();
+    fetch("/api/admin/orders/ttn")
+      .then((r) => r.json())
+      .then((d) => setTtnReady(Boolean(d.ready)))
+      .catch(() => setTtnReady(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const setStatus = async (status: OrderStatus) => {
+  const patch = async (body: Record<string, unknown>) => {
     if (!order) return;
+    setBusy(true);
+    setMsg("");
     const res = await fetch("/api/admin/orders", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: order.id, status }),
+      body: JSON.stringify({ id: order.id, ...body }),
     });
-    if (res.ok) {
-      const data = await res.json();
-      setOrder(data.order);
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(data.error || "Помилка");
+      return;
     }
+    setOrder(data.order);
+    if (data.notify) setMsg("Статус оновлено, повідомлення надіслано");
+    else setMsg("Збережено");
+  };
+
+  const setStatus = (status: OrderStatus) =>
+    patch({ status, notify: true });
+
+  const saveManager = () =>
+    patch({ managerComment, notify: false });
+
+  const createTtn = async () => {
+    if (!order || !ttnReady) return;
+    if (!confirm("Створити ТТН Нової Пошти для цього замовлення?")) return;
+    setBusy(true);
+    setMsg("Створення ТТН…");
+    const res = await fetch("/api/admin/orders/ttn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: order.id, notify: true }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(data.error || data.hint || "Помилка ТТН");
+      return;
+    }
+    setOrder(data.order);
+    setMsg(`ТТН ${data.ttn} створено`);
   };
 
   if (error) {
@@ -62,6 +104,8 @@ export default function AdminOrderDetailPage() {
     );
   }
 
+  const tel = order.customerPhone.replace(/[^\d+]/g, "");
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Link
@@ -70,6 +114,12 @@ export default function AdminOrderDetailPage() {
       >
         ← Замовлення
       </Link>
+
+      {msg && (
+        <p className="rounded-lg bg-zinc-100 px-4 py-2 text-sm text-zinc-800">
+          {msg}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -87,15 +137,59 @@ export default function AdminOrderDetailPage() {
         </span>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={`/admin/orders/${order.id}/print`}
+          target="_blank"
+          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
+        >
+          Друк рахунку
+        </Link>
+        <button
+          type="button"
+          disabled={!ttnReady || busy || Boolean(order.trackingNumber)}
+          title={
+            !ttnReady
+              ? "Задайте NOVA_POSHTA_API_KEY і відправника в Налаштуваннях"
+              : order.trackingNumber
+                ? "ТТН вже є"
+                : "Створити експрес-накладну"
+          }
+          onClick={createTtn}
+          className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {order.trackingNumber
+            ? `ТТН ${order.trackingNumber}`
+            : "Створити ТТН"}
+        </button>
+        {order.trackingUrl && (
+          <a
+            href={order.trackingUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-800"
+          >
+            Відстежити
+          </a>
+        )}
+      </div>
+
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
           Покупець
         </h2>
         <dl className="space-y-2 text-sm">
           <Row label="Ім'я" value={order.customerName} />
-          <Row label="Телефон" value={order.customerPhone} />
+          <div className="flex justify-between gap-4">
+            <dt className="text-zinc-500">Телефон</dt>
+            <dd className="text-right font-medium">
+              <a href={`tel:${tel}`} className="text-sky-700 hover:underline">
+                {order.customerPhone}
+              </a>
+            </dd>
+          </div>
           <Row label="Email" value={order.customerEmail || "—"} />
-          <Row label="Коментар" value={order.comment || "—"} />
+          <Row label="Коментар клієнта" value={order.comment || "—"} />
         </dl>
       </section>
 
@@ -104,13 +198,10 @@ export default function AdminOrderDetailPage() {
           Доставка Nova Poshta
         </h2>
         <dl className="space-y-2 text-sm">
-          <Row label="Метод" value={order.deliveryMethod} />
           <Row label="Місто" value={order.npCityName || "—"} />
           <Row label="Відділення" value={order.npWarehouseName || "—"} />
-          <Row
-            label="Вартість доставки"
-            value={formatPrice(order.deliveryCost)}
-          />
+          <Row label="Доставка" value={formatPrice(order.deliveryCost)} />
+          <Row label="ТТН" value={order.trackingNumber || "—"} />
         </dl>
       </section>
 
@@ -157,14 +248,34 @@ export default function AdminOrderDetailPage() {
 
       <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Змінити статус
+          Коментар менеджера (внутрішній)
+        </h2>
+        <textarea
+          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+          rows={3}
+          value={managerComment}
+          onChange={(e) => setManagerComment(e.target.value)}
+        />
+        <button
+          type="button"
+          disabled={busy}
+          onClick={saveManager}
+          className="mt-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white"
+        >
+          Зберегти коментар
+        </button>
+      </section>
+
+      <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          Змінити статус (+ сповіщення)
         </h2>
         <div className="flex flex-wrap gap-2">
           {ORDER_STATUS_FLOW.map((s) => (
             <button
               key={s}
               type="button"
-              disabled={order.status === s}
+              disabled={order.status === s || busy}
               onClick={() => setStatus(s)}
               className={`rounded-lg px-3 py-2 text-sm font-medium ${
                 order.status === s
@@ -175,15 +286,22 @@ export default function AdminOrderDetailPage() {
               {ORDER_STATUS_LABELS[s]}
             </button>
           ))}
-          {order.status !== "cancelled" && (
-            <button
-              type="button"
-              onClick={() => setStatus("cancelled")}
-              className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-            >
-              Скасувати
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setStatus("cancelled")}
+            className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600"
+          >
+            Скасувати
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setStatus("returned")}
+            className="rounded-lg border border-orange-200 px-3 py-2 text-sm font-medium text-orange-700"
+          >
+            Повернення
+          </button>
         </div>
       </section>
     </div>
@@ -194,7 +312,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-zinc-500">{label}</dt>
-      <dd className="text-right font-medium text-zinc-900">{value}</dd>
+      <dd className="max-w-[60%] text-right font-medium text-zinc-900">
+        {value}
+      </dd>
     </div>
   );
 }

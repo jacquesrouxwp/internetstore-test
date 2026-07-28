@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import {
   clearAdminCookie,
   getDemoCredentials,
@@ -6,8 +7,22 @@ import {
   isSupabaseAuthConfigured,
   setAdminCookie,
 } from "@/lib/admin/auth";
+import { clientIp, rateLimit } from "@/lib/admin/rate-limit";
+import { getSecuritySettings } from "@/lib/store-settings";
+import { hasServiceSupabase } from "@/lib/supabase/service";
 
 export async function POST(req: NextRequest) {
+  const ip = clientIp(req);
+  const rl = rateLimit(`admin-login:${ip}`, 5, 10 * 60 * 1000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      {
+        error: `Забагато спроб. Спробуйте через ${rl.retryAfterSec} с.`,
+      },
+      { status: 429 }
+    );
+  }
+
   const body = await req.json();
   const email = String(body.email || "").trim();
   const password = String(body.password || "");
@@ -19,7 +34,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Prefer Supabase Auth when configured
+  // 1) DB password hash (after first change in settings)
+  if (hasServiceSupabase()) {
+    try {
+      const sec = await getSecuritySettings();
+      if (sec.passwordHash) {
+        const emailOk =
+          !sec.adminEmail ||
+          email.toLowerCase() === sec.adminEmail.toLowerCase() ||
+          email.toLowerCase() ===
+            (process.env.ADMIN_EMAIL || "admin@pro-optics.ua").toLowerCase();
+        if (emailOk && (await bcrypt.compare(password, sec.passwordHash))) {
+          const res = NextResponse.json({
+            ok: true,
+            mode: "db-hash",
+            email,
+          });
+          setAdminCookie(res);
+          return res;
+        }
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  // 2) Supabase Auth when configured
   if (isSupabaseAuthConfigured()) {
     try {
       const { createClient } = await import("@supabase/supabase-js");
@@ -38,7 +78,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               error:
-                "Доступ заборонено. Цей акаунт не має ролі admin. Покупці не можуть увійти в кабінет.",
+                "Доступ заборонено. Цей акаунт не має ролі admin.",
             },
             { status: 403 }
           );
@@ -50,7 +90,6 @@ export async function POST(req: NextRequest) {
           email: data.user.email,
         });
         setAdminCookie(res);
-        // Also set supabase access token cookie for SSR clients if needed
         res.cookies.set("sb-admin-access", data.session.access_token, {
           httpOnly: true,
           path: "/",
@@ -60,19 +99,17 @@ export async function POST(req: NextRequest) {
         });
         return res;
       }
-
-      // If Supabase rejects, fall through to demo only when emails match demo
     } catch {
-      // fall through
+      /* fall through */
     }
   }
 
-  // Demo / env credentials (owner without Supabase yet)
+  // 3) Env credentials (bootstrap / recovery)
   const demo = getDemoCredentials();
   if (email === demo.email && password === demo.password) {
     const res = NextResponse.json({
       ok: true,
-      mode: "demo",
+      mode: "env",
       email: demo.email,
     });
     setAdminCookie(res);
@@ -96,7 +133,6 @@ export async function DELETE() {
   return res;
 }
 
-/** Session check */
 export async function GET(req: NextRequest) {
   const { hasAdminCookie } = await import("@/lib/admin/auth");
   if (!hasAdminCookie(req)) {

@@ -1,11 +1,17 @@
 import type { OrderStatus } from "@/types";
 
-/** Workflow: Новий → В обробці → Відправлено → Виконано */
+/** Main happy path */
 export const ORDER_STATUS_FLOW: OrderStatus[] = [
   "new",
   "processing",
   "shipped",
   "done",
+];
+
+export const ORDER_STATUS_ALL: OrderStatus[] = [
+  ...ORDER_STATUS_FLOW,
+  "cancelled",
+  "returned",
 ];
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
@@ -14,6 +20,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   shipped: "Відправлено",
   done: "Виконано",
   cancelled: "Скасовано",
+  returned: "Повернення",
 };
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
@@ -22,16 +29,16 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   shipped: "bg-violet-100 text-violet-800",
   done: "bg-emerald-100 text-emerald-800",
   cancelled: "bg-zinc-100 text-zinc-600",
+  returned: "bg-orange-100 text-orange-800",
 };
 
 export const PRODUCT_FLAG_LABELS = {
-  isHit: "Хит",
+  isHit: "Хіт",
   isNew: "Новинка",
   isTop: "Топ продаж",
-  isSale: "Скидка",
+  isSale: "Знижка",
 } as const;
 
-/** Common product spec field keys (UA labels stored as keys in specs) */
 export const SPEC_FIELDS = [
   { key: "Матриця", placeholder: "напр. 384×288" },
   { key: "Тип", placeholder: "моно / приціл / бінокль" },
@@ -50,3 +57,5 @@ export const DEVICE_TYPES = [
   { value: "binocular", label: "Бінокль" },
   { value: "clipon", label: "Насадка" },
 ] as const;
+
+export const DEFAULT_LOW_STOCK = 2;
