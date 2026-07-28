@@ -78,7 +78,7 @@ export default async function HomePage({
                   {r.productName}
                 </p>
                 <p className="text-sm leading-relaxed text-secondary">{r.text}</p>
-                <p className="mt-4 text-xs text-faint">
+                <p className="mt-4 text-xs text-muted-ui">
                   {r.author} · {r.date}
                 </p>
               </article>

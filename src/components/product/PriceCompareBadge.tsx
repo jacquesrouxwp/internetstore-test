@@ -253,7 +253,7 @@ export function PriceCompareBadge({
           </table>
 
           {compare.checkedAt && (
-            <p className="mt-1.5 border-t border-white/[0.08] pt-1.5 font-sans text-[0.58rem] leading-snug text-faint">
+            <p className="price-compare-disclaimer mt-1.5 border-t border-white/[0.08] pt-1.5 font-sans text-[0.58rem] leading-snug">
               {isRu ? "Данные на" : "Дані на"}{" "}
               {new Date(compare.checkedAt).toLocaleDateString(
                 isRu ? "ru-UA" : "uk-UA"

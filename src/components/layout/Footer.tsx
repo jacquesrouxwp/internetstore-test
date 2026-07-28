@@ -11,21 +11,14 @@ export async function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer
-      className="mt-auto"
-      style={{
-        background: "var(--surface)",
-        borderTop: "1px solid var(--border)",
-        boxShadow: "var(--shadow-card)",
-      }}
-    >
+    <footer className="site-footer mt-auto shrink-0">
       <div className="container-shop grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="mb-4">
-            <SiteLogo size="sm" showWordmark />
+            <SiteLogo size="md" showWordmark />
           </div>
-          <p className="text-sm leading-relaxed text-secondary">
-            {tp("aboutText").slice(0, 140)}…
+          <p className="line-clamp-4 text-sm leading-relaxed text-secondary">
+            {tp("aboutText")}
           </p>
         </div>
 
@@ -95,15 +88,15 @@ export async function Footer() {
                 +38 068 692-86-75
               </a>
             </li>
-            <li className="flex flex-wrap items-center gap-2.5 pt-1">
+            <li className="flex flex-wrap items-center gap-3 pt-1">
               <a
                 href={process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/pro_optics_ua"}
                 target="_blank"
                 rel="noreferrer"
-                className="transition hover:opacity-90"
+                className="social-icon transition hover:brightness-110"
                 aria-label="Telegram"
               >
-                <BrandMark brand="telegram" size="md" />
+                <BrandMark brand="telegram" size="lg" />
               </a>
               <a
                 href={
@@ -112,10 +105,10 @@ export async function Footer() {
                 }
                 target="_blank"
                 rel="noreferrer"
-                className="transition hover:opacity-90"
+                className="social-icon transition hover:brightness-110"
                 aria-label="Viber"
               >
-                <BrandMark brand="viber" size="md" />
+                <BrandMark brand="viber" size="lg" />
               </a>
               <a
                 href={
@@ -124,19 +117,16 @@ export async function Footer() {
                 }
                 target="_blank"
                 rel="noreferrer"
-                className="transition hover:opacity-90"
+                className="social-icon transition hover:brightness-110"
                 aria-label="WhatsApp"
               >
-                <BrandMark brand="whatsapp" size="md" />
+                <BrandMark brand="whatsapp" size="lg" />
               </a>
             </li>
           </ul>
         </div>
       </div>
-      <div
-        className="py-4 text-center text-xs text-faint"
-        style={{ borderTop: "1px solid var(--border)" }}
-      >
+      <div className="site-footer__copy py-4 text-center text-xs text-muted-ui">
         © {year} Pro-Optics. {t("rights")}
       </div>
     </footer>

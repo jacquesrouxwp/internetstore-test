@@ -10,11 +10,11 @@ import { StarsBackground } from "@/components/ui/stars";
 export function SiteBackground() {
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      className="pointer-events-none fixed inset-0 z-0 h-dvh max-h-dvh w-full overflow-hidden"
       aria-hidden
     >
       <StarsBackground
-        className="h-full w-full"
+        className="h-full w-full max-h-full"
         factor={0.04}
         speed={55}
         starColor="#e8eef8"

@@ -25,20 +25,34 @@
   /* Text hierarchy (WCAG AA on #16181D) */
   --text-primary: #f5f6f7;
   --text-secondary: #b0b5bc;
-  --text-muted: #8a8f97;
-  --text-faint: #6b7078;
+  --text-muted: #9aa0a8; /* ≥ #9AA0A8 for brand labels / secondary UI */
+  --text-faint: #8a8f97; /* raised from #6b7078 for AA on dark */
   --price: #ffffff;
-  --price-old: #6b7078;
+  --price-old: #8a8f97; /* strikethrough readable */
 
   /* Accent */
   --accent: #e11d2a;
   --accent-hover: #c41824;
   --rating: #f5a623;
 
+  /* Social brand colors */
+  --brand-telegram: #229ed9;
+  --brand-viber: #7360f2;
+  --brand-whatsapp: #25d366;
+  --brand-nova-poshta: #e21a23;
+
   /* Badges */
   --badge-sale: #e11d2a;
   --badge-new: #16a34a;
-  --badge-hit: #26292e;
+  --badge-hit: #3a3f48; /* dark but not invisible on light photo plate */
+
+  /* Hero glass + watermark */
+  --hero-glass-bg: rgba(12, 14, 20, 0.72);
+  --hero-glass-border: rgba(255, 255, 255, 0.14);
+  --hero-watermark-opacity: 0.05;
+  --hero-perk-bg: rgba(255, 255, 255, 0.05);
+  --hero-perk-border: rgba(255, 255, 255, 0.07);
+  --hero-perk-icon-bg: rgba(225, 29, 42, 0.14);
 
   /* Photo plate under product images */
   --photo-bg: #eaeaec;
@@ -76,7 +90,7 @@ html.logo-intro-done .site-logo-header .font-display {
 body {
   color: var(--text-primary);
   background: var(--background);
-  min-height: 100vh;
+  min-height: 100dvh;
   font-family: var(--font-manrope), var(--font-inter), system-ui, sans-serif;
   line-height: var(--leading-body);
   font-weight: 400;
@@ -676,6 +690,11 @@ body {
     color: #ffffff;
   }
 
+  /* Never render empty badge shells */
+  .label-badge:empty {
+    display: none !important;
+  }
+
   .text-primary {
     color: var(--text-primary);
   }
@@ -702,8 +721,56 @@ body {
     text-decoration: line-through;
   }
 
+  .product-card__brand {
+    color: var(--text-muted);
+  }
+
+  .price-compare-disclaimer {
+    color: var(--text-muted);
+  }
+
   .photo-plate {
     background: var(--photo-bg);
+  }
+
+  /* Hero */
+  .hero-glass {
+    background: var(--hero-glass-bg);
+    border: 1px solid var(--hero-glass-border);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px) saturate(1.15);
+    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  }
+
+  .hero-watermark {
+    opacity: var(--hero-watermark-opacity);
+  }
+
+  .hero-perk {
+    background: var(--hero-perk-bg);
+    border: 1px solid var(--hero-perk-border);
+  }
+
+  .hero-perk__icon {
+    background: var(--hero-perk-icon-bg);
+    color: var(--accent);
+  }
+
+  /* Footer */
+  .site-footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+  }
+
+  .site-footer__copy {
+    border-top: 1px solid var(--border);
+  }
+
+  .social-icon {
+    display: inline-flex;
+    line-height: 0;
   }
 
   /* Product card shell */

@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -9,14 +8,21 @@ type Props = {
   showWordmark?: boolean;
 };
 
-const SIZES = {
-  sm: "h-8 w-8",
-  md: "h-9 w-9",
-  lg: "h-11 w-11",
-} as const;
+/** Mark height ~36–44px for header; crisp SVG on retina */
+const MARK: Record<NonNullable<Props["size"]>, string> = {
+  sm: "h-9 w-9", // 36px
+  md: "h-10 w-10 sm:h-11 sm:w-11", // 40–44px
+  lg: "h-12 w-12", // 48px
+};
+
+const WORD: Record<NonNullable<Props["size"]>, string> = {
+  sm: "text-base",
+  md: "text-lg sm:text-xl",
+  lg: "text-xl",
+};
 
 /**
- * Site logo mark — soft rounded square (not hard corners).
+ * Clean Pro-Optics mark + wordmark (SVG, no pale/broken raster icon).
  */
 export function SiteLogo({
   slotId,
@@ -30,21 +36,27 @@ export function SiteLogo({
         id={slotId}
         className={cn(
           "relative shrink-0 overflow-hidden rounded-[22%]",
-          "shadow-[0_2px_12px_rgba(0,0,0,0.35)] ring-1 ring-white/15",
-          SIZES[size]
+          "ring-1 ring-white/15 shadow-[0_2px_12px_rgba(0,0,0,0.35)]",
+          MARK[size]
         )}
       >
-        <Image
-          src="/logos/pro-optics.webp"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logos/pro-optics-mark.svg"
           alt="Pro-Optics"
-          fill
-          sizes="44px"
-          className="object-cover"
-          priority={Boolean(slotId)}
+          width={44}
+          height={44}
+          className="h-full w-full object-cover"
+          decoding="async"
         />
       </span>
       {showWordmark ? (
-        <span className="font-display text-lg font-semibold tracking-tight text-primary">
+        <span
+          className={cn(
+            "font-display font-semibold tracking-tight text-primary",
+            WORD[size]
+          )}
+        >
           Pro<span className="text-[var(--accent)]">-Optics</span>
         </span>
       ) : null}

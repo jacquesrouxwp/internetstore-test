@@ -149,7 +149,7 @@ export function PriceCompareSection({
         </table>
       </div>
 
-      <p className="mt-4 text-[11px] leading-relaxed text-faint">
+      <p className="price-compare-disclaimer mt-4 text-[11px] leading-relaxed">
         {isRu
           ? "Сравнение справочное. Цены конкурентов на дату проверки; комплектация и условия могут отличаться."
           : "Порівняння довідкове. Ціни конкурентів на дату перевірки; комплектація та умови можуть відрізнятися."}

@@ -19,6 +19,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Star, Check, Package } from "lucide-react";
+import { buildSpecRows } from "@/lib/product-specs";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -94,19 +95,18 @@ export default async function ProductPage({ params }: Props) {
               </div>
             )}
             <div className="absolute left-4 top-4 flex flex-col gap-1.5">
-              {sale != null && (
-                <span className="label-badge bg-accent text-white">
-                  -{sale}%
-                </span>
+              {sale != null && sale > 0 && (
+                <span className="label-badge badge-sale">-{sale}%</span>
               )}
-              {product.isHit && (
-                <span className="label-badge bg-ink text-white">{t("hit")}</span>
-              )}
-              {product.isNew && (
-                <span className="label-badge bg-success text-white">
-                  {t("new")}
-                </span>
-              )}
+              {product.isHit === true && t("hit") ? (
+                <span className="label-badge badge-hit">{t("hit")}</span>
+              ) : null}
+              {product.isNew === true && t("new") ? (
+                <span className="label-badge badge-new">{t("new")}</span>
+              ) : null}
+              {product.isTop === true && !product.isHit && t("top") ? (
+                <span className="label-badge badge-hit">{t("top")}</span>
+              ) : null}
             </div>
           </div>
           {product.images.length > 1 && (
@@ -126,7 +126,7 @@ export default async function ProductPage({ params }: Props) {
 
         <div>
           {product.brandName && (
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-ui">
               {product.brandName}
             </p>
           )}
@@ -197,24 +197,16 @@ export default async function ProductPage({ params }: Props) {
           <h2 className="product-panel__title">{t("specs")}</h2>
           <table className="product-panel__specs">
             <tbody>
-              {Object.entries(product.specs).map(([k, v]) => (
-                <tr key={k}>
-                  <th>{k}</th>
-                  <td>{v}</td>
+              {buildSpecRows(product.specs, {
+                locale: loc,
+                resolution: product.resolution,
+                detectionRangeM: product.detectionRangeM,
+              }).map((row) => (
+                <tr key={row.key}>
+                  <th>{row.label}</th>
+                  <td>{row.value}</td>
                 </tr>
               ))}
-              {product.resolution && !product.specs["Матриця"] && (
-                <tr>
-                  <th>Матриця</th>
-                  <td>{product.resolution}</td>
-                </tr>
-              )}
-              {product.detectionRangeM != null && (
-                <tr>
-                  <th>Дальність виявлення людини, м</th>
-                  <td>{product.detectionRangeM}</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </section>
@@ -245,7 +237,7 @@ export default async function ProductPage({ params }: Props) {
       )}
 
       {boughtWith.length > 0 && (
-        <section className="mt-14 mb-8">
+        <section className="mt-14 mb-4">
           <h2 className="section-title mb-6">{t("boughtWith")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {boughtWith.map((p) => (

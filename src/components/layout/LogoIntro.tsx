@@ -1,12 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
-const STORAGE_KEY = "pro_optics_logo_intro_v1";
-const HOLD_MS = 2000;
-const FLY_MS = 0.95; // seconds for framer
+const STORAGE_KEY = "pro_optics_logo_intro_v2";
+const HOLD_MS = 1600;
+const FLY_MS = 0.85; // seconds for framer
 
 type Phase = "hold" | "fly" | "done";
 
@@ -183,13 +182,11 @@ export function LogoIntro() {
         }}
         aria-hidden
       >
-        <Image
-          src="/logos/pro-optics.webp"
-          alt="Pro-Optics"
-          fill
-          priority
-          sizes="(max-width: 768px) 55vw, 280px"
-          className="object-cover"
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logos/pro-optics-mark.svg"
+          alt=""
+          className="h-full w-full object-cover"
         />
       </motion.div>
     </>

@@ -33,9 +33,11 @@ export default async function LocaleLayout({
     <NextIntlClientProvider messages={messages}>
       <SiteBackground />
       <LogoIntro />
-      <div className="relative z-10 flex min-h-screen flex-col">
+      {/* min-h-dvh keeps footer at viewport bottom on short pages without
+          stretching document height past content on long pages */}
+      <div className="relative z-10 flex min-h-dvh flex-col">
         <Header categories={categories} />
-        <main className="flex-1">{children}</main>
+        <main className="w-full flex-1">{children}</main>
         <Footer />
         <ConsultWidget />
         <Analytics />

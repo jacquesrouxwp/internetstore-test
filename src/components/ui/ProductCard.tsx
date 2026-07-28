@@ -99,18 +99,18 @@ export function ProductCard({
               `${hoverDesk}:group-hover:opacity-0`
             )}
           >
-            {sale != null && (
+            {sale != null && sale > 0 ? (
               <span className="label-badge badge-sale">-{sale}%</span>
-            )}
-            {product.isHit && (
+            ) : null}
+            {product.isHit === true && t("hit") ? (
               <span className="label-badge badge-hit">{t("hit")}</span>
-            )}
-            {product.isNew && (
+            ) : null}
+            {product.isNew === true && t("new") ? (
               <span className="label-badge badge-new">{t("new")}</span>
-            )}
-            {product.isTop && !product.isHit && (
+            ) : null}
+            {product.isTop === true && !product.isHit && t("top") ? (
               <span className="label-badge badge-hit">{t("top")}</span>
-            )}
+            ) : null}
           </div>
         </div>
       </Link>
@@ -124,11 +124,11 @@ export function ProductCard({
           `${hoverDesk}:group-hover:opacity-0`
         )}
       >
-        {product.brandName && (
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted-ui">
+        {product.brandName ? (
+          <p className="product-card__brand mb-1 text-[11px] font-medium uppercase tracking-wider">
             {product.brandName}
           </p>
-        )}
+        ) : null}
         <Link href={`/product/${product.slug}`}>
           <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-primary">
             {name}
