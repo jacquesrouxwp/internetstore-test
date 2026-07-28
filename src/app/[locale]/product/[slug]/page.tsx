@@ -20,6 +20,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Star, Check, Package } from "lucide-react";
 import { buildSpecRows } from "@/lib/product-specs";
+import { ThermalSimulator } from "@/components/product/ThermalSimulator";
+import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -224,6 +226,24 @@ export default async function ProductPage({ params }: Props) {
           </div>
         </section>
       </div>
+
+      {/* Thermal vision simulator — driven by product matrix / range / NETD */}
+      {product.deviceType !== "clipon" &&
+        (product.categorySlug?.includes("teploviz") ||
+          product.resolution ||
+          product.detectionRangeM) && (
+          <div className="mt-10">
+            <ThermalSimulator
+              locale={loc}
+              params={parseProductThermal({
+                resolution: product.resolution,
+                detectionRangeM: product.detectionRangeM,
+                specs: product.specs,
+                name: name,
+              })}
+            />
+          </div>
+        )}
 
       {related.length > 0 && (
         <section className="mt-14">
