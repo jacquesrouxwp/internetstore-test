@@ -11,6 +11,8 @@ import {
 } from "@/lib/blog/types";
 import { isUuid } from "@/lib/supabase/mappers";
 
+const TABLE = "blog_posts";
+
 async function readClient() {
   if (hasServiceSupabase()) {
     try {
@@ -40,7 +42,7 @@ export async function listPublishedPosts(opts?: {
   if (!sb) return { posts: [], total: 0, page, limit };
 
   let q = sb
-    .from("posts")
+    .from(TABLE)
     .select("*", { count: "exact" })
     .eq("published", true)
     .order("published_at", { ascending: false });
@@ -71,7 +73,7 @@ export async function getPublishedPostBySlug(
   const sb = await readClient();
   if (!sb) return null;
   const { data, error } = await sb
-    .from("posts")
+    .from(TABLE)
     .select("*")
     .eq("slug", slug)
     .eq("published", true)
@@ -87,7 +89,7 @@ export async function listRelatedPosts(
   const sb = await readClient();
   if (!sb) return [];
   let q = sb
-    .from("posts")
+    .from(TABLE)
     .select("*")
     .eq("published", true)
     .neq("id", post.id)
@@ -100,7 +102,7 @@ export async function listRelatedPosts(
   );
   if (posts.length < limit) {
     const { data: more } = await sb
-      .from("posts")
+      .from(TABLE)
       .select("*")
       .eq("published", true)
       .neq("id", post.id)
@@ -123,7 +125,7 @@ export async function listPostCategories(): Promise<string[]> {
   const sb = await readClient();
   if (!sb) return [];
   const { data } = await sb
-    .from("posts")
+    .from(TABLE)
     .select("category")
     .eq("published", true)
     .not("category", "is", null);
@@ -134,23 +136,70 @@ export async function listPostCategories(): Promise<string[]> {
   return Array.from(set).sort();
 }
 
-/** Admin */
-export async function adminListPosts(): Promise<BlogPost[]> {
+export type AdminPostListParams = {
+  q?: string;
+  category?: string;
+  status?: "all" | "published" | "draft";
+  page?: number;
+  limit?: number;
+};
+
+export async function adminListPosts(
+  params: AdminPostListParams = {}
+): Promise<{ posts: BlogPost[]; total: number; page: number; limit: number }> {
   if (!hasServiceSupabase()) throw new Error("Supabase not configured");
+  const page = Math.max(1, params.page || 1);
+  const limit = Math.min(50, Math.max(1, params.limit || 20));
   const sb = createServiceClient();
-  const { data, error } = await sb
-    .from("posts")
-    .select("*")
-    .order("published_at", { ascending: false });
+
+  let q = sb
+    .from(TABLE)
+    .select("*", { count: "exact" })
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+
+  if (params.status === "published") q = q.eq("published", true);
+  if (params.status === "draft") q = q.eq("published", false);
+  if (params.category?.trim()) q = q.eq("category", params.category.trim());
+  if (params.q?.trim()) {
+    const s = params.q.trim().replace(/%/g, "");
+    q = q.or(
+      `title_uk.ilike.%${s}%,title_ru.ilike.%${s}%,slug.ilike.%${s}%,category.ilike.%${s}%`
+    );
+  }
+
+  const from = (page - 1) * limit;
+  q = q.range(from, from + limit - 1);
+
+  const { data, error, count } = await q;
   if (error) throw error;
-  return (data || []).map((r) => mapDbPost(r as Record<string, unknown>));
+  return {
+    posts: (data || []).map((r) => mapDbPost(r as Record<string, unknown>)),
+    total: count ?? 0,
+    page,
+    limit,
+  };
+}
+
+export async function adminListCategories(): Promise<string[]> {
+  if (!hasServiceSupabase()) return [];
+  const sb = createServiceClient();
+  const { data } = await sb
+    .from(TABLE)
+    .select("category")
+    .not("category", "is", null);
+  const set = new Set<string>();
+  for (const r of data || []) {
+    if (r.category) set.add(String(r.category));
+  }
+  return Array.from(set).sort();
 }
 
 export async function adminGetPost(id: string): Promise<BlogPost | null> {
   if (!hasServiceSupabase()) throw new Error("Supabase not configured");
   const sb = createServiceClient();
   const { data, error } = await sb
-    .from("posts")
+    .from(TABLE)
     .select("*")
     .eq("id", id)
     .maybeSingle();
@@ -169,7 +218,7 @@ export async function adminUpsertPost(
 
   if (isNew || !post.id || !isUuid(post.id)) {
     const { data, error } = await sb
-      .from("posts")
+      .from(TABLE)
       .insert(row)
       .select("*")
       .single();
@@ -178,7 +227,7 @@ export async function adminUpsertPost(
   }
 
   const { data, error } = await sb
-    .from("posts")
+    .from(TABLE)
     .update(row)
     .eq("id", post.id)
     .select("*")
@@ -190,6 +239,6 @@ export async function adminUpsertPost(
 export async function adminDeletePost(id: string): Promise<void> {
   if (!hasServiceSupabase()) throw new Error("Supabase not configured");
   const sb = createServiceClient();
-  const { error } = await sb.from("posts").delete().eq("id", id);
+  const { error } = await sb.from(TABLE).delete().eq("id", id);
   if (error) throw error;
 }

@@ -12,6 +12,7 @@ import {
   postMetaDescription,
   postMetaTitle,
   postTitle,
+  stripHtml,
 } from "@/lib/blog/types";
 
 type Props = {
@@ -47,7 +48,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   const loc = locale as "uk" | "ru";
   const title = postTitle(post, loc);
-  const body = postBody(post, loc);
+  const bodyHtml = postBody(post, loc);
   const related = await listRelatedPosts(post, 3);
   const date = post.publishedAt
     ? new Date(post.publishedAt).toLocaleDateString(
@@ -56,14 +57,39 @@ export default async function BlogPostPage({ params }: Props) {
     : "";
   const backLabel = loc === "ru" ? "← Все статьи" : "← Усі статті";
   const relatedLabel = loc === "ru" ? "Похожие статьи" : "Схожі статті";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://optics-shop-skeleton.vercel.app";
 
-  const paragraphs = body
-    .split(/\n\s*\n|\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: title,
+    description: stripHtml(postExcerpt(post, loc) || title),
+    image: post.coverUrl ? [post.coverUrl] : undefined,
+    datePublished: post.publishedAt || undefined,
+    dateModified: post.updatedAt || post.publishedAt || undefined,
+    author: {
+      "@type": "Organization",
+      name: "Pro-Optics",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Pro-Optics",
+      url: siteUrl,
+    },
+    mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
+    articleSection: post.category || undefined,
+    inLanguage: loc === "ru" ? "ru-UA" : "uk-UA",
+  };
 
   return (
     <article className="container-shop py-10 sm:py-14">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <Link
         href="/blog"
         className="mb-6 inline-block text-sm font-medium text-muted-ui hover:text-[var(--accent)]"
@@ -106,13 +132,10 @@ export default async function BlogPostPage({ params }: Props) {
       ) : null}
 
       <div className="hero-glass mx-auto mt-8 max-w-3xl rounded-[var(--radius-card)] px-6 py-8 sm:px-10 sm:py-10">
-        <div className="space-y-4 text-[0.975rem] leading-relaxed text-secondary">
-          {paragraphs.map((p, i) => (
-            <p key={i} className="text-secondary">
-              {p}
-            </p>
-          ))}
-        </div>
+        <div
+          className="blog-prose space-y-4 text-[0.975rem] leading-relaxed text-secondary"
+          dangerouslySetInnerHTML={{ __html: bodyHtml }}
+        />
       </div>
 
       {related.length > 0 && (
@@ -159,9 +182,31 @@ export default async function BlogPostPage({ params }: Props) {
           href="/blog"
           className="inline-flex rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-primary hover:bg-white/[0.06]"
         >
-          {backLabel.replace("← ", "")}
+          {loc === "ru" ? "Все статьи" : "Усі статті"}
         </Link>
       </div>
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        .blog-prose h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .blog-prose h3 { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin-top: 1.25rem; margin-bottom: 0.4rem; }
+        .blog-prose p { margin-bottom: 0.75rem; }
+        .blog-prose ul, .blog-prose ol { margin: 0.75rem 0 0.75rem 1.25rem; }
+        .blog-prose li { margin-bottom: 0.35rem; }
+        .blog-prose a { color: var(--accent); text-decoration: underline; }
+        .blog-prose blockquote {
+          border-left: 3px solid var(--accent);
+          padding-left: 1rem;
+          margin: 1rem 0;
+          color: var(--text-muted);
+          font-style: italic;
+        }
+        .blog-prose img { max-width: 100%; border-radius: 0.75rem; margin: 1rem 0; }
+        .blog-prose strong { color: var(--text-primary); }
+      `,
+        }}
+      />
     </article>
   );
 }

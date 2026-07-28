@@ -68,7 +68,7 @@ export function BlogCarousel({
 
   return (
     <div
-      className="hero-glass relative flex h-full min-h-[280px] flex-col overflow-hidden rounded-[var(--radius-card)]"
+      className="hero-glass relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[var(--radius-card)] sm:min-h-full"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >

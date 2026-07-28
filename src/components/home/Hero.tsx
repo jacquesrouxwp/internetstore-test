@@ -65,8 +65,10 @@ export async function Hero() {
           </div>
 
           {/* Right — blog carousel */}
-          <div className="relative z-10 min-h-[280px] w-full">
-            <BlogCarousel posts={posts} locale={locale} />
+          <div className="relative z-10 flex min-h-[320px] w-full lg:min-h-0">
+            <div className="w-full lg:flex lg:flex-1">
+              <BlogCarousel posts={posts} locale={locale} />
+            </div>
           </div>
         </div>
       </div>

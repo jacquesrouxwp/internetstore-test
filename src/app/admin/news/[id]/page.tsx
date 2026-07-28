@@ -12,6 +12,7 @@ export default function AdminNewsEditPage() {
   const router = useRouter();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -43,18 +44,33 @@ export default function AdminNewsEditPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold text-zinc-900">Редагувати статтю</h1>
-        <Link
-          href={`/blog/${post.slug}`}
-          target="_blank"
-          className="text-sm text-sky-700 hover:underline"
-        >
-          Відкрити на сайті →
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/news"
+            className="text-sm text-zinc-500 hover:text-zinc-800"
+          >
+            ← Блог
+          </Link>
+          <h1 className="text-2xl font-bold text-zinc-900">Редагувати</h1>
+        </div>
+        {post.published && (
+          <a
+            href={`/blog/${post.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-sky-700 hover:underline"
+          >
+            Відкрити на сайті →
+          </a>
+        )}
       </div>
+      {msg && (
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {msg}
+        </p>
+      )}
       <NewsForm
         initial={post}
-        submitLabel="Оновити"
         onSubmit={async (payload) => {
           const res = await fetch("/api/admin/news", {
             method: "PUT",
@@ -64,6 +80,9 @@ export default function AdminNewsEditPage() {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "Помилка");
           setPost(data.post);
+          setMsg(
+            data.post.published ? "Опубліковано" : "Чернетку збережено"
+          );
           router.refresh();
         }}
       />

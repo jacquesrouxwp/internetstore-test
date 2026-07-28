@@ -5,6 +5,7 @@ export type BlogPost = {
   titleRu: string;
   excerptUk: string | null;
   excerptRu: string | null;
+  /** Rich HTML body */
   bodyUk: string | null;
   bodyRu: string | null;
   coverUrl: string | null;
@@ -16,6 +17,7 @@ export type BlogPost = {
   metaDescriptionUk: string | null;
   metaDescriptionRu: string | null;
   createdAt: string | null;
+  updatedAt: string | null;
 };
 
 export function postTitle(p: BlogPost, locale: string): string {
@@ -45,6 +47,14 @@ export function postMetaDescription(p: BlogPost, locale: string): string {
   return p.metaDescriptionUk || postExcerpt(p, "uk") || p.titleUk;
 }
 
+/** Strip tags for plain meta snippets */
+export function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function mapDbPost(row: Record<string, unknown>): BlogPost {
   return {
     id: String(row.id),
@@ -57,13 +67,14 @@ export function mapDbPost(row: Record<string, unknown>): BlogPost {
     bodyRu: (row.body_ru as string) || null,
     coverUrl: (row.cover_url as string) || null,
     category: (row.category as string) || null,
-    published: row.published !== false,
+    published: row.published === true,
     publishedAt: (row.published_at as string) || null,
     metaTitleUk: (row.meta_title_uk as string) || null,
     metaTitleRu: (row.meta_title_ru as string) || null,
     metaDescriptionUk: (row.meta_description_uk as string) || null,
     metaDescriptionRu: (row.meta_description_ru as string) || null,
     createdAt: (row.created_at as string) || null,
+    updatedAt: (row.updated_at as string) || null,
   };
 }
 
@@ -78,8 +89,11 @@ export function postToDbRow(p: Partial<BlogPost> & { slug: string }) {
     body_ru: p.bodyRu ?? null,
     cover_url: p.coverUrl ?? null,
     category: p.category ?? null,
-    published: p.published !== false,
-    published_at: p.publishedAt ?? new Date().toISOString(),
+    published: p.published === true,
+    published_at:
+      p.published === true
+        ? p.publishedAt || new Date().toISOString()
+        : p.publishedAt ?? null,
     meta_title_uk: p.metaTitleUk ?? null,
     meta_title_ru: p.metaTitleRu ?? null,
     meta_description_uk: p.metaDescriptionUk ?? null,
