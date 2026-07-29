@@ -9,6 +9,7 @@ export type ThermalProductInput = {
   resolution?: string | null;
   detectionRangeM?: number | null;
   specs?: Record<string, string> | null;
+  /** Display label only — never used to parse matrix (avoids false positives in names). */
   name?: string;
 };
 
@@ -22,6 +23,17 @@ export type ThermalSimParams = {
   label: string;
 };
 
+/** Lightweight catalog row for model comparison dropdowns */
+export type ThermalCompareOption = {
+  id: string;
+  slug: string;
+  name: string;
+  matrix: ThermalMatrix;
+  detectionRangeM: number;
+  netdMk: number;
+  refreshRateHz: number | null;
+};
+
 /**
  * Typical detection range D for large animal / deer when product has no value.
  * Mid of industry ranges: 256→800–1300, 384→1300–1900, 640→1900–2800.
@@ -32,23 +44,77 @@ export function defaultDetectionRangeM(matrix: ThermalMatrix): number {
   return 1050;
 }
 
-function parseMatrix(res?: string | null, specs?: Record<string, string> | null): ThermalMatrix {
-  const raw = `${res || ""} ${specs?.["Матриця"] || specs?.["Матрица"] || ""}`;
-  if (/640\s*[x×]\s*512/i.test(raw) || /\b640\b/.test(raw)) return 640;
-  if (/384\s*[x×]\s*288/i.test(raw) || /\b384\b/.test(raw)) return 384;
-  if (/256\s*[x×]\s*192/i.test(raw) || /\b256\b/.test(raw)) return 256;
+/** Typical NETD (mK) for matrix class presets */
+export function defaultNetdMk(matrix: ThermalMatrix): number {
+  if (matrix >= 640) return 25;
+  if (matrix >= 384) return 35;
+  return 40;
+}
+
+/** Quick-compare presets: generation classes */
+export function matrixClassPreset(matrix: ThermalMatrix): ThermalSimParams {
+  return {
+    matrix,
+    detectionRangeM: defaultDetectionRangeM(matrix),
+    netdMk: defaultNetdMk(matrix),
+    refreshRateHz: 50,
+    label: `${matrix}×${matrix === 640 ? 512 : matrix === 384 ? 288 : 192}`,
+  };
+}
+
+/**
+ * Parse sensor matrix from resolution field + specs only.
+ * Never from product name (avoids "…640…" false positives in titles).
+ * Prefer full patterns like 640×512 over bare digits.
+ */
+export function parseMatrix(
+  res?: string | null,
+  specs?: Record<string, string> | null
+): ThermalMatrix {
+  const specParts: string[] = [];
+  if (res) specParts.push(res);
+  if (specs) {
+    for (const [k, v] of Object.entries(specs)) {
+      if (/матриц|matrix|разрешен|розділ|resolution|сенсор|sensor/i.test(k)) {
+        specParts.push(String(v));
+      }
+    }
+    // Common exact keys
+    if (specs["Матриця"]) specParts.push(specs["Матриця"]);
+    if (specs["Матрица"]) specParts.push(specs["Матрица"]);
+    if (specs["Resolution"]) specParts.push(specs["Resolution"]);
+  }
+  const raw = specParts.join(" ");
+
+  // Full WxH patterns first
+  if (/640\s*[x×]\s*512/i.test(raw)) return 640;
+  if (/384\s*[x×]\s*288/i.test(raw)) return 384;
+  if (/256\s*[x×]\s*192/i.test(raw)) return 256;
   if (/160\s*[x×]\s*120/i.test(raw)) return 256;
+
+  // Bare width only when clearly a matrix token (not arbitrary number in a long string)
+  if (/(?:^|[^\d])640(?:[^\d]|$)/.test(raw) && /512|matrix|матриц/i.test(raw))
+    return 640;
+  if (/(?:^|[^\d])384(?:[^\d]|$)/.test(raw)) return 384;
+  if (/(?:^|[^\d])256(?:[^\d]|$)/.test(raw)) return 256;
+
+  // Resolution-only field like "640" or "640x512" already handled; pure "640"
+  const resOnly = (res || "").trim();
+  if (/^640(\s*[x×]\s*512)?$/i.test(resOnly)) return 640;
+  if (/^384(\s*[x×]\s*288)?$/i.test(resOnly)) return 384;
+  if (/^256(\s*[x×]\s*192)?$/i.test(resOnly)) return 256;
+
   return 384;
 }
 
-function parseNetd(specs?: Record<string, string> | null): number {
+export function parseNetd(specs?: Record<string, string> | null): number {
   const raw = `${specs?.["NETD"] || specs?.["Netd"] || specs?.["netd"] || ""}`;
   const m = raw.match(/(\d{1,3})/);
   if (m) return Math.min(80, Math.max(15, Number(m[1])));
   return 35;
 }
 
-function parseRefresh(specs?: Record<string, string> | null): number | null {
+export function parseRefresh(specs?: Record<string, string> | null): number | null {
   const raw = `${specs?.["Частота"] || specs?.["Frequency"] || ""}`;
   const m = raw.match(/(\d{2})\s*(Гц|Hz|гц)/i);
   if (m) return Number(m[1]);
@@ -57,7 +123,7 @@ function parseRefresh(specs?: Record<string, string> | null): number | null {
   return null;
 }
 
-function parseRange(
+export function parseRange(
   detectionRangeM: number | null | undefined,
   specs: Record<string, string> | null | undefined,
   matrix: ThermalMatrix
@@ -92,6 +158,21 @@ export function parseProductThermal(p: ThermalProductInput): ThermalSimParams {
     netdMk: parseNetd(p.specs),
     refreshRateHz: parseRefresh(p.specs),
     label: p.name || "Thermal",
+  };
+}
+
+export function toCompareOption(
+  p: ThermalProductInput & { id: string; slug: string }
+): ThermalCompareOption {
+  const sim = parseProductThermal(p);
+  return {
+    id: p.id,
+    slug: p.slug,
+    name: sim.label,
+    matrix: sim.matrix,
+    detectionRangeM: sim.detectionRangeM,
+    netdMk: sim.netdMk,
+    refreshRateHz: sim.refreshRateHz,
   };
 }
 

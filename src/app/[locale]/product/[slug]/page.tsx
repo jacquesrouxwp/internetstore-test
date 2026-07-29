@@ -22,6 +22,7 @@ import { Star, Check, Package } from "lucide-react";
 import { buildSpecRows } from "@/lib/product-specs";
 import { ThermalSimulator } from "@/components/product/ThermalSimulator";
 import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
+import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -62,6 +63,17 @@ export default async function ProductPage({ params }: Props) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://optics-shop-skeleton.vercel.app";
+
+  const showThermalSim =
+    product.deviceType !== "clipon" &&
+    Boolean(
+      product.categorySlug?.includes("teploviz") ||
+        product.resolution ||
+        product.detectionRangeM
+    );
+  const thermalCompareOptions = showThermalSim
+    ? await listThermalCompareOptions(loc, product.id)
+    : [];
 
   return (
     <div className="container-shop py-6 sm:py-10">
@@ -228,22 +240,21 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       {/* Thermal vision simulator — driven by product matrix / range / NETD */}
-      {product.deviceType !== "clipon" &&
-        (product.categorySlug?.includes("teploviz") ||
-          product.resolution ||
-          product.detectionRangeM) && (
-          <div className="mt-10">
-            <ThermalSimulator
-              locale={loc}
-              params={parseProductThermal({
-                resolution: product.resolution,
-                detectionRangeM: product.detectionRangeM,
-                specs: product.specs,
-                name: name,
-              })}
-            />
-          </div>
-        )}
+      {showThermalSim && (
+        <div className="mt-10">
+          <ThermalSimulator
+            locale={loc}
+            currentProductId={product.id}
+            compareOptions={thermalCompareOptions}
+            params={parseProductThermal({
+              resolution: product.resolution,
+              detectionRangeM: product.detectionRangeM,
+              specs: product.specs,
+              name: name,
+            })}
+          />
+        </div>
+      )}
 
       {related.length > 0 && (
         <section className="mt-14">
