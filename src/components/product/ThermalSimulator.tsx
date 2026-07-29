@@ -55,7 +55,8 @@ const LOGIC_H = 270;
 const SPRITE_S = 512;
 const ZOOM_STEPS = [1, 2, 4] as const;
 
-type PanelKey = "current" | "slot0" | "slot1";
+/** Exactly two windows when comparing: this product + one peer. */
+type PanelKey = "current" | "compare";
 
 type Props = {
   params: ThermalSimParams;
@@ -260,11 +261,6 @@ function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
   };
 }
 
-type SlotState = {
-  optionId: string | null;
-  params: ThermalSimParams | null;
-};
-
 function optionToParams(o: ThermalCompareOption): ThermalSimParams {
   return {
     matrix: o.matrix,
@@ -273,6 +269,27 @@ function optionToParams(o: ThermalCompareOption): ThermalSimParams {
     refreshRateHz: o.refreshRateHz,
     label: o.name,
   };
+}
+
+function resolveCompareSelection(
+  optionId: string,
+  catalog: ThermalCompareOption[],
+  isRu: boolean
+): ThermalSimParams | null {
+  if (!optionId) return null;
+  if (optionId.startsWith("preset:")) {
+    const m = Number(optionId.replace("preset:", "")) as ThermalMatrix;
+    const preset = matrixClassPreset(m);
+    return {
+      ...preset,
+      label:
+        (isRu ? "Класс " : "Клас ") +
+        preset.label +
+        (isRu ? " (типовой)" : " (типовий)"),
+    };
+  }
+  const opt = catalog.find((c) => c.id === optionId);
+  return opt ? optionToParams(opt) : null;
 }
 
 export function ThermalSimulator({
@@ -295,10 +312,8 @@ export function ThermalSimulator({
   const [palette, setPalette] = useState<Palette>("whitehot");
   const [matrix, setMatrix] = useState<ThermalMatrix>(params.matrix);
   const [compareOn, setCompareOn] = useState(false);
-  const [slots, setSlots] = useState<SlotState[]>([
-    { optionId: null, params: null },
-    { optionId: null, params: null },
-  ]);
+  /** Single peer to compare with (exactly 2 windows total when set). */
+  const [compareOptionId, setCompareOptionId] = useState<string>("preset:256");
   const [catalog, setCatalog] = useState<ThermalCompareOption[]>(
     compareOptionsProp || []
   );
@@ -308,32 +323,42 @@ export function ThermalSimulator({
     () => ({
       ...params,
       matrix: allowMatrixPick ? matrix : params.matrix,
-      label: params.label,
+      label: params.label || (isRu ? "Этот прибор" : "Цей прилад"),
     }),
-    [params, matrix, allowMatrixPick]
+    [params, matrix, allowMatrixPick, isRu]
   );
 
+  const compareParams = useMemo(() => {
+    if (!compareOn) return null;
+    return resolveCompareSelection(compareOptionId, catalog, isRu);
+  }, [compareOn, compareOptionId, catalog, isRu]);
+
+  /** Always 1 panel, or exactly 2 when compare is on. */
   const activePanels = useMemo(() => {
-    const list: { key: PanelKey; params: ThermalSimParams; title: string }[] = [
+    const list: {
+      key: PanelKey;
+      params: ThermalSimParams;
+      /** Full model name shown above the canvas */
+      modelName: string;
+      badge: string;
+    }[] = [
       {
         key: "current",
         params: currentParams,
-        title: isRu ? "Этот прибор" : "Цей прилад",
+        modelName: currentParams.label,
+        badge: isRu ? "Этот прибор" : "Цей прилад",
       },
     ];
-    if (compareOn) {
-      slots.forEach((s, i) => {
-        if (s.params) {
-          list.push({
-            key: i === 0 ? "slot0" : "slot1",
-            params: s.params,
-            title: s.params.label,
-          });
-        }
+    if (compareOn && compareParams) {
+      list.push({
+        key: "compare",
+        params: compareParams,
+        modelName: compareParams.label,
+        badge: isRu ? "Сравнение" : "Порівняння",
       });
     }
     return list;
-  }, [currentParams, compareOn, slots, isRu]);
+  }, [currentParams, compareOn, compareParams, isRu]);
 
   const sliderMax = useMemo(() => {
     const ds = activePanels.map((p) => p.params.detectionRangeM);
@@ -597,64 +622,6 @@ export function ThermalSimulator({
     }
   }, [ready, activePanels, renderPanel, distance, digiZoom, weather, palette]);
 
-  const setSlotFromOption = (slotIndex: number, optionId: string) => {
-    if (!optionId) {
-      setSlots((prev) => {
-        const next = [...prev];
-        next[slotIndex] = { optionId: null, params: null };
-        return next;
-      });
-      return;
-    }
-    if (optionId.startsWith("preset:")) {
-      const m = Number(optionId.replace("preset:", "")) as ThermalMatrix;
-      const preset = matrixClassPreset(m);
-      setSlots((prev) => {
-        const next = [...prev];
-        next[slotIndex] = {
-          optionId,
-          params: {
-            ...preset,
-            label:
-              (isRu ? "Класс " : "Клас ") +
-              preset.label +
-              (isRu ? " (типовой)" : " (типовий)"),
-          },
-        };
-        return next;
-      });
-      return;
-    }
-    const opt = catalog.find((c) => c.id === optionId);
-    if (!opt) return;
-    setSlots((prev) => {
-      const next = [...prev];
-      next[slotIndex] = { optionId, params: optionToParams(opt) };
-      return next;
-    });
-  };
-
-  const addPreset = (m: ThermalMatrix) => {
-    setCompareOn(true);
-    setSlots((prev) => {
-      const empty = prev.findIndex((s) => !s.params);
-      const idx = empty >= 0 ? empty : 0;
-      const next = [...prev];
-      const preset = matrixClassPreset(m);
-      next[idx] = {
-        optionId: `preset:${m}`,
-        params: {
-          ...preset,
-          label:
-            (isRu ? "Класс " : "Клас ") +
-            preset.label +
-            (isRu ? " (типовой)" : " (типовий)"),
-        },
-      };
-      return next;
-    });
-  };
-
   const panelStatus = (p: ThermalSimParams) => {
     const status = computeDetectStatus({
       distanceM: distance,
@@ -701,9 +668,7 @@ export function ThermalSimulator({
         className={cn(
           "grid gap-4",
           activePanels.length === 1 && "grid-cols-1",
-          activePanels.length === 2 && "grid-cols-1 md:grid-cols-2",
-          activePanels.length >= 3 &&
-            "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+          activePanels.length === 2 && "grid-cols-1 md:grid-cols-2"
         )}
       >
         {activePanels.map((panel) => {
@@ -711,26 +676,34 @@ export function ThermalSimulator({
           const statusLabel = isRu ? STATUS_RU[status] : STATUS_UK[status];
           return (
             <div key={panel.key}>
-              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-ui">
-                  {panel.title}
-                  <span className="ml-2 normal-case text-faint">
-                    {panel.params.matrix} · D={panel.params.detectionRangeM} ·
-                    NETD {panel.params.netdMk}
-                  </span>
+              {/* Model name always above the thermal window */}
+              <div className="mb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-ui">
+                  {panel.badge}
                 </p>
-                <div className="text-right">
-                  <span
-                    className={cn(
-                      "inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                      STATUS_COLOR[status]
-                    )}
-                  >
-                    {statusLabel}
-                  </span>
-                  <p className="mt-0.5 text-[10px] tabular-nums text-faint">
-                    Johnson ≈ {px.toFixed(1)} px
+                <h3 className="mt-0.5 text-sm font-bold leading-snug text-primary sm:text-base">
+                  {panel.modelName}
+                </h3>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[11px] tabular-nums text-faint">
+                    {panel.params.matrix}×
+                    {Math.round(panel.params.matrix * 0.75)} · D=
+                    {panel.params.detectionRangeM} м · NETD{" "}
+                    {panel.params.netdMk} mK
                   </p>
+                  <div className="text-right">
+                    <span
+                      className={cn(
+                        "inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        STATUS_COLOR[status]
+                      )}
+                    >
+                      {statusLabel}
+                    </span>
+                    <p className="mt-0.5 text-[10px] tabular-nums text-faint">
+                      Johnson ≈ {px.toFixed(1)} px
+                    </p>
+                  </div>
                 </div>
               </div>
               <div
@@ -749,7 +722,7 @@ export function ThermalSimulator({
                   className="block h-auto w-full"
                   style={{ aspectRatio: `${LOGIC_W} / ${LOGIC_H}` }}
                   role="img"
-                  aria-label={`${panel.title}: ${statusLabel}, ${distance} m`}
+                  aria-label={`${panel.modelName}: ${statusLabel}, ${distance} m`}
                 />
               </div>
             </div>
@@ -868,90 +841,100 @@ export function ThermalSimulator({
         </fieldset>
 
         <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-secondary">
-            <input
-              type="checkbox"
-              checked={compareOn}
-              onChange={(e) => {
-                setCompareOn(e.target.checked);
-                if (e.target.checked && !slots.some((s) => s.params)) {
-                  addPreset(256);
-                }
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setCompareOn((v) => {
+                  const next = !v;
+                  if (next && !compareOptionId) {
+                    setCompareOptionId("preset:256");
+                  }
+                  return next;
+                });
               }}
-              className="rounded border-white/20"
-            />
-            {isRu ? "Сравнить модели" : "Порівняти моделі"}
-          </label>
-          {allowMatrixPick && (
-            <label className="block text-xs text-muted-ui">
-              {isRu ? "Матрица" : "Матриця"}
-              <select
-                className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-1.5 text-sm text-primary"
-                value={matrix}
-                onChange={(e) =>
-                  setMatrix(Number(e.target.value) as ThermalMatrix)
-                }
-              >
-                <option value={256}>256×192</option>
-                <option value={384}>384×288</option>
-                <option value={640}>640×512</option>
-              </select>
-            </label>
-          )}
-        </div>
-      </div>
-
-      {compareOn && (
-        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
-          <p className="mb-3 text-xs font-medium text-muted-ui">
-            {isRu
-              ? "1–2 прибора или класс матрицы"
-              : "1–2 прилади або клас матриці"}
-          </p>
-          <div className="mb-3 flex flex-wrap gap-2">
-            {([256, 384, 640] as ThermalMatrix[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => addPreset(m)}
-                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-secondary hover:border-[var(--accent)]"
-              >
-                {m} · D={defaultDetectionRangeM(m)}
-              </button>
-            ))}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[0, 1].map((i) => (
-              <label key={i} className="block text-xs text-muted-ui">
-                {isRu ? `Панель ${i + 2}` : `Панель ${i + 2}`}
+              className={cn(
+                "rounded-lg border px-4 py-2 text-sm font-semibold transition",
+                compareOn
+                  ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+                  : "border-white/15 text-secondary hover:border-white/30"
+              )}
+            >
+              {compareOn
+                ? isRu
+                  ? "Закрыть сравнение"
+                  : "Закрити порівняння"
+                : isRu
+                  ? "Сравнить с другим прибором"
+                  : "Порівняти з іншим приладом"}
+            </button>
+            {allowMatrixPick && (
+              <label className="text-xs text-muted-ui">
+                {isRu ? "Матрица" : "Матриця"}
                 <select
-                  className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
-                  value={slots[i]?.optionId || ""}
-                  onChange={(e) => setSlotFromOption(i, e.target.value)}
+                  className="ml-2 rounded-lg border border-white/15 bg-[#12141a] px-2 py-1.5 text-sm text-primary"
+                  value={matrix}
+                  onChange={(e) =>
+                    setMatrix(Number(e.target.value) as ThermalMatrix)
+                  }
                 >
-                  <option value="">
-                    {isRu ? "— не выбрано —" : "— не обрано —"}
-                  </option>
-                  <optgroup label={isRu ? "Классы" : "Класи"}>
-                    <option value="preset:256">256 · D=1050 · NETD 40</option>
-                    <option value="preset:384">384 · D=1600 · NETD 35</option>
-                    <option value="preset:640">640 · D=2350 · NETD 25</option>
+                  <option value={256}>256×192</option>
+                  <option value={384}>384×288</option>
+                  <option value={640}>640×512</option>
+                </select>
+              </label>
+            )}
+          </div>
+
+          {compareOn && (
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3 sm:p-4">
+              <label className="block text-xs font-medium text-muted-ui">
+                {isRu
+                  ? "С чем сравниваем (одно окно рядом)"
+                  : "З чим порівнюємо (одне вікно поруч)"}
+                <select
+                  className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#12141a] px-3 py-2.5 text-sm text-primary"
+                  value={compareOptionId}
+                  onChange={(e) => setCompareOptionId(e.target.value)}
+                >
+                  <optgroup
+                    label={isRu ? "Быстрые классы матриц" : "Швидкі класи матриць"}
+                  >
+                    <option value="preset:256">
+                      Клас 256×192 · D={defaultDetectionRangeM(256)} · NETD 40
+                    </option>
+                    <option value="preset:384">
+                      Клас 384×288 · D={defaultDetectionRangeM(384)} · NETD 35
+                    </option>
+                    <option value="preset:640">
+                      Клас 640×512 · D={defaultDetectionRangeM(640)} · NETD 25
+                    </option>
                   </optgroup>
                   {catalogFiltered.length > 0 && (
-                    <optgroup label={isRu ? "Каталог" : "Каталог"}>
+                    <optgroup
+                      label={
+                        isRu ? "Модели из каталога" : "Моделі з каталогу"
+                      }
+                    >
                       {catalogFiltered.map((o) => (
                         <option key={o.id} value={o.id}>
-                          {o.name} · {o.matrix} · D={o.detectionRangeM}
+                          {o.name} · {o.matrix} · D={o.detectionRangeM} · NETD{" "}
+                          {o.netdMk}
                         </option>
                       ))}
                     </optgroup>
                   )}
                 </select>
               </label>
-            ))}
-          </div>
+              <p className="mt-2 text-[11px] text-faint">
+                {isRu
+                  ? "Всегда 2 окна: ваш прибор (слева) и выбранный для сравнения (справа)."
+                  : "Завжди 2 вікна: ваш прилад (зліва) і обраний для порівняння (справа)."}
+              </p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
         {isRu
