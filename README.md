@@ -6,6 +6,14 @@
 - **Repo:** https://github.com/jacquesrouxwp/internetstore-test
 - **Референс структури каталогу:** https://www.optics-pro.com.ua/ua/teplovizori/
 
+### Документація (ТЗ + аудити)
+
+| Документ | Дата |
+|----------|------|
+| **[docs/SITE_TZ_AND_AUDIT.md](./docs/SITE_TZ_AND_AUDIT.md)** — повне ТЗ + hard-аудит сайту | **2026-07-29** |
+| [docs/THERMAL_SIMULATOR_AUDIT.md](./docs/THERMAL_SIMULATOR_AUDIT.md) — симулятор тепловізора | **2026-07-29** |
+| [docs/README.md](./docs/README.md) — індекс усіх docs | 2026-07-29 |
+
 > Демо-костяк перетворено на App Router storefront. Без Supabase працює на seed-даних (18+ товарів).
 
 ## Стек
