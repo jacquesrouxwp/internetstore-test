@@ -3,7 +3,6 @@ import { describe, it } from "node:test";
 import {
   DEER_FRAC_AT_MIN,
   DEER_FRAC_MIN,
-  DIST_MIN_M,
   FEET_FRAC_AT_MIN,
   HORIZON_FRAC,
   deerFeetYFrac,
