@@ -15,10 +15,11 @@ import {
   type ThermalSimParams,
 } from "@/lib/thermal/parse-product-thermal";
 import {
-  DIST_MIN_M,
+  atmosphericTransmission,
+  deerScreenRect,
   defaultSimDistanceM,
-  zoomAtDistance,
-  zoomCrop,
+  digitalZoomCrop,
+  DIST_MIN_M,
 } from "@/lib/thermal/zoom";
 import { cn } from "@/lib/utils";
 
@@ -26,20 +27,19 @@ type Palette = "whitehot" | "ironhot";
 type Weather = "clear" | "fog";
 
 /**
- * Baked scene: single JPEG (forest + deer already planted on ground).
- * Optical zoom around hoof-ground anchor — no cutout float.
+ * Two-layer thermal scene: a fixed-FOV forest background with a deer sprite
+ * composited on the ground plane. The deer's apparent height and its feet row
+ * both follow 1/distance, so it recedes toward the horizon honestly — no
+ * baked-in scale, no floating cutout.
  */
 export type ThermalScene = {
   id: string;
   labelUk: string;
   labelRu: string;
-  bakedWhite: string;
-  bakedIron: string;
-  /** Hoof contact UV in baked image (0–1) */
-  anchorX: number;
-  anchorY: number;
-  viewAnchorX: number;
-  viewAnchorY: number;
+  /** Full-frame forest background (fixed field of view). */
+  forest: string;
+  /** Isolated deer on black — luminance-keyed into an alpha sprite. */
+  deer: string;
 };
 
 const SCENES: ThermalScene[] = [
@@ -47,21 +47,17 @@ const SCENES: ThermalScene[] = [
     id: "deer",
     labelUk: "Олень у лісі",
     labelRu: "Олень в лесу",
-    bakedWhite: "/thermal/scene_deer_whitehot.jpg",
-    bakedIron: "/thermal/scene_deer_ironhot.jpg",
-    // Hooves on ground plane (same UV for white & iron — identical geometry)
-    anchorX: 0.5,
-    anchorY: 0.78,
-    viewAnchorX: 0.5,
-    // Feet low in the view → room for full body/antlers at close range
-    viewAnchorY: 0.9,
+    forest: "/thermal/forest_whitehot.jpg",
+    deer: "/thermal/deer_subject_whitehot.jpg",
   },
 ];
 
 const LOGIC_W = 480;
 const LOGIC_H = 270;
-const SCENE_W = 960;
-const SCENE_H = 540;
+/** Working resolution of the trimmed deer sprite. */
+const SPRITE_S = 512;
+/** Digital-zoom presets (magnification of the sensor image). */
+const ZOOM_STEPS = [1, 2, 4] as const;
 
 type PanelKey = "current" | "slot0" | "slot1";
 
@@ -147,7 +143,7 @@ function ironLut(v: number): [number, number, number] {
   return [255, Math.round(190 + k * 65), Math.round(20 + k * 200)];
 }
 
-/** object-fit:cover baked scene into scene buffer */
+/** object-fit:cover an image into a (dw, dh) target. */
 function drawCover(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -165,60 +161,66 @@ function drawCover(
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
 }
 
-function composeBakedScene(
-  out: HTMLCanvasElement,
-  img: HTMLImageElement | null
-): boolean {
-  out.width = SCENE_W;
-  out.height = SCENE_H;
-  const ctx = out.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return false;
-  ctx.fillStyle = "#0a0b10";
-  ctx.fillRect(0, 0, SCENE_W, SCENE_H);
-  ctx.imageSmoothingEnabled = true;
-  if (img && img.complete && img.naturalWidth > 0) {
-    drawCover(ctx, img, SCENE_W, SCENE_H);
-  }
-  return true;
-}
+type DeerSprite = {
+  canvas: HTMLCanvasElement;
+  /** Content bounding box inside the sprite canvas (trimmed to the animal). */
+  cx: number;
+  cy: number;
+  cw: number;
+  ch: number;
+  aspect: number;
+};
 
 /**
- * True optical zoom: scene anchor locked to view anchor via setTransform.
- * No crop-clamp (old clamp made zoom feel "jumpy" / drifted the deer).
+ * Luminance-key the isolated-deer JPEG into an RGBA sprite:
+ * alpha = smoothstep over luminance (black background → transparent), and the
+ * grayscale hot value is kept so the shared FX palette applies uniformly.
  */
-function drawSceneZoomed(
-  ctx: CanvasRenderingContext2D,
-  sceneCanvas: HTMLCanvasElement,
-  scene: ThermalScene,
-  zoom: number,
-  dw: number,
-  dh: number
-) {
-  const { scale, ox, oy } = zoomCrop(
-    SCENE_W,
-    SCENE_H,
-    dw,
-    dh,
-    zoom,
-    scene.anchorX,
-    scene.anchorY,
-    scene.viewAnchorX,
-    scene.viewAnchorY
-  );
-
-  ctx.save();
-  ctx.fillStyle = "#0a0b10";
-  ctx.fillRect(0, 0, dw, dh);
-  ctx.setTransform(scale, 0, 0, scale, ox, oy);
+function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
+  const c = document.createElement("canvas");
+  c.width = SPRITE_S;
+  c.height = SPRITE_S;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.clearRect(0, 0, SPRITE_S, SPRITE_S);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(sceneCanvas, 0, 0);
-  ctx.restore();
+  ctx.drawImage(img, 0, 0, SPRITE_S, SPRITE_S);
+
+  const id = ctx.getImageData(0, 0, SPRITE_S, SPRITE_S);
+  const d = id.data;
+  const lo = 22;
+  const hi = 74;
+  let minX = SPRITE_S;
+  let maxX = 0;
+  let minY = SPRITE_S;
+  let maxY = 0;
+  for (let y = 0; y < SPRITE_S; y++) {
+    for (let x = 0; x < SPRITE_S; x++) {
+      const i = (y * SPRITE_S + x) * 4;
+      const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      let t = (l - lo) / (hi - lo);
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const a = t * t * (3 - 2 * t); // smoothstep
+      d[i] = d[i + 1] = d[i + 2] = l;
+      d[i + 3] = Math.round(a * 255);
+      if (a > 0.5) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  ctx.putImageData(id, 0, 0);
+
+  if (maxX <= minX || maxY <= minY) return null;
+  const cw = maxX - minX + 1;
+  const ch = maxY - minY + 1;
+  return { canvas: c, cx: minX, cy: minY, cw, ch, aspect: cw / ch };
 }
 
 type SlotState = {
-  /** null = empty compare slot */
   optionId: string | null;
-  /** resolved params when slot active */
   params: ThermalSimParams | null;
 };
 
@@ -244,10 +246,10 @@ export function ThermalSimulator({
   const isRu = locale === "ru";
   const scene = SCENES.find((s) => s.id === sceneId) || SCENES[0];
 
-  // Default: deer reads a bit farther (not a tight 50 m close-up)
   const [distance, setDistance] = useState(() =>
     defaultSimDistanceM(params.detectionRangeM || 1200)
   );
+  const [zoom, setZoom] = useState<number>(1);
   const [weather, setWeather] = useState<Weather>("clear");
   const [palette, setPalette] = useState<Palette>("whitehot");
   const [matrix, setMatrix] = useState<ThermalMatrix>(params.matrix);
@@ -261,7 +263,6 @@ export function ThermalSimulator({
   );
   const [ready, setReady] = useState(false);
 
-  // Current product params (matrix pick may override matrix for demo)
   const currentParams: ThermalSimParams = useMemo(
     () => ({
       ...params,
@@ -271,7 +272,6 @@ export function ThermalSimulator({
     [params, matrix, allowMatrixPick]
   );
 
-  // Shared distance max = longest D among active panels (honest multi-range)
   const activePanels = useMemo(() => {
     const list: { key: PanelKey; params: ThermalSimParams; title: string }[] = [
       {
@@ -328,20 +328,22 @@ export function ThermalSimulator({
   }, [compareOptionsProp, locale, currentProductId]);
 
   const canvasMap = useRef<Map<PanelKey, HTMLCanvasElement>>(new Map());
-  const bakedWhite = useRef<HTMLImageElement | null>(null);
-  const bakedIron = useRef<HTMLImageElement | null>(null);
-  const sceneRef = useRef<HTMLCanvasElement | null>(null);
-  const sceneKeyRef = useRef<string>("");
+  const forestImg = useRef<HTMLImageElement | null>(null);
+  const deerImg = useRef<HTMLImageElement | null>(null);
+  const deerSprite = useRef<DeerSprite | null>(null);
   const composeRef = useRef<HTMLCanvasElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Load forest + deer, then build the keyed deer sprite once.
   useEffect(() => {
     let cancelled = false;
     let n = 0;
     const done = () => {
       n += 1;
       if (n >= 2 && !cancelled) {
-        sceneKeyRef.current = "";
+        deerSprite.current = deerImg.current
+          ? buildDeerSprite(deerImg.current)
+          : null;
         setReady(true);
       }
     };
@@ -354,35 +356,12 @@ export function ThermalSimulator({
       ref.current = img;
     };
     setReady(false);
-    load(scene.bakedWhite, bakedWhite);
-    load(scene.bakedIron, bakedIron);
+    deerSprite.current = null;
+    load(scene.forest, forestImg);
+    load(scene.deer, deerImg);
     return () => {
       cancelled = true;
     };
-  }, [scene]);
-
-  /**
-   * Geometry is always from the white-hot bake (identical framing).
-   * Red-hot is applied in FX via ironLut — never a second composition.
-   * Iron bake is kept as a visual reference asset / fallback if white fails.
-   */
-  const ensureScene = useCallback(() => {
-    const key = `${scene.id}|geom-white|v6`;
-    if (sceneRef.current && sceneKeyRef.current === key) {
-      return sceneRef.current;
-    }
-    if (!sceneRef.current) {
-      sceneRef.current = document.createElement("canvas");
-    }
-    const img =
-      bakedWhite.current &&
-      bakedWhite.current.complete &&
-      bakedWhite.current.naturalWidth > 0
-        ? bakedWhite.current
-        : bakedIron.current;
-    composeBakedScene(sceneRef.current, img);
-    sceneKeyRef.current = key;
-    return sceneRef.current;
   }, [scene]);
 
   const renderPanel = useCallback(
@@ -400,8 +379,6 @@ export function ThermalSimulator({
         canvas.height = LOGIC_H;
       }
 
-      const sceneCanvas = ensureScene();
-
       if (!composeRef.current) {
         composeRef.current = document.createElement("canvas");
       }
@@ -411,13 +388,67 @@ export function ThermalSimulator({
       const cctx = compose.getContext("2d", { willReadFrequently: true });
       if (!cctx) return;
 
+      // ---- Layer 1: fixed-FOV forest background ----
       cctx.fillStyle = "#0a0b10";
       cctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
+      cctx.imageSmoothingEnabled = true;
+      const forest = forestImg.current;
+      if (forest && forest.complete && forest.naturalWidth > 0) {
+        drawCover(cctx, forest, LOGIC_W, LOGIC_H);
+      }
 
-      // Inverse-distance optical zoom (shared across compare panels)
-      const zoom = zoomAtDistance(distance, sliderMax, DIST_MIN_M);
-      drawSceneZoomed(cctx, sceneCanvas, scene, zoom, LOGIC_W, LOGIC_H);
+      // ---- Layer 2: deer sprite on the ground plane (apparent size ∝ 1/d) ----
+      const sprite = deerSprite.current;
+      let focusXFrac = 0.5;
+      let focusYFrac = 0.5;
+      if (sprite) {
+        const rect = deerScreenRect(
+          distance,
+          LOGIC_W,
+          LOGIC_H,
+          sprite.aspect
+        );
+        const trans = atmosphericTransmission(
+          distance,
+          panelParams.detectionRangeM,
+          weather === "fog"
+        );
+        focusXFrac = rect.cx / LOGIC_W;
+        focusYFrac = rect.cy / LOGIC_H;
 
+        // Warm ground contact bloom so the deer is planted, not pasted.
+        const feetY = rect.y + rect.h;
+        const bloomR = Math.max(4, rect.w * 0.62);
+        cctx.save();
+        cctx.translate(rect.cx, feetY);
+        cctx.scale(1, 0.24);
+        const bloom = cctx.createRadialGradient(0, 0, 0, 0, 0, bloomR);
+        bloom.addColorStop(0, `rgba(255,238,205,${0.30 * trans})`);
+        bloom.addColorStop(1, "rgba(255,238,205,0)");
+        cctx.fillStyle = bloom;
+        cctx.beginPath();
+        cctx.arc(0, 0, bloomR, 0, Math.PI * 2);
+        cctx.fill();
+        cctx.restore();
+
+        // Atmospheric wash: distant deer blends toward background temperature.
+        cctx.globalAlpha = 0.45 + 0.55 * trans;
+        cctx.imageSmoothingEnabled = true;
+        cctx.drawImage(
+          sprite.canvas,
+          sprite.cx,
+          sprite.cy,
+          sprite.cw,
+          sprite.ch,
+          rect.x,
+          rect.y,
+          rect.w,
+          rect.h
+        );
+        cctx.globalAlpha = 1;
+      }
+
+      // ---- Unified sensor FX: contrast, NETD noise, palette ----
       const seed = hashSeed(
         scene.id,
         panelParams.matrix,
@@ -427,7 +458,7 @@ export function ThermalSimulator({
         weather,
         palette,
         panelSeedExtra,
-        "v6-palette-1to1"
+        "v7-twolayer"
       );
       const rand = mulberry32(seed);
 
@@ -443,9 +474,7 @@ export function ThermalSimulator({
       const contrast = netdContrast(panelParams.netdMk, fog);
       const fogLift = fog ? 22 : 0;
 
-      // Palette is pure post-process on luminance → white & red share geometry 1:1
       for (let i = 0; i < d.length; i += 4) {
-        if (d[i + 3] === 0) continue;
         const r = d[i];
         const g = d[i + 1];
         const b = d[i + 2];
@@ -457,7 +486,6 @@ export function ThermalSimulator({
         if (palette === "whitehot") {
           d[i] = d[i + 1] = d[i + 2] = y;
         } else {
-          // Full ironbow remap (no blend with source RGB) — same pixels as white
           const [rr, gg, bb] = ironLut(y / 255);
           d[i] = rr;
           d[i + 1] = gg;
@@ -467,8 +495,9 @@ export function ThermalSimulator({
       }
       cctx.putImageData(imageData, 0, 0);
 
+      // ---- Sensor pixelation (matrix resolution) ----
       const pixW = matrixPixelWidth(panelParams.matrix);
-      const pixH = Math.round(pixW * (9 / 16));
+      const pixH = Math.round(pixW * (LOGIC_H / LOGIC_W));
 
       if (!matrixRef.current) {
         matrixRef.current = document.createElement("canvas");
@@ -478,14 +507,22 @@ export function ThermalSimulator({
       mCan.height = pixH;
       const mctx = mCan.getContext("2d");
       if (!mctx) return;
-
       mctx.imageSmoothingEnabled = true;
       mctx.drawImage(compose, 0, 0, pixW, pixH);
 
+      // ---- Digital zoom: crop the sensor image + nearest-neighbor upscale ----
+      const { sx, sy, sw, sh } = digitalZoomCrop(
+        pixW,
+        pixH,
+        zoom,
+        focusXFrac,
+        focusYFrac
+      );
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
-      ctx.drawImage(mCan, 0, 0, LOGIC_W, LOGIC_H);
+      ctx.drawImage(mCan, sx, sy, sw, sh, 0, 0, LOGIC_W, LOGIC_H);
 
+      // ---- Scope vignette ----
       const grd = ctx.createRadialGradient(
         LOGIC_W / 2,
         LOGIC_H / 2,
@@ -499,7 +536,7 @@ export function ThermalSimulator({
       ctx.fillStyle = grd;
       ctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
 
-      // HUD
+      // ---- HUD ----
       ctx.fillStyle = "rgba(225,29,42,0.95)";
       ctx.font = "600 11px Manrope, system-ui, sans-serif";
       ctx.fillText(
@@ -517,8 +554,14 @@ export function ThermalSimulator({
       if (panelParams.refreshRateHz) {
         ctx.fillText(`${panelParams.refreshRateHz} Hz`, 12, 68);
       }
+      if (zoom > 1) {
+        ctx.fillStyle = "rgba(245,246,247,0.9)";
+        ctx.textAlign = "right";
+        ctx.fillText(`×${zoom}`, LOGIC_W - 12, 20);
+        ctx.textAlign = "left";
+      }
     },
-    [ensureScene, scene, distance, sliderMax, weather, palette]
+    [scene, distance, zoom, weather, palette]
   );
 
   useEffect(() => {
@@ -527,7 +570,7 @@ export function ThermalSimulator({
       const canvas = canvasMap.current.get(panel.key) || null;
       renderPanel(canvas, panel.params, panel.key);
     }
-  }, [ready, activePanels, renderPanel, distance, weather, palette]);
+  }, [ready, activePanels, renderPanel, distance, zoom, weather, palette]);
 
   const setSlotFromOption = (slotIndex: number, optionId: string) => {
     if (!optionId) {
@@ -612,9 +655,7 @@ export function ThermalSimulator({
         className
       )}
       style={{ background: "var(--surface)" }}
-      aria-label={
-        isRu ? "Симулятор тепловизора" : "Симулятор тепловізора"
-      }
+      aria-label={isRu ? "Симулятор тепловизора" : "Симулятор тепловізора"}
     >
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -698,8 +739,8 @@ export function ThermalSimulator({
             <span className="mb-1.5 flex justify-between text-xs font-medium text-muted-ui">
               <span>
                 {isRu
-                  ? "Дистанция (общая для всех панелей)"
-                  : "Дистанція (спільна для всіх панелей)"}
+                  ? "Дистанция до цели (общая для всех панелей)"
+                  : "Дистанція до цілі (спільна для всіх панелей)"}
               </span>
               <span className="tabular-nums text-primary">{distance} м</span>
             </span>
@@ -717,11 +758,34 @@ export function ThermalSimulator({
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `Оптический зум 1/d: ${DIST_MIN_M} м — ближе, ${sliderMax} м — шире. Олень закреплён на земле; зум без «прыжков».`
-                : `Оптичний зум 1/d: ${DIST_MIN_M} м — ближче, ${sliderMax} м — ширше. Олень закріплений на землі; зум без «стрибків».`}
+                ? `Угловой размер цели ∝ 1/дистанция: на ${DIST_MIN_M} м олень крупный, к ${sliderMax} м уходит к горизонту и тонет в шуме.`
+                : `Кутовий розмір цілі ∝ 1/дистанція: на ${DIST_MIN_M} м олень великий, до ${sliderMax} м іде до горизонту й тоне в шумі.`}
             </span>
           </label>
         </div>
+
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-medium text-muted-ui">
+            {isRu ? "Цифровой зум" : "Цифровий зум"}
+          </legend>
+          <div className="flex gap-2">
+            {ZOOM_STEPS.map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setZoom(z)}
+                className={cn(
+                  "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                  zoom === z
+                    ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+                    : "border-white/10 text-secondary hover:border-white/20"
+                )}
+              >
+                ×{z}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
         <fieldset>
           <legend className="mb-1.5 text-xs font-medium text-muted-ui">
@@ -779,7 +843,7 @@ export function ThermalSimulator({
           </div>
         </fieldset>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
           <label className="flex cursor-pointer items-center gap-2 text-sm text-secondary">
             <input
               type="checkbox"
@@ -787,7 +851,6 @@ export function ThermalSimulator({
               onChange={(e) => {
                 setCompareOn(e.target.checked);
                 if (e.target.checked && !slots.some((s) => s.params)) {
-                  // Auto-add typical weaker class for instant value
                   addPreset(256);
                 }
               }}
@@ -884,8 +947,8 @@ export function ThermalSimulator({
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
         {isRu
-          ? "Критерий Джонсона: px = 2×(D/dist) — выявление ≥2, распознавание ≥8, идентификация ≥13. Шум ← NETD; пикселизация ← матрица. Кадр 480×270, seeded noise — одинаково на всех устройствах."
-          : "Критерій Джонсона: px = 2×(D/dist) — виявлення ≥2, розпізнавання ≥8, ідентифікація ≥13. Шум ← NETD; пікселізація ← матриця. Кадр 480×270, seeded noise — однаковий на всіх пристроях."}
+          ? "Критерий Джонсона: px = 2×(D/dist) — выявление ≥2, распознавание ≥8, идентификация ≥13. Размер цели ← 1/дистанция; шум ← NETD; пикселизация ← матрица; цифровой зум кропает кадр без новой детализации. Кадр 480×270, seeded noise — одинаково на всех устройствах."
+          : "Критерій Джонсона: px = 2×(D/dist) — виявлення ≥2, розпізнавання ≥8, ідентифікація ≥13. Розмір цілі ← 1/дистанція; шум ← NETD; пікселізація ← матриця; цифровий зум кропає кадр без нової деталізації. Кадр 480×270, seeded noise — однаковий на всіх пристроях."}
       </p>
       <p className="mt-2 text-[11px] leading-relaxed text-faint/90 border-t border-white/5 pt-2">
         {isRu
