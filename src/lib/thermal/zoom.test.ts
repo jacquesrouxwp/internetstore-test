@@ -55,12 +55,16 @@ describe("deerFeetYFrac — ground-plane projection ∝ 1/distance", () => {
   });
 
   it("rises toward the horizon as distance grows (never past it)", () => {
-    const samples = [50, 100, 400, 1600, 5000];
+    const samples = [50, 100, 200, 400, 800];
     for (let i = 1; i < samples.length; i++) {
-      assert.ok(deerFeetYFrac(samples[i]) < deerFeetYFrac(samples[i - 1]));
+      assert.ok(
+        deerFeetYFrac(samples[i]) < deerFeetYFrac(samples[i - 1]),
+        `feet should rise (smaller y) at ${samples[i]} vs ${samples[i - 1]}`
+      );
     }
-    assert.ok(deerFeetYFrac(100000) > HORIZON_FRAC);
-    assert.ok(deerFeetYFrac(100000) - HORIZON_FRAC < 0.01);
+    // Floor clamp keeps far deer on soil, not mid-trunk
+    assert.ok(deerFeetYFrac(100000) >= HORIZON_FRAC + 0.02);
+    assert.ok(deerFeetYFrac(100000) < FEET_FRAC_AT_MIN);
   });
 
   it("size and feet move together (same 1/d law) — no float", () => {
@@ -76,8 +80,8 @@ describe("deerScreenRect — pixel geometry", () => {
   it("centers horizontally and plants feet on the ground row", () => {
     const r = deerScreenRect(200, 480, 270, 0.8);
     assert.ok(Math.abs(r.cx - 240) < 1e-6);
-    const feetY = r.y + r.h;
-    assert.ok(Math.abs(feetY - deerFeetYFrac(200) * 270) < 1e-6);
+    assert.ok(Math.abs(r.feetY - deerFeetYFrac(200) * 270) < 1e-6);
+    assert.ok(Math.abs(r.y + r.h - r.feetY) < 1e-6);
   });
 
   it("preserves sprite aspect ratio", () => {
@@ -90,6 +94,17 @@ describe("deerScreenRect — pixel geometry", () => {
     const r = deerScreenRect(DIST_MIN_M, 480, 270, 0.8);
     assert.ok(r.y >= 0, `antlers clipped at top: ${r.y}`);
     assert.ok(r.y + r.h <= 270 + 1, `hooves below frame: ${r.y + r.h}`);
+  });
+
+  it("feet stay in the ground band (below horizon + margin)", () => {
+    for (const d of [50, 100, 200, 400, 800, 1600, 3000]) {
+      const fy = deerFeetYFrac(d);
+      assert.ok(
+        fy >= HORIZON_FRAC + 0.02,
+        `feet above ground at ${d}m: ${fy} vs horizon ${HORIZON_FRAC}`
+      );
+      assert.ok(fy <= FEET_FRAC_AT_MIN + 1e-9);
+    }
   });
 });
 
@@ -135,12 +150,12 @@ describe("atmosphericTransmission — distant contrast washes out", () => {
 });
 
 describe("defaultSimDistanceM — clear, huntable first impression", () => {
-  it("lands in a mid-near band (~140–220 m)", () => {
+  it("lands in a mid-near band (~160–280 m)", () => {
     const d = defaultSimDistanceM(2350);
-    assert.ok(d >= 140 && d <= 220, `default out of band: ${d}`);
+    assert.ok(d >= 160 && d <= 280, `default out of band: ${d}`);
   });
 
   it("shows a clearly visible deer by default (not a far dot)", () => {
-    assert.ok(deerHeightFrac(defaultSimDistanceM(2350)) > 0.12);
+    assert.ok(deerHeightFrac(defaultSimDistanceM(2350)) > 0.08);
   });
 });

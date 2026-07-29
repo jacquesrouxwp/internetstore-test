@@ -143,8 +143,12 @@ function ironLut(v: number): [number, number, number] {
   return [255, Math.round(190 + k * 65), Math.round(20 + k * 200)];
 }
 
-/** object-fit:cover an image into a (dw, dh) target. */
-function drawCover(
+/**
+ * object-fit:cover, biased downward so the forest litter / ground plane
+ * fills the bottom of the frame (tree canopy less, soil more).
+ * Centered cover often crops the ground and makes the deer look mid-air.
+ */
+function drawForestCover(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   dw: number,
@@ -157,8 +161,42 @@ function drawCover(
   const sw = dw / scale;
   const sh = dh / scale;
   const sx = (iw - sw) / 2;
-  const sy = (ih - sh) / 2;
+  // Prefer lower source: more open ground, tree bases match HORIZON_FRAC
+  const syMax = Math.max(0, ih - sh);
+  const sy = Math.min(syMax, syMax * 0.72);
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+}
+
+/** Cool shadow + warm soil under hooves — reads as contact, not levitation. */
+function drawGroundContact(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  feetY: number,
+  deerW: number,
+  trans: number
+) {
+  const rx = Math.max(6, deerW * 0.55);
+  const ry = Math.max(3, deerW * 0.12);
+
+  // Cool dark contact shadow (ground is colder under the body)
+  const shadow = ctx.createRadialGradient(cx, feetY, 0, cx, feetY, rx);
+  shadow.addColorStop(0, `rgba(4, 6, 10, ${0.72 * trans})`);
+  shadow.addColorStop(0.45, `rgba(8, 10, 14, ${0.35 * trans})`);
+  shadow.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = shadow;
+  ctx.beginPath();
+  ctx.ellipse(cx, feetY + 1, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Slightly warmer soil print (body heat on litter)
+  const warm = ctx.createRadialGradient(cx, feetY, 0, cx, feetY, rx * 0.55);
+  warm.addColorStop(0, `rgba(220, 225, 230, ${0.28 * trans})`);
+  warm.addColorStop(0.55, `rgba(140, 145, 155, ${0.1 * trans})`);
+  warm.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = warm;
+  ctx.beginPath();
+  ctx.ellipse(cx, feetY, rx * 0.55, ry * 0.75, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 type DeerSprite = {
@@ -214,9 +252,32 @@ function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
   ctx.putImageData(id, 0, 0);
 
   if (maxX <= minX || maxY <= minY) return null;
+
+  // Refine feet row: lowest row that still has solid body pixels (a > 0.5).
+  // Soft antler tips don't pull the bbox; hooves define the bottom edge.
+  let feetY = maxY;
+  for (let y = maxY; y >= minY; y--) {
+    let solid = 0;
+    for (let x = minX; x <= maxX; x++) {
+      const i = (y * SPRITE_S + x) * 4;
+      if (d[i + 3] > 140) solid++;
+    }
+    if (solid >= 3) {
+      feetY = y;
+      break;
+    }
+  }
+
   const cw = maxX - minX + 1;
-  const ch = maxY - minY + 1;
-  return { canvas: c, cx: minX, cy: minY, cw, ch, aspect: cw / ch };
+  const ch = feetY - minY + 1;
+  return {
+    canvas: c,
+    cx: minX,
+    cy: minY,
+    cw,
+    ch,
+    aspect: cw / Math.max(1, ch),
+  };
 }
 
 type SlotState = {
@@ -388,25 +449,29 @@ export function ThermalSimulator({
       const cctx = compose.getContext("2d", { willReadFrequently: true });
       if (!cctx) return;
 
-      // ---- Layer 1: fixed-FOV forest background ----
+      // ---- Layer 1: fixed-FOV forest (ground-biased cover) ----
       cctx.fillStyle = "#0a0b10";
       cctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
       cctx.imageSmoothingEnabled = true;
       const forest = forestImg.current;
       if (forest && forest.complete && forest.naturalWidth > 0) {
-        drawCover(cctx, forest, LOGIC_W, LOGIC_H);
+        drawForestCover(cctx, forest, LOGIC_W, LOGIC_H);
       }
 
-      // ---- Layer 2: deer sprite on the ground plane (apparent size ∝ 1/d) ----
+      // ---- Layer 2: deer on ground plane (height + feet both ∝ 1/d) ----
       const sprite = deerSprite.current;
       let focusXFrac = 0.5;
       let focusYFrac = 0.5;
       if (sprite) {
+        // Sink hooves 1.5 px into soil so they never "hover" above litter
+        const sink = Math.max(1, Math.round(LOGIC_H * 0.006));
         const rect = deerScreenRect(
           distance,
           LOGIC_W,
           LOGIC_H,
-          sprite.aspect
+          sprite.aspect,
+          DIST_MIN_M,
+          sink
         );
         const trans = atmosphericTransmission(
           distance,
@@ -414,22 +479,11 @@ export function ThermalSimulator({
           weather === "fog"
         );
         focusXFrac = rect.cx / LOGIC_W;
-        focusYFrac = rect.cy / LOGIC_H;
+        // Focus digital zoom near body center, still above feet
+        focusYFrac = (rect.feetY - rect.h * 0.35) / LOGIC_H;
 
-        // Warm ground contact bloom so the deer is planted, not pasted.
-        const feetY = rect.y + rect.h;
-        const bloomR = Math.max(4, rect.w * 0.62);
-        cctx.save();
-        cctx.translate(rect.cx, feetY);
-        cctx.scale(1, 0.24);
-        const bloom = cctx.createRadialGradient(0, 0, 0, 0, 0, bloomR);
-        bloom.addColorStop(0, `rgba(255,238,205,${0.30 * trans})`);
-        bloom.addColorStop(1, "rgba(255,238,205,0)");
-        cctx.fillStyle = bloom;
-        cctx.beginPath();
-        cctx.arc(0, 0, bloomR, 0, Math.PI * 2);
-        cctx.fill();
-        cctx.restore();
+        // Contact shadow + warm soil BEFORE the animal (depth: ground → deer)
+        drawGroundContact(cctx, rect.cx, rect.feetY, rect.w, trans);
 
         // Atmospheric wash: distant deer blends toward background temperature.
         cctx.globalAlpha = 0.45 + 0.55 * trans;
@@ -458,7 +512,7 @@ export function ThermalSimulator({
         weather,
         palette,
         panelSeedExtra,
-        "v7-twolayer"
+        "v8-ground-plant"
       );
       const rand = mulberry32(seed);
 
