@@ -43,11 +43,12 @@ const SCENES: ThermalScene[] = [
     labelRu: "Олень в лесу",
     bakedWhite: "/thermal/scene_deer_whitehot.jpg",
     bakedIron: "/thermal/scene_deer_ironhot.jpg",
-    // Feet on forest floor in lower-center clearing
+    // Hooves on ground plane (same UV for white & iron — identical geometry)
     anchorX: 0.5,
     anchorY: 0.78,
     viewAnchorX: 0.5,
-    viewAnchorY: 0.78,
+    // Feet lower in the view so antlers + full body fit at max zoom-in
+    viewAnchorY: 0.9,
   },
 ];
 
@@ -55,7 +56,11 @@ const LOGIC_W = 480;
 const LOGIC_H = 270;
 const SCENE_W = 960;
 const SCENE_H = 540;
-const ZOOM_NEAR = 2.45;
+/**
+ * Max optical zoom at 50 m. Kept modest so full deer (hooves→antlers)
+ * stays inside the 16:9 frame — was 2.45 and clipped the animal.
+ */
+const ZOOM_NEAR = 1.72;
 const ZOOM_FAR = 1.0;
 
 type PanelKey = "current" | "slot0" | "slot1";
@@ -355,8 +360,13 @@ export function ThermalSimulator({
     };
   }, [scene]);
 
+  /**
+   * Geometry is always from the white-hot bake (identical framing).
+   * Red-hot is applied in FX via ironLut — never a second composition.
+   * Iron bake is kept as a visual reference asset / fallback if white fails.
+   */
   const ensureScene = useCallback(() => {
-    const key = `${scene.id}|${palette}|baked-v5`;
+    const key = `${scene.id}|geom-white|v6`;
     if (sceneRef.current && sceneKeyRef.current === key) {
       return sceneRef.current;
     }
@@ -364,11 +374,15 @@ export function ThermalSimulator({
       sceneRef.current = document.createElement("canvas");
     }
     const img =
-      palette === "whitehot" ? bakedWhite.current : bakedIron.current;
+      bakedWhite.current &&
+      bakedWhite.current.complete &&
+      bakedWhite.current.naturalWidth > 0
+        ? bakedWhite.current
+        : bakedIron.current;
     composeBakedScene(sceneRef.current, img);
     sceneKeyRef.current = key;
     return sceneRef.current;
-  }, [scene, palette]);
+  }, [scene]);
 
   const renderPanel = useCallback(
     (
@@ -425,7 +439,7 @@ export function ThermalSimulator({
         weather,
         palette,
         panelSeedExtra,
-        "v5-baked-compare"
+        "v6-palette-1to1"
       );
       const rand = mulberry32(seed);
 
@@ -441,6 +455,7 @@ export function ThermalSimulator({
       const contrast = netdContrast(panelParams.netdMk, fog);
       const fogLift = fog ? 22 : 0;
 
+      // Palette is pure post-process on luminance → white & red share geometry 1:1
       for (let i = 0; i < d.length; i += 4) {
         if (d[i + 3] === 0) continue;
         const r = d[i];
@@ -454,10 +469,11 @@ export function ThermalSimulator({
         if (palette === "whitehot") {
           d[i] = d[i + 1] = d[i + 2] = y;
         } else {
+          // Full ironbow remap (no blend with source RGB) — same pixels as white
           const [rr, gg, bb] = ironLut(y / 255);
-          d[i] = Math.round(rr * 0.55 + r * 0.45);
-          d[i + 1] = Math.round(gg * 0.55 + g * 0.45);
-          d[i + 2] = Math.round(bb * 0.55 + b * 0.45);
+          d[i] = rr;
+          d[i + 1] = gg;
+          d[i + 2] = bb;
         }
         d[i + 3] = 255;
       }
