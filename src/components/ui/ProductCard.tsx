@@ -173,12 +173,12 @@ export function ProductCard({
             <PriceCompareBadge compare={product.priceCompare} />
           </div>
         )}
-        <div className="flex flex-row gap-2">
+        <div className="flex flex-col gap-2">
           <button
             type="button"
             onClick={handleAdd}
             disabled={product.stock <= 0}
-            className="btn-buy min-w-0 flex-1"
+            className="btn-buy w-full"
           >
             <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
             <span className="btn-buy__label">{t("buy")}</span>
@@ -186,7 +186,7 @@ export function ProductCard({
           <Link
             href={`/product/${product.slug}#thermal-simulator`}
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex min-h-[2.75rem] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-2 text-xs font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] sm:px-2.5 sm:text-[13px]"
+            className="inline-flex w-full min-h-[2.5rem] items-center justify-center gap-1.5 rounded-full border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-3 text-sm font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)]"
             title={t("simulationHint")}
             aria-label={`${t("simulation")}: ${name}`}
           >
@@ -194,7 +194,7 @@ export function ProductCard({
               className="h-4 w-4 shrink-0 text-[var(--accent)]"
               strokeWidth={2.25}
             />
-            <span className="truncate">{t("simulation")}</span>
+            <span>{t("simulation")}</span>
           </Link>
         </div>
       </div>
