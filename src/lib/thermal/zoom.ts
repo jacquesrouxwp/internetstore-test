@@ -1,102 +1,75 @@
 /**
- * Optics + ground-plane perspective for the thermal scene simulator.
- *
- * Fixed FOV forest background. Deer sprite on the ground plane:
- *   • Apparent height  ∝ 1/d
- *   • Feet contact row ∝ 1/d  (same law → size & position move together)
- *
- * Constants are calibrated to `forest_whitehot.jpg`: open litter in the lower
- * third, tree bases ~ mid-frame. Wrong horizon → deer "hangs" on trunks.
+ * Optical zoom of a SINGLE baked scene (forest + deer already planted).
+ * Deer never moves relative to trees/ground — the whole frame scales around
+ * the hoof-ground anchor. Distance slider = camera zoom (1/d curve).
  */
 
-/** Nearest simulated distance (m). */
+/** Nearest simulated distance (m) — max optical zoom-in. */
 export const DIST_MIN_M = 50;
 
-/**
- * Deer height as fraction of frame at DIST_MIN_M.
- * Kept modest so the animal sits in the clearing, not mid-canopy (was 0.72 → float).
- */
-export const DEER_FRAC_AT_MIN = 0.48;
-/** Hard cap so antlers stay in frame. */
-export const DEER_FRAC_MAX = 0.55;
-/** Far hot-mark floor. */
-export const DEER_FRAC_MIN = 0.008;
+/** Zoom mult at DIST_MIN_M (close-up). Full deer must stay in frame. */
+export const ZOOM_NEAR = 1.85;
+
+/** Zoom mult at max range (wide / cover full scene). */
+export const ZOOM_FAR = 1.0;
 
 /**
- * Image row (0 = top) where the far ground meets tree bases in the forest asset
- * after cover-crop. Calibrated so feet never land on mid-trunk.
+ * Normalized closeness [0..1]: 1 = nearest (50 m), 0 = farthest (dMax).
+ * Inverse-distance so optics feel natural.
  */
-export const HORIZON_FRAC = 0.64;
-/**
- * Feet row at DIST_MIN_M — deep on the foreground litter (planted, not floating).
- */
-export const FEET_FRAC_AT_MIN = 0.92;
-/** Horizontal placement (clearing center). */
-export const DEER_CENTER_X = 0.5;
-
-/**
- * Apparent deer height as a fraction of frame height at `distanceM`.
- * Angular size ∝ 1/d, anchored so DIST_MIN_M → DEER_FRAC_AT_MIN.
- */
-export function deerHeightFrac(distanceM: number, dMin: number = DIST_MIN_M): number {
-  const d = Math.max(dMin, distanceM);
-  const frac = DEER_FRAC_AT_MIN * (dMin / d);
-  return Math.max(DEER_FRAC_MIN, Math.min(DEER_FRAC_MAX, frac));
-}
-
-/**
- * Image row (fraction of height) of the deer's feet at `distanceM`.
- * Ground-plane projection: (row − horizon) ∝ 1/d.
- * Clamped into the visible ground band so feet never enter the trunk zone.
- */
-export function deerFeetYFrac(distanceM: number, dMin: number = DIST_MIN_M): number {
-  const d = Math.max(dMin, distanceM);
-  const k = (FEET_FRAC_AT_MIN - HORIZON_FRAC) * dMin;
-  const y = HORIZON_FRAC + k / d;
-  // Stay at least 2% below horizon (on soil) and not below near feet line
-  const floor = HORIZON_FRAC + 0.025;
-  return Math.min(FEET_FRAC_AT_MIN, Math.max(floor, y));
-}
-
-/**
- * Atmospheric transmission of thermal contrast [0..1]: 1 near, → low as d → D.
- */
-export function atmosphericTransmission(
+export function closeAmountFromDistance(
   distanceM: number,
-  detectionRangeM: number,
-  fog: boolean
+  dMax: number,
+  dMin: number = DIST_MIN_M
 ): number {
-  const D = Math.max(200, detectionRangeM);
-  const t = Math.max(0, Math.min(1, distanceM / D));
-  const clearFloor = 0.35;
-  const base = 1 - (1 - clearFloor) * t;
-  return fog ? base * 0.7 : base;
+  const d = Math.max(dMin, Math.min(dMax, distanceM));
+  const inv = 1 / d;
+  const invNear = 1 / dMin;
+  const invFar = 1 / Math.max(dMax, dMin + 1);
+  if (invNear <= invFar) return 0;
+  return (inv - invFar) / (invNear - invFar);
 }
 
-/**
- * Pixel geometry of the deer sprite for a given frame + sprite content aspect.
- * Feet sit on the ground row; optional sink embeds hooves slightly into soil.
- */
-export function deerScreenRect(
+/** Optical zoom multiplier at distance (ZOOM_NEAR … ZOOM_FAR). */
+export function zoomAtDistance(
   distanceM: number,
-  frameW: number,
-  frameH: number,
-  spriteAspect: number,
-  dMin: number = DIST_MIN_M,
-  /** Extra pixels to sink feet into the ground (anti-float). */
-  feetSinkPx: number = 0
-): { x: number; y: number; w: number; h: number; cx: number; cy: number; feetY: number } {
-  const h = deerHeightFrac(distanceM, dMin) * frameH;
-  const w = h * spriteAspect;
-  const feetY = deerFeetYFrac(distanceM, dMin) * frameH + feetSinkPx;
-  const cx = DEER_CENTER_X * frameW;
-  const x = cx - w / 2;
-  const y = feetY - h;
-  return { x, y, w, h, cx, cy: y + h / 2, feetY };
+  dMax: number,
+  dMin: number = DIST_MIN_M
+): number {
+  const c = closeAmountFromDistance(distanceM, dMax, dMin);
+  return ZOOM_FAR + c * (ZOOM_NEAR - ZOOM_FAR);
 }
 
 /**
- * Digital-zoom crop rectangle (sensor pixels) centered on a focus point.
+ * Transform: map scene anchor → view anchor (no clamp → no deer drift).
+ * view = scene * scale + offset
+ */
+export function zoomCrop(
+  sceneW: number,
+  sceneH: number,
+  viewW: number,
+  viewH: number,
+  zoom: number,
+  anchorX: number,
+  anchorY: number,
+  viewAnchorX: number,
+  viewAnchorY: number
+): { scale: number; ox: number; oy: number } {
+  const cover = Math.max(viewW / sceneW, viewH / sceneH);
+  const scale = cover * zoom;
+  const ax = sceneW * anchorX;
+  const ay = sceneH * anchorY;
+  const vx = viewW * viewAnchorX;
+  const vy = viewH * viewAnchorY;
+  return {
+    scale,
+    ox: vx - ax * scale,
+    oy: vy - ay * scale,
+  };
+}
+
+/**
+ * Digital-zoom crop (sensor pixels) centered on focus — magnifies blocks, no new detail.
  */
 export function digitalZoomCrop(
   sensorW: number,
@@ -118,10 +91,23 @@ export function digitalZoomCrop(
 }
 
 /**
- * Default slider: mid-near so deer is clearly on the ground, not a hero fill.
+ * Default slider: deer reads a bit farther (~55% of D), not a 50 m close-up.
  */
 export function defaultSimDistanceM(detectionRangeM: number): number {
   const D = Math.max(300, detectionRangeM || 1200);
-  // ~18% of D, clamped 160–280 m — farther than 50 m close-up, still readable
-  return Math.max(160, Math.min(280, Math.round(D * 0.18)));
+  const mid = Math.round(D * 0.55);
+  return Math.min(D, Math.max(DIST_MIN_M + 80, mid));
+}
+
+/** Atmospheric wash for contrast at range (noise path). */
+export function atmosphericTransmission(
+  distanceM: number,
+  detectionRangeM: number,
+  fog: boolean
+): number {
+  const D = Math.max(200, detectionRangeM);
+  const t = Math.max(0, Math.min(1, distanceM / D));
+  const clearFloor = 0.45;
+  const base = 1 - (1 - clearFloor) * t;
+  return fog ? base * 0.7 : base;
 }
