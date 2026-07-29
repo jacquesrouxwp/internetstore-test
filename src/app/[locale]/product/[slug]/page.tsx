@@ -64,12 +64,21 @@ export default async function ProductPage({ params }: Props) {
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://optics-shop-skeleton.vercel.app";
 
+  // Show sim for any thermal-ish product (catalog may omit resolution on some rows)
+  const cat = (product.categorySlug || "").toLowerCase();
   const showThermalSim =
     product.deviceType !== "clipon" &&
     Boolean(
-      product.categorySlug?.includes("teploviz") ||
+      cat.includes("teploviz") ||
+        cat.includes("pricil") ||
+        cat.includes("mono") ||
+        cat.includes("binokl") ||
+        cat.includes("thermal") ||
         product.resolution ||
-        product.detectionRangeM
+        (product.detectionRangeM != null && product.detectionRangeM > 0) ||
+        product.deviceType === "mono" ||
+        product.deviceType === "scope" ||
+        product.deviceType === "binocular"
     );
   const thermalCompareOptions = showThermalSim
     ? await listThermalCompareOptions(loc, product.id)
@@ -192,16 +201,19 @@ export default async function ProductPage({ params }: Props) {
             )}
           </p>
 
-          <div className="mt-8 flex flex-wrap items-stretch gap-3">
-            <AddToCartButton product={product} className="btn-buy min-w-[200px] w-auto" />
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
+            <AddToCartButton
+              product={product}
+              className="btn-buy min-w-[200px] w-full sm:w-auto"
+            />
             {showThermalSim && (
               <a
                 href="#thermal-simulator"
-                className="btn-secondary inline-flex min-w-[160px] items-center justify-center gap-2 px-5 py-3 text-sm font-semibold"
+                className="btn-sim inline-flex w-full min-h-[2.75rem] min-w-[200px] items-center justify-center gap-2 rounded-full border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-5 py-2.5 text-sm font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] hover:border-[var(--accent-hover)] sm:w-auto"
                 title={t("simulationHint")}
               >
-                <ScanEye className="h-4 w-4 shrink-0" strokeWidth={2} />
-                {t("simulation")}
+                <ScanEye className="h-5 w-5 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
+                <span>{t("simulation")}</span>
               </a>
             )}
           </div>
