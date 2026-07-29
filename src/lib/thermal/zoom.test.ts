@@ -10,6 +10,7 @@ import {
   deerScreenRect,
   defaultSimDistanceM,
   digitalZoomCrop,
+  inspectDigiZoom,
 } from "./zoom";
 
 describe("deerHeightFrac — real recession ∝ 1/d", () => {
@@ -80,6 +81,20 @@ describe("digitalZoomCrop", () => {
       sw: 240,
       sh: 135,
     });
+  });
+});
+
+describe("inspectDigiZoom — make far detection visible", () => {
+  it("at 50 m stays low (no need for ×16)", () => {
+    assert.ok(inspectDigiZoom(50) <= 4);
+  });
+
+  it("at 2300 m uses max ×16 so hot mark is obvious", () => {
+    assert.equal(inspectDigiZoom(2300), 16);
+  });
+
+  it("at 1000 m at least ×8", () => {
+    assert.ok(inspectDigiZoom(1000) >= 8);
   });
 });
 

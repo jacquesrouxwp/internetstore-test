@@ -100,6 +100,38 @@ export function digitalZoomCrop(
   return { sx, sy, sw, sh };
 }
 
+/** Allowed digital zoom steps (magnify sensor blocks — no new detail). */
+export const DIGI_ZOOM_STEPS = [1, 2, 4, 8, 16] as const;
+export type DigiZoomStep = (typeof DIGI_ZOOM_STEPS)[number];
+
+/**
+ * Pick a digital zoom so the deer is ~40–55% of frame height after magnify.
+ * At 2300 m the animal is ~1–3 px — ×16 makes a clear hot blob ("detection works").
+ */
+export function inspectDigiZoom(
+  distanceM: number,
+  dMin: number = DIST_MIN_M
+): DigiZoomStep {
+  const frac = deerHeightFrac(distanceM, dMin);
+  // target apparent fraction after zoom ≈ 0.42
+  const needed = 0.42 / Math.max(frac, 0.004);
+  let best: DigiZoomStep = 1;
+  for (const z of DIGI_ZOOM_STEPS) {
+    if (z <= needed + 0.15) best = z;
+  }
+  // At long range always offer at least ×8 so "Виявлення" is obvious
+  if (distanceM >= 800 && best < 8) best = 8;
+  if (distanceM >= 1500 && best < 16) best = 16;
+  return best;
+}
+
+export function nextDigiZoom(current: number, dir: 1 | -1): DigiZoomStep {
+  const idx = DIGI_ZOOM_STEPS.findIndex((z) => z === current);
+  const i = idx < 0 ? 0 : idx;
+  const n = Math.max(0, Math.min(DIGI_ZOOM_STEPS.length - 1, i + dir));
+  return DIGI_ZOOM_STEPS[n];
+}
+
 /** Default ~200–250 m — deer clearly smaller than 50 m, still identifiable. */
 export function defaultSimDistanceM(detectionRangeM: number): number {
   const D = Math.max(300, detectionRangeM || 1200);

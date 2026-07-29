@@ -16,10 +16,14 @@ import {
 } from "@/lib/thermal/parse-product-thermal";
 import {
   atmosphericTransmission,
+  deerHeightFrac,
   deerScreenRect,
   defaultSimDistanceM,
+  DIGI_ZOOM_STEPS,
   digitalZoomCrop,
   DIST_MIN_M,
+  inspectDigiZoom,
+  nextDigiZoom,
 } from "@/lib/thermal/zoom";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +57,6 @@ const SCENES: ThermalScene[] = [
 const LOGIC_W = 480;
 const LOGIC_H = 270;
 const SPRITE_S = 512;
-const ZOOM_STEPS = [1, 2, 4] as const;
 
 /** Exactly two windows when comparing: this product + one peer. */
 type PanelKey = "current" | "compare";
@@ -602,10 +605,30 @@ export function ThermalSimulator({
         ctx.fillText(`${panelParams.refreshRateHz} Hz`, 12, 68);
       }
       if (digiZoom > 1) {
-        ctx.fillStyle = "rgba(245,246,247,0.9)";
+        // Magnification badge
+        ctx.fillStyle = "rgba(225,29,42,0.95)";
+        ctx.font = "700 12px Manrope, system-ui, sans-serif";
         ctx.textAlign = "right";
-        ctx.fillText(`×${digiZoom}`, LOGIC_W - 12, 20);
+        ctx.fillText(`DIGI ×${digiZoom}`, LOGIC_W - 12, 20);
         ctx.textAlign = "left";
+
+        // Center reticle — shows where the hot mark is under inspection
+        const cx = LOGIC_W / 2;
+        const cy = LOGIC_H / 2;
+        ctx.strokeStyle = "rgba(225,29,42,0.75)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx - 14, cy);
+        ctx.lineTo(cx - 4, cy);
+        ctx.moveTo(cx + 4, cy);
+        ctx.lineTo(cx + 14, cy);
+        ctx.moveTo(cx, cy - 14);
+        ctx.lineTo(cx, cy - 4);
+        ctx.moveTo(cx, cy + 4);
+        ctx.lineTo(cx, cy + 14);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(245,246,247,0.35)";
+        ctx.strokeRect(cx - 28, cy - 20, 56, 40);
       }
     },
     [scene, distance, digiZoom, weather, palette]
@@ -707,7 +730,7 @@ export function ThermalSimulator({
                 </div>
               </div>
               <div
-                className="overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
+                className="relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
                 style={{
                   boxShadow:
                     panel.key === "current"
@@ -724,7 +747,57 @@ export function ThermalSimulator({
                   role="img"
                   aria-label={`${panel.modelName}: ${statusLabel}, ${distance} m`}
                 />
+
+                {/* On-screen digi-zoom: inspect far detection hot-mark */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
+                  <div className="pointer-events-auto flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setDigiZoom(nextDigiZoom(digiZoom, -1))}
+                      disabled={digiZoom <= 1}
+                      className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
+                      aria-label="−"
+                    >
+                      −
+                    </button>
+                    <span className="min-w-[2.5rem] text-center text-[11px] font-semibold tabular-nums text-white">
+                      ×{digiZoom}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDigiZoom(nextDigiZoom(digiZoom, 1))}
+                      disabled={digiZoom >= 16}
+                      className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
+                      aria-label="+"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const z = inspectDigiZoom(distance);
+                      setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);
+                    }}
+                    className="pointer-events-auto rounded-md border border-[var(--accent)]/80 bg-[rgba(225,29,42,0.85)] px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg"
+                  >
+                    {digiZoom > 1
+                      ? isRu
+                        ? "Сброс ×1"
+                        : "Скинути ×1"
+                      : isRu
+                        ? "Увеличить цель"
+                        : "Збільшити ціль"}
+                  </button>
+                </div>
               </div>
+              {distance >= 600 && digiZoom === 1 && (
+                <p className="mt-1.5 text-[10px] leading-snug text-amber-200/80">
+                  {isRu
+                    ? "На большой дистанции цель — крошечная тёплая точка. Нажмите «Увеличить цель» (цифровой зум), чтобы увидеть, что выявление реально работает."
+                    : "На великій дистанції ціль — крихітна тепла точка. Натисніть «Збільшити ціль» (цифровий зум), щоб побачити, що виявлення реально працює."}
+                </p>
+              )}
             </div>
           );
         })}
@@ -763,16 +836,18 @@ export function ThermalSimulator({
 
         <fieldset>
           <legend className="mb-1.5 text-xs font-medium text-muted-ui">
-            {isRu ? "Цифровой зум" : "Цифровий зум"}
+            {isRu
+              ? "Цифровой зум (на экране прибора)"
+              : "Цифровий зум (на екрані приладу)"}
           </legend>
-          <div className="flex gap-2">
-            {ZOOM_STEPS.map((z) => (
+          <div className="flex flex-wrap gap-2">
+            {DIGI_ZOOM_STEPS.map((z) => (
               <button
                 key={z}
                 type="button"
                 onClick={() => setDigiZoom(z)}
                 className={cn(
-                  "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                  "min-w-[3rem] flex-1 rounded-lg border px-2 py-2 text-sm font-medium transition",
                   digiZoom === z
                     ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
                     : "border-white/10 text-secondary hover:border-white/20"
@@ -782,6 +857,11 @@ export function ThermalSimulator({
               </button>
             ))}
           </div>
+          <p className="mt-1.5 text-[10px] text-faint">
+            {isRu
+              ? `Увеличивает пиксели матрицы (без новой детализации). На ${distance} м цель ≈ ${Math.max(1, Math.round(deerHeightFrac(distance) * LOGIC_H))} px — «Увеличить цель» → ×${inspectDigiZoom(distance)}.`
+              : `Збільшує пікселі матриці (без нової деталізації). На ${distance} м ціль ≈ ${Math.max(1, Math.round(deerHeightFrac(distance) * LOGIC_H))} px — «Збільшити ціль» → ×${inspectDigiZoom(distance)}.`}
+          </p>
         </fieldset>
 
         <fieldset>
