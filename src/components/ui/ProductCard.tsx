@@ -2,7 +2,7 @@
 
 import { Link } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
-import { ShoppingCart, Star } from "lucide-react";
+import { ScanEye, ShoppingCart, Star } from "lucide-react";
 import type { Product } from "@/types";
 import { productName, productShort, salePercent } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
@@ -41,7 +41,6 @@ export function ProductCard({
   const sale = salePercent(product.price, product.oldPrice);
   const name = productName(product, locale);
   const short = productShort(product, locale);
-
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -174,15 +173,30 @@ export function ProductCard({
             <PriceCompareBadge compare={product.priceCompare} />
           </div>
         )}
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={product.stock <= 0}
-          className="btn-buy"
-        >
-          <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
-          <span className="btn-buy__label">{t("buy")}</span>
-        </button>
+        <div className="flex flex-row gap-2">
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={product.stock <= 0}
+            className="btn-buy min-w-0 flex-1"
+          >
+            <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
+            <span className="btn-buy__label">{t("buy")}</span>
+          </button>
+          <Link
+            href={`/product/${product.slug}#thermal-simulator`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex min-h-[2.75rem] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-2 text-xs font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] sm:px-2.5 sm:text-[13px]"
+            title={t("simulationHint")}
+            aria-label={`${t("simulation")}: ${name}`}
+          >
+            <ScanEye
+              className="h-4 w-4 shrink-0 text-[var(--accent)]"
+              strokeWidth={2.25}
+            />
+            <span className="truncate">{t("simulation")}</span>
+          </Link>
+        </div>
       </div>
 
       {toast && (
