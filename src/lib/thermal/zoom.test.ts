@@ -1,103 +1,80 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  DEER_FRAC_AT_MIN,
+  DEER_FRAC_MIN,
   DIST_MIN_M,
-  ZOOM_FAR,
-  ZOOM_NEAR,
-  closeAmountFromDistance,
+  FEET_FRAC_AT_MIN,
+  HORIZON_FRAC,
+  deerFeetYFrac,
+  deerHeightFrac,
+  deerScreenRect,
   defaultSimDistanceM,
   digitalZoomCrop,
-  zoomAtDistance,
-  zoomCrop,
 } from "./zoom";
 
-const D = 1600;
-const SCENE_W = 960;
-const SCENE_H = 540;
-const VIEW_W = 480;
-const VIEW_H = 270;
-
-describe("zoom inverse-distance curve (whole-scene optical zoom)", () => {
-  it("at 50 m → ZOOM_NEAR", () => {
-    assert.ok(Math.abs(zoomAtDistance(50, D) - ZOOM_NEAR) < 1e-9);
-    assert.ok(Math.abs(closeAmountFromDistance(50, D) - 1) < 1e-9);
+describe("deerHeightFrac — real recession ∝ 1/d", () => {
+  it("at 50 m → hero size", () => {
+    assert.ok(Math.abs(deerHeightFrac(50) - DEER_FRAC_AT_MIN) < 1e-9);
   });
 
-  it("at D → ZOOM_FAR", () => {
-    assert.ok(Math.abs(zoomAtDistance(D, D) - ZOOM_FAR) < 1e-9);
-    assert.ok(Math.abs(closeAmountFromDistance(D, D) - 0) < 1e-9);
+  it("at 1000 m is ~1/20 of size at 50 m (really farther)", () => {
+    const r = deerHeightFrac(1000) / deerHeightFrac(50);
+    assert.ok(Math.abs(r - 50 / 1000) < 1e-6, `ratio ${r}`);
+    // Absolute: tiny hot mark, not a big animal
+    assert.ok(deerHeightFrac(1000) < 0.04);
+    assert.ok(deerHeightFrac(1000) > DEER_FRAC_MIN);
   });
 
-  it("monotonic: farther → smaller zoom", () => {
-    for (const [a, b] of [
-      [50, 100],
-      [100, 400],
-      [400, 800],
-      [800, 1600],
-    ] as const) {
-      assert.ok(zoomAtDistance(b, D) < zoomAtDistance(a, D));
-    }
+  it("100 m is half of 50 m; 200 m is quarter", () => {
+    assert.ok(Math.abs(deerHeightFrac(100) / deerHeightFrac(50) - 0.5) < 1e-6);
+    assert.ok(Math.abs(deerHeightFrac(200) / deerHeightFrac(50) - 0.25) < 1e-6);
   });
 });
 
-describe("zoomCrop — static deer anchor (no float)", () => {
-  const anchorX = 0.5;
-  const anchorY = 0.78;
-  const viewAnchorX = 0.5;
-  const viewAnchorY = 0.9;
-
-  it("scene anchor maps exactly to view anchor at every distance", () => {
-    for (const dist of [50, 150, 400, 800, 1600]) {
-      const z = zoomAtDistance(dist, D);
-      const { scale, ox, oy } = zoomCrop(
-        SCENE_W,
-        SCENE_H,
-        VIEW_W,
-        VIEW_H,
-        z,
-        anchorX,
-        anchorY,
-        viewAnchorX,
-        viewAnchorY
-      );
-      const ax = SCENE_W * anchorX;
-      const ay = SCENE_H * anchorY;
-      const vx = ax * scale + ox;
-      const vy = ay * scale + oy;
-      assert.ok(Math.abs(vx - VIEW_W * viewAnchorX) < 1e-6, `x drift @${dist}`);
-      assert.ok(Math.abs(vy - VIEW_H * viewAnchorY) < 1e-6, `y drift @${dist}`);
-    }
+describe("deerFeetYFrac — ground plane, no mid-trunk float", () => {
+  it("at 50 m feet on foreground litter", () => {
+    assert.ok(Math.abs(deerFeetYFrac(50) - FEET_FRAC_AT_MIN) < 1e-9);
   });
 
-  it("higher zoom → larger scale (whole picture grows together)", () => {
-    const near = zoomCrop(
-      SCENE_W,
-      SCENE_H,
-      VIEW_W,
-      VIEW_H,
-      ZOOM_NEAR,
-      0.5,
-      0.78,
-      0.5,
-      0.9
-    );
-    const far = zoomCrop(
-      SCENE_W,
-      SCENE_H,
-      VIEW_W,
-      VIEW_H,
-      ZOOM_FAR,
-      0.5,
-      0.78,
-      0.5,
-      0.9
-    );
-    assert.ok(near.scale > far.scale);
+  it("at 1000 m feet still on ground band (below canopy)", () => {
+    const y = deerFeetYFrac(1000);
+    assert.ok(y >= HORIZON_FRAC, `above horizon: ${y}`);
+    assert.ok(y < FEET_FRAC_AT_MIN);
+    // Must not be mid-trunk (~0.5–0.6)
+    assert.ok(y > 0.7, `too high in frame (trunk zone): ${y}`);
+  });
+
+  it("size and ground offset share the same 1/d law", () => {
+    const rH = deerHeightFrac(400) / deerHeightFrac(100);
+    const rG =
+      (deerFeetYFrac(400) - HORIZON_FRAC) / (deerFeetYFrac(100) - HORIZON_FRAC);
+    assert.ok(Math.abs(rH - rG) < 1e-6, `desync ${rH} vs ${rG}`);
+  });
+});
+
+describe("deerScreenRect", () => {
+  it("plants feet on ground row", () => {
+    const r = deerScreenRect(200, 480, 270, 0.85);
+    assert.ok(Math.abs(r.feetY - deerFeetYFrac(200) * 270) < 1e-6);
+    assert.ok(Math.abs(r.y + r.h - r.feetY) < 1e-6);
+  });
+
+  it("full deer in frame at 50 m", () => {
+    const r = deerScreenRect(50, 480, 270, 0.85);
+    assert.ok(r.y >= -2, `clipped top ${r.y}`);
+    assert.ok(r.y + r.h <= 272);
+  });
+
+  it("at 1000 m deer is a few pixels tall (really distant)", () => {
+    const r = deerScreenRect(1000, 480, 270, 0.85);
+    assert.ok(r.h < 12, `too tall at 1000m: ${r.h}px`);
+    assert.ok(r.h >= 1);
   });
 });
 
 describe("digitalZoomCrop", () => {
-  it("×1 full sensor", () => {
+  it("×1 full", () => {
     assert.deepEqual(digitalZoomCrop(240, 135, 1, 0.5, 0.5), {
       sx: 0,
       sy: 0,
@@ -105,19 +82,12 @@ describe("digitalZoomCrop", () => {
       sh: 135,
     });
   });
-
-  it("×2 quarter area", () => {
-    const c = digitalZoomCrop(240, 135, 2, 0.5, 0.5);
-    assert.equal(c.sw, 120);
-    assert.equal(c.sh, 67.5);
-  });
 });
 
 describe("defaultSimDistanceM", () => {
-  it("starts mid-far so deer is not a hero close-up", () => {
+  it("mid-near so recession is already visible", () => {
     const d = defaultSimDistanceM(1600);
-    assert.ok(d >= 700, `too close: ${d}`);
-    assert.ok(d <= 1600);
-    assert.ok(d > DIST_MIN_M * 3);
+    assert.ok(d >= 180 && d <= 280);
+    assert.ok(deerHeightFrac(d) < deerHeightFrac(50) * 0.4);
   });
 });

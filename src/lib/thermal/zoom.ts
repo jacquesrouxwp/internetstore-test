@@ -1,76 +1,86 @@
 /**
- * Optical zoom of a SINGLE baked scene (forest + deer already planted).
- * Deer never moves relative to trees/ground — the whole frame scales around
- * the hoof-ground anchor. Distance slider = camera zoom (1/d curve).
+ * Perspective model: fixed-FOV forest + deer that REALLY recedes with distance.
+ *
+ *   apparent height ∝ 1/d     (at 1000 m ≈ 1/20 of size at 50 m)
+ *   feet on ground plane      (same 1/d law → size & position move together)
+ *
+ * Ground band is calibrated to forest_whitehot litter (not mid-trunk).
  */
 
-/** Nearest simulated distance (m) — max optical zoom-in. */
 export const DIST_MIN_M = 50;
 
-/** Zoom mult at DIST_MIN_M (close-up). Full deer must stay in frame. */
-export const ZOOM_NEAR = 1.85;
-
-/** Zoom mult at max range (wide / cover full scene). */
-export const ZOOM_FAR = 1.0;
+/** Deer height / frame height at 50 m (readable close-up, still on clearing). */
+export const DEER_FRAC_AT_MIN = 0.52;
+export const DEER_FRAC_MAX = 0.58;
+/** At 1000+ m still a faint hot mark, not zero. */
+export const DEER_FRAC_MIN = 0.006;
 
 /**
- * Normalized closeness [0..1]: 1 = nearest (50 m), 0 = farthest (dMax).
- * Inverse-distance so optics feel natural.
+ * Far ground line in the forest plate (tree bases on the litter).
+ * MUST stay in the soil band (~0.70–0.78 after cover) — not 0.6 mid-trunk.
  */
-export function closeAmountFromDistance(
+export const HORIZON_FRAC = 0.73;
+/** Feet on foreground litter at 50 m. */
+export const FEET_FRAC_AT_MIN = 0.91;
+export const DEER_CENTER_X = 0.5;
+
+/** Apparent height fraction: DEER_FRAC_AT_MIN × (50 / d). */
+export function deerHeightFrac(distanceM: number, dMin: number = DIST_MIN_M): number {
+  const d = Math.max(dMin, distanceM);
+  const frac = DEER_FRAC_AT_MIN * (dMin / d);
+  return Math.max(DEER_FRAC_MIN, Math.min(DEER_FRAC_MAX, frac));
+}
+
+/**
+ * Feet row on the ground plane: rises toward horizon as d grows.
+ * (feet − horizon) ∝ 1/d  → same law as height → no float.
+ */
+export function deerFeetYFrac(distanceM: number, dMin: number = DIST_MIN_M): number {
+  const d = Math.max(dMin, distanceM);
+  const span = FEET_FRAC_AT_MIN - HORIZON_FRAC;
+  const y = HORIZON_FRAC + span * (dMin / d);
+  // Soft clamp into ground band only (never above horizon soil line)
+  return Math.min(FEET_FRAC_AT_MIN, Math.max(HORIZON_FRAC + 0.01, y));
+}
+
+export function atmosphericTransmission(
   distanceM: number,
-  dMax: number,
-  dMin: number = DIST_MIN_M
+  detectionRangeM: number,
+  fog: boolean
 ): number {
-  const d = Math.max(dMin, Math.min(dMax, distanceM));
-  const inv = 1 / d;
-  const invNear = 1 / dMin;
-  const invFar = 1 / Math.max(dMax, dMin + 1);
-  if (invNear <= invFar) return 0;
-  return (inv - invFar) / (invNear - invFar);
+  const D = Math.max(200, detectionRangeM);
+  const t = Math.max(0, Math.min(1, distanceM / D));
+  // Stronger wash at range so far deer "melts" into noise (honest at 1000 m)
+  const clearFloor = 0.22;
+  const base = 1 - (1 - clearFloor) * Math.pow(t, 0.85);
+  return fog ? base * 0.65 : base;
 }
 
-/** Optical zoom multiplier at distance (ZOOM_NEAR … ZOOM_FAR). */
-export function zoomAtDistance(
+export function deerScreenRect(
   distanceM: number,
-  dMax: number,
-  dMin: number = DIST_MIN_M
-): number {
-  const c = closeAmountFromDistance(distanceM, dMax, dMin);
-  return ZOOM_FAR + c * (ZOOM_NEAR - ZOOM_FAR);
+  frameW: number,
+  frameH: number,
+  spriteAspect: number,
+  dMin: number = DIST_MIN_M,
+  feetSinkPx: number = 0
+): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  cx: number;
+  cy: number;
+  feetY: number;
+} {
+  const h = deerHeightFrac(distanceM, dMin) * frameH;
+  const w = Math.max(1, h * spriteAspect);
+  const feetY = deerFeetYFrac(distanceM, dMin) * frameH + feetSinkPx;
+  const cx = DEER_CENTER_X * frameW;
+  const x = cx - w / 2;
+  const y = feetY - h;
+  return { x, y, w, h, cx, cy: y + h * 0.45, feetY };
 }
 
-/**
- * Transform: map scene anchor → view anchor (no clamp → no deer drift).
- * view = scene * scale + offset
- */
-export function zoomCrop(
-  sceneW: number,
-  sceneH: number,
-  viewW: number,
-  viewH: number,
-  zoom: number,
-  anchorX: number,
-  anchorY: number,
-  viewAnchorX: number,
-  viewAnchorY: number
-): { scale: number; ox: number; oy: number } {
-  const cover = Math.max(viewW / sceneW, viewH / sceneH);
-  const scale = cover * zoom;
-  const ax = sceneW * anchorX;
-  const ay = sceneH * anchorY;
-  const vx = viewW * viewAnchorX;
-  const vy = viewH * viewAnchorY;
-  return {
-    scale,
-    ox: vx - ax * scale,
-    oy: vy - ay * scale,
-  };
-}
-
-/**
- * Digital-zoom crop (sensor pixels) centered on focus — magnifies blocks, no new detail.
- */
 export function digitalZoomCrop(
   sensorW: number,
   sensorH: number,
@@ -90,24 +100,8 @@ export function digitalZoomCrop(
   return { sx, sy, sw, sh };
 }
 
-/**
- * Default slider: deer reads a bit farther (~55% of D), not a 50 m close-up.
- */
+/** Default ~200–250 m — deer clearly smaller than 50 m, still identifiable. */
 export function defaultSimDistanceM(detectionRangeM: number): number {
   const D = Math.max(300, detectionRangeM || 1200);
-  const mid = Math.round(D * 0.55);
-  return Math.min(D, Math.max(DIST_MIN_M + 80, mid));
-}
-
-/** Atmospheric wash for contrast at range (noise path). */
-export function atmosphericTransmission(
-  distanceM: number,
-  detectionRangeM: number,
-  fog: boolean
-): number {
-  const D = Math.max(200, detectionRangeM);
-  const t = Math.max(0, Math.min(1, distanceM / D));
-  const clearFloor = 0.45;
-  const base = 1 - (1 - clearFloor) * t;
-  return fog ? base * 0.7 : base;
+  return Math.max(180, Math.min(280, Math.round(D * 0.14)));
 }
