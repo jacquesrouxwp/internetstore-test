@@ -18,7 +18,7 @@ import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Star, Check, Package } from "lucide-react";
+import { Star, Check, Package, ScanEye } from "lucide-react";
 import { buildSpecRows } from "@/lib/product-specs";
 import { ThermalSimulator } from "@/components/product/ThermalSimulator";
 import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
@@ -192,9 +192,24 @@ export default async function ProductPage({ params }: Props) {
             )}
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap items-stretch gap-3">
             <AddToCartButton product={product} className="btn-buy min-w-[200px] w-auto" />
+            {showThermalSim && (
+              <a
+                href="#thermal-simulator"
+                className="btn-secondary inline-flex min-w-[160px] items-center justify-center gap-2 px-5 py-3 text-sm font-semibold"
+                title={t("simulationHint")}
+              >
+                <ScanEye className="h-4 w-4 shrink-0" strokeWidth={2} />
+                {t("simulation")}
+              </a>
+            )}
           </div>
+          {showThermalSim && (
+            <p className="mt-2 max-w-md text-[12px] leading-snug text-muted">
+              {t("simulationHint")}
+            </p>
+          )}
 
           <PriceCompareSection compare={product.priceCompare} locale={locale} />
 
@@ -241,7 +256,7 @@ export default async function ProductPage({ params }: Props) {
 
       {/* Thermal vision simulator — driven by product matrix / range / NETD */}
       {showThermalSim && (
-        <div className="mt-10">
+        <div id="thermal-simulator" className="mt-10 scroll-mt-24">
           <ThermalSimulator
             locale={loc}
             currentProductId={product.id}
