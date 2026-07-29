@@ -14,6 +14,12 @@ import {
   type ThermalMatrix,
   type ThermalSimParams,
 } from "@/lib/thermal/parse-product-thermal";
+import {
+  DIST_MIN_M,
+  defaultSimDistanceM,
+  zoomAtDistance,
+  zoomCrop,
+} from "@/lib/thermal/zoom";
 import { cn } from "@/lib/utils";
 
 type Palette = "whitehot" | "ironhot";
@@ -47,7 +53,7 @@ const SCENES: ThermalScene[] = [
     anchorX: 0.5,
     anchorY: 0.78,
     viewAnchorX: 0.5,
-    // Feet lower in the view so antlers + full body fit at max zoom-in
+    // Feet low in the view → room for full body/antlers at close range
     viewAnchorY: 0.9,
   },
 ];
@@ -56,12 +62,6 @@ const LOGIC_W = 480;
 const LOGIC_H = 270;
 const SCENE_W = 960;
 const SCENE_H = 540;
-/**
- * Max optical zoom at 50 m. Kept modest so full deer (hooves→antlers)
- * stays inside the 16:9 frame — was 2.45 and clipped the animal.
- */
-const ZOOM_NEAR = 1.72;
-const ZOOM_FAR = 1.0;
 
 type PanelKey = "current" | "slot0" | "slot1";
 
@@ -182,37 +182,37 @@ function composeBakedScene(
   return true;
 }
 
+/**
+ * True optical zoom: scene anchor locked to view anchor via setTransform.
+ * No crop-clamp (old clamp made zoom feel "jumpy" / drifted the deer).
+ */
 function drawSceneZoomed(
   ctx: CanvasRenderingContext2D,
   sceneCanvas: HTMLCanvasElement,
   scene: ThermalScene,
-  closeAmount: number,
+  zoom: number,
   dw: number,
   dh: number
 ) {
-  const zoom = ZOOM_FAR + closeAmount * (ZOOM_NEAR - ZOOM_FAR);
-  const cover = Math.max(dw / SCENE_W, dh / SCENE_H);
-  const scale = cover * zoom;
+  const { scale, ox, oy } = zoomCrop(
+    SCENE_W,
+    SCENE_H,
+    dw,
+    dh,
+    zoom,
+    scene.anchorX,
+    scene.anchorY,
+    scene.viewAnchorX,
+    scene.viewAnchorY
+  );
 
-  const ax = SCENE_W * scene.anchorX;
-  const ay = SCENE_H * scene.anchorY;
-  const vx = dw * scene.viewAnchorX;
-  const vy = dh * scene.viewAnchorY;
-
-  let sw = dw / scale;
-  let sh = dh / scale;
-  let sx = ax - vx / scale;
-  let sy = ay - vy / scale;
-
-  if (sx < 0) sx = 0;
-  if (sy < 0) sy = 0;
-  if (sx + sw > SCENE_W) sx = Math.max(0, SCENE_W - sw);
-  if (sy + sh > SCENE_H) sy = Math.max(0, SCENE_H - sh);
-  sw = Math.min(sw, SCENE_W);
-  sh = Math.min(sh, SCENE_H);
-
+  ctx.save();
+  ctx.fillStyle = "#0a0b10";
+  ctx.fillRect(0, 0, dw, dh);
+  ctx.setTransform(scale, 0, 0, scale, ox, oy);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(sceneCanvas, sx, sy, sw, sh, 0, 0, dw, dh);
+  ctx.drawImage(sceneCanvas, 0, 0);
+  ctx.restore();
 }
 
 type SlotState = {
@@ -244,8 +244,9 @@ export function ThermalSimulator({
   const isRu = locale === "ru";
   const scene = SCENES.find((s) => s.id === sceneId) || SCENES[0];
 
+  // Default: deer reads a bit farther (not a tight 50 m close-up)
   const [distance, setDistance] = useState(() =>
-    Math.min(400, Math.round((params.detectionRangeM || 1200) * 0.35))
+    defaultSimDistanceM(params.detectionRangeM || 1200)
   );
   const [weather, setWeather] = useState<Weather>("clear");
   const [palette, setPalette] = useState<Palette>("whitehot");
@@ -413,22 +414,9 @@ export function ThermalSimulator({
       cctx.fillStyle = "#0a0b10";
       cctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
 
-      // Zoom uses shared distance vs global sliderMax framing;
-      // optical zoom curve shared so scene framing matches across panels.
-      const t = Math.max(
-        0,
-        Math.min(1, (distance - 50) / Math.max(1, sliderMax - 50))
-      );
-      const closeAmount = 1 - Math.pow(t, 0.9);
-
-      drawSceneZoomed(
-        cctx,
-        sceneCanvas,
-        scene,
-        closeAmount,
-        LOGIC_W,
-        LOGIC_H
-      );
+      // Inverse-distance optical zoom (shared across compare panels)
+      const zoom = zoomAtDistance(distance, sliderMax, DIST_MIN_M);
+      drawSceneZoomed(cctx, sceneCanvas, scene, zoom, LOGIC_W, LOGIC_H);
 
       const seed = hashSeed(
         scene.id,
@@ -717,20 +705,20 @@ export function ThermalSimulator({
             </span>
             <input
               type="range"
-              min={50}
+              min={DIST_MIN_M}
               max={sliderMax}
               step={10}
               value={Math.min(distance, sliderMax)}
               onChange={(e) => setDistance(Number(e.target.value))}
               className="thermal-range w-full"
-              aria-valuemin={50}
+              aria-valuemin={DIST_MIN_M}
               aria-valuemax={sliderMax}
               aria-valuenow={distance}
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `Одна сцена и дистанция — честное сравнение. 50 м — крупно, до ${sliderMax} м (макс. D среди панелей).`
-                : `Одна сцена і дистанція — чесне порівняння. 50 м — крупно, до ${sliderMax} м (макс. D серед панелей).`}
+                ? `Оптический зум 1/d: ${DIST_MIN_M} м — ближе, ${sliderMax} м — шире. Олень закреплён на земле; зум без «прыжков».`
+                : `Оптичний зум 1/d: ${DIST_MIN_M} м — ближче, ${sliderMax} м — ширше. Олень закріплений на землі; зум без «стрибків».`}
             </span>
           </label>
         </div>
