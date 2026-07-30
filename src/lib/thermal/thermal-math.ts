@@ -44,8 +44,16 @@ export {
   nextDigiZoom,
   defaultSimDistanceM,
   atmosphericTransmission,
+  HORIZON_FRAC,
+  FEET_FRAC_AT_MIN,
+  DEER_CENTER_X,
+  deerFeetYFrac,
+  deerHeightFrac,
   type DigiZoomStep,
 } from "./zoom";
+
+/** Camera eye height (m) — fixed pitch on horizon (hybrid 3D). */
+export const CAMERA_EYE_HEIGHT_M = 1.6;
 
 export {
   getThermalTarget,
@@ -103,9 +111,6 @@ export function deerDetectionRangeM(passportDetectionHumanM: number): number {
     0.75
   );
 }
-
-/** Camera eye height (m) — hunter holding monocular, looking roughly level. */
-export const CAMERA_EYE_HEIGHT_M = 1.55;
 
 /** Seeded mulberry32 — same family as 2D simulator */
 export function mulberry32(seed: number) {

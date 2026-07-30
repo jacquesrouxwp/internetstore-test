@@ -1,9 +1,12 @@
 "use client";
 
 /**
- * 3D thermal simulator — DEER ONLY.
- * Perspective FOV from optics; deer on real Z distance; cold forest backdrop;
- * thermal emissive materials + grain pixelation + seeded noise + digi zoom.
+ * Hybrid thermal simulator — DEER ONLY:
+ *  - Full-frame 2D cold forest (screen-space, always 100% coverage)
+ *  - 3D deer only, Z = −distance, NO scaleBoost
+ *  - Camera fixed eye height + pitch so geometric horizon = HORIZON_FRAC (0.73)
+ *  - Feet on y=0 ground plane → stay on litter band at all distances
+ *  - Post: grain + digi crop + LUT + NETD noise
  */
 
 import {
@@ -15,7 +18,7 @@ import {
   useState,
 } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useGLTF, useTexture } from "@react-three/drei";
+import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { cn } from "@/lib/utils";
 import type { DeviceType } from "@/types";
@@ -27,10 +30,12 @@ import {
   DIST_MIN_M,
   DIGI_ZOOM_STEPS,
   FOREST_BACKDROP_URL,
+  HORIZON_FRAC,
   angularFrameHeightFrac,
   cameraFovVerticalDeg,
   computeDetectStatusVisual,
   deerDetectionRangeM,
+  deerFeetYFrac,
   defaultSimDistanceM,
   digitalZoomCrop,
   hashSeed,
@@ -97,7 +102,7 @@ type Props = {
   deviceType?: DeviceType | string | null;
 };
 
-// ─── Thermal emissive material (hot core / cooler legs) ───────────────────
+// ─── Thermal emissive material ────────────────────────────────────────────
 
 function makeThermalDeerMaterial(
   localYMin: number,
@@ -106,7 +111,7 @@ function makeThermalDeerMaterial(
   const mat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(0.02, 0.02, 0.03),
     emissive: new THREE.Color(1, 1, 1),
-    emissiveIntensity: 1.35,
+    emissiveIntensity: 1.4,
     metalness: 0,
     roughness: 1,
     toneMapped: false,
@@ -137,34 +142,28 @@ function makeThermalDeerMaterial(
       .replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
-         // Heat: belly/chest brightest; legs & antler tips cooler
          float h = clamp(vBodyY, 0.0, 1.0);
          float core = smoothstep(0.12, 0.55, h) * (1.0 - 0.35 * smoothstep(0.75, 1.0, h));
          float legs = mix(0.28, 0.55, smoothstep(0.0, 0.2, h));
-         float heat = max(legs, core);
-         totalEmissiveRadiance *= heat;`
+         totalEmissiveRadiance *= max(legs, core);`
       );
-    mat.userData.shader = shader;
   };
 
   return mat;
 }
 
-// ─── Deer model ───────────────────────────────────────────────────────────
+// ─── Deer (perspective only — NO scaleBoost) ──────────────────────────────
 
 function DeerModel({
   distanceM,
   visible,
-  scaleBoost = 1,
 }: {
   distanceM: number;
   visible: boolean;
-  /** Detect-floor boost when FOV projects &lt;2 grain px but still in band */
-  scaleBoost?: number;
 }) {
   const group = useRef<THREE.Group>(null);
-  // Draco decoder (CDN) — GLB still uses KHR_draco_mesh_compression
   const { scene } = useGLTF(DEER_GLB_URL, true);
+
   const prepared = useMemo(() => {
     const root = scene.clone(true);
     const box = new THREE.Box3().setFromObject(root);
@@ -181,119 +180,80 @@ function DeerModel({
       const geoBox = new THREE.Box3().setFromBufferAttribute(
         mesh.geometry.attributes.position as THREE.BufferAttribute
       );
-      // Strip any remaining maps; pure thermal emissive
       mesh.material = makeThermalDeerMaterial(geoBox.min.y, geoBox.max.y);
       mesh.castShadow = false;
       mesh.receiveShadow = false;
+      mesh.frustumCulled = false;
     });
 
+    // Normalize: feet at local y=0, height = 1.3 m, centered XZ
     root.scale.setScalar(s);
     root.position.set(
       -((box.min.x + box.max.x) / 2) * s,
       -y0 * s,
       -((box.min.z + box.max.z) / 2) * s
     );
-    // Side profile toward camera
-    root.rotation.y = Math.PI * 0.5;
+    root.rotation.y = Math.PI * 0.5; // side profile
 
-    return { root, baseScale: s };
+    return root;
   }, [scene]);
 
   useEffect(() => {
     if (!group.current) return;
     group.current.visible = visible;
-    // Real meters on −Z. Camera at z=0 → deer at −d (perspective size ∝ 1/d)
+    // ONLY real distance on −Z. Scale = 1 (no boost). Feet world y = 0.
     group.current.position.set(0, 0, -Math.max(1, distanceM));
-    group.current.scale.setScalar(Math.max(0.01, scaleBoost));
-  }, [distanceM, visible, scaleBoost]);
+    group.current.scale.set(1, 1, 1);
+  }, [distanceM, visible]);
 
   return (
     <group
       ref={group}
       position={[0, 0, -Math.max(1, distanceM)]}
-      scale={Math.max(0.01, scaleBoost)}
       visible={visible}
     >
-      <primitive object={prepared.root} />
+      <primitive object={prepared} />
     </group>
   );
 }
 
 useGLTF.preload(DEER_GLB_URL, true);
 
-// ─── Cold forest backdrop ─────────────────────────────────────────────────
-// BUG (was): color × ~0.12 crushed forest_whitehot to near-black → "no forest".
-// Also size used fixed 12° FOV; real FOV can be wider → plane didn't fill frame.
+// ─── Camera: fixed eye + pitch so ground horizon = HORIZON_FRAC ───────────
 
-function ForestBackdrop({
-  maxRangeM,
-  palette,
-  fovDeg,
-}: {
-  maxRangeM: number;
-  palette: Palette;
-  fovDeg: number;
-}) {
-  const tex = useTexture(FOREST_BACKDROP_URL);
+function CameraRig({ fovDeg }: { fovDeg: number }) {
+  const { camera } = useThree();
+
   useEffect(() => {
-    // Thermal plate is already grayscale luminance — don't double-sRGB crush
-    tex.colorSpace = THREE.NoColorSpace;
-    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.minFilter = THREE.LinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.needsUpdate = true;
-  }, [tex]);
+    const cam = camera as THREE.PerspectiveCamera;
+    cam.fov = fovDeg;
+    cam.zoom = 1; // digi-zoom is post crop only
+    cam.near = 0.05;
+    cam.far = 8000;
+    cam.position.set(0, CAMERA_EYE_HEIGHT_M, 0);
+    cam.up.set(0, 1, 0);
 
-  // Always BEHIND the farthest deer position; fill vertical FOV + margin
-  const z = -(Math.max(120, maxRangeM) * 1.2 + 40);
-  const halfFovRad = (Math.max(4, fovDeg) * Math.PI) / 360;
-  const halfH = Math.tan(halfFovRad) * Math.abs(z) * 1.45;
-  const halfW = halfH * (LOGIC_W / LOGIC_H) * 1.45;
+    /**
+     * Level camera → geometric horizon of y=0 at vertical center (frac 0.5).
+     * Backdrop tree-bases sit at HORIZON_FRAC (0.73 from top).
+     * Pitch up so horizon moves down to HORIZON_FRAC.
+     * three.js: +rotation.x looks down → use negative for look up.
+     */
+    const halfFov = (fovDeg * Math.PI) / 360;
+    const horizonOffsetFromCenter = (HORIZON_FRAC - 0.5) * 2; // +0.46
+    // Look UP by this angle so horizon NDC matches texture
+    const pitchUp = Math.atan(Math.tan(halfFov) * horizonOffsetFromCenter);
+    cam.rotation.order = "YXZ";
+    cam.rotation.y = 0;
+    cam.rotation.z = 0;
+    cam.rotation.x = -pitchUp; // look up
+    cam.updateProjectionMatrix();
+  }, [camera, fovDeg]);
 
-  // Cold tint but KEEP texture detail (×0.12 was the "no forest" bug)
-  const tint =
-    palette === "ironhot"
-      ? new THREE.Color(0.55, 0.48, 0.72)
-      : new THREE.Color(0.72, 0.74, 0.76);
-
-  return (
-    <mesh
-      position={[0, CAMERA_EYE_HEIGHT_M * 0.25, z]}
-      renderOrder={-2}
-      frustumCulled={false}
-    >
-      <planeGeometry args={[halfW * 2, halfH * 2]} />
-      <meshBasicMaterial
-        map={tex}
-        color={tint}
-        toneMapped={false}
-        depthWrite={true}
-        depthTest={true}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  );
+  return null;
 }
 
-// Preload so Suspense doesn't leave a black void for long
-useTexture.preload(FOREST_BACKDROP_URL);
-
-// ─── Ground plane (cold litter) ───────────────────────────────────────────
-
-function ColdGround() {
-  return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[0, 0, -200]}
-      receiveShadow={false}
-    >
-      <planeGeometry args={[800, 800]} />
-      <meshBasicMaterial color="#05060a" toneMapped={false} />
-    </mesh>
-  );
-}
-
-// ─── Post: grain + digi crop + LUT + noise on 2D canvas ───────────────────
+// ─── Post: composite 2D forest + transparent deer RT ──────────────────────
 
 function PostCapture({
   grainW,
@@ -304,6 +264,7 @@ function PostCapture({
   fog,
   distanceM,
   rangeD,
+  forestImg,
   onFrame,
 }: {
   grainW: number;
@@ -314,12 +275,14 @@ function PostCapture({
   fog: boolean;
   distanceM: number;
   rangeD: number;
+  forestImg: HTMLImageElement | null;
   onFrame: (canvas: HTMLCanvasElement) => void;
 }) {
-  const { gl, scene, camera, size } = useThree();
+  const { gl, scene, camera } = useThree();
   const rt = useRef<THREE.WebGLRenderTarget | null>(null);
   const outCanvas = useRef<HTMLCanvasElement | null>(null);
   const grainCanvas = useRef<HTMLCanvasElement | null>(null);
+  const deerCanvas = useRef<HTMLCanvasElement | null>(null);
   const readBuf = useRef<Uint8Array | null>(null);
   const flipBuf = useRef<Uint8ClampedArray | null>(null);
 
@@ -334,11 +297,15 @@ function PostCapture({
     readBuf.current = new Uint8Array(grainW * grainH * 4);
     flipBuf.current = new Uint8ClampedArray(grainW * grainH * 4);
     if (!outCanvas.current) outCanvas.current = document.createElement("canvas");
-    if (!grainCanvas.current) grainCanvas.current = document.createElement("canvas");
+    if (!grainCanvas.current)
+      grainCanvas.current = document.createElement("canvas");
+    if (!deerCanvas.current) deerCanvas.current = document.createElement("canvas");
     outCanvas.current.width = LOGIC_W;
     outCanvas.current.height = LOGIC_H;
     grainCanvas.current.width = grainW;
     grainCanvas.current.height = grainH;
+    deerCanvas.current.width = grainW;
+    deerCanvas.current.height = grainH;
     return () => {
       rt.current?.dispose();
       rt.current = null;
@@ -351,15 +318,17 @@ function PostCapture({
       !readBuf.current ||
       !flipBuf.current ||
       !outCanvas.current ||
-      !grainCanvas.current
+      !grainCanvas.current ||
+      !deerCanvas.current
     )
       return;
-    const target = rt.current;
 
-    // 1) Render scene into grain RT (pixelation = low-res render)
+    const target = rt.current;
     const prev = gl.getRenderTarget();
+
+    // 1) Deer only → transparent RT (forest is 2D, never a 3D plane)
     gl.setRenderTarget(target);
-    gl.setClearColor("#05060a", 1);
+    gl.setClearColor(0x000000, 0); // fully transparent — no black void
     gl.clear(true, true, true);
     gl.render(scene, camera);
     gl.readRenderTargetPixels(
@@ -368,38 +337,84 @@ function PostCapture({
       0,
       grainW,
       grainH,
-      // three r170 typings expect ArrayBufferView
       readBuf.current as unknown as THREE.TypedArray
     );
     gl.setRenderTarget(prev);
 
-    // Flip Y (WebGL read is bottom-up)
+    // Flip Y
     const src = readBuf.current;
     const flipped = flipBuf.current;
     const rowBytes = grainW * 4;
     for (let y = 0; y < grainH; y++) {
-      const srcOff = y * rowBytes;
-      const dstOff = (grainH - 1 - y) * rowBytes;
-      flipped.set(src.subarray(srcOff, srcOff + rowBytes), dstOff);
+      flipped.set(
+        src.subarray(y * rowBytes, (y + 1) * rowBytes),
+        (grainH - 1 - y) * rowBytes
+      );
     }
 
-    // 2) Digi-zoom crop on grain
-    const crop = digitalZoomCrop(grainW, grainH, digiZoom, 0.5, 0.52);
-    const tmp = grainCanvas.current;
-    const tctx = tmp.getContext("2d")!;
-    const img = tctx.createImageData(grainW, grainH);
-    img.data.set(flipped);
-    tctx.putImageData(img, 0, 0);
+    const gctx = grainCanvas.current.getContext("2d")!;
+    gctx.imageSmoothingEnabled = false;
 
-    // 3) Upscale crop → logic canvas + LUT + noise
+    // 2) Full-frame forest first (100% coverage — no black zones)
+    if (forestImg && forestImg.complete && forestImg.naturalWidth > 0) {
+      // Cover-style draw (like CSS object-fit: cover)
+      const iw = forestImg.naturalWidth;
+      const ih = forestImg.naturalHeight;
+      const scale = Math.max(grainW / iw, grainH / ih);
+      const dw = iw * scale;
+      const dh = ih * scale;
+      const dx = (grainW - dw) / 2;
+      const dy = (grainH - dh) / 2;
+      gctx.fillStyle = "#0a0b10";
+      gctx.fillRect(0, 0, grainW, grainH);
+      gctx.drawImage(forestImg, dx, dy, dw, dh);
+      // Cold dim of forest plate (keep detail)
+      gctx.fillStyle =
+        palette === "ironhot"
+          ? "rgba(20, 12, 40, 0.35)"
+          : "rgba(0, 0, 0, 0.28)";
+      gctx.fillRect(0, 0, grainW, grainH);
+    } else {
+      gctx.fillStyle = "#0a0b10";
+      gctx.fillRect(0, 0, grainW, grainH);
+    }
+
+    // 3) Composite deer over forest (alpha from clear RT)
+    const dctx = deerCanvas.current.getContext("2d")!;
+    const deerImg = dctx.createImageData(grainW, grainH);
+    deerImg.data.set(flipped);
+    dctx.putImageData(deerImg, 0, 0);
+    gctx.drawImage(deerCanvas.current, 0, 0);
+
+    // 4) Digi-zoom crop — focus near frame center / body
+    const feetY = deerFeetYFrac(distanceM);
+    const focusY = Math.min(0.72, Math.max(0.45, feetY - 0.12));
+    const crop = digitalZoomCrop(grainW, grainH, digiZoom, 0.5, focusY);
+
     const octx = outCanvas.current.getContext("2d", {
       willReadFrequently: true,
     })!;
     octx.imageSmoothingEnabled = false;
-    octx.fillStyle = "#05060a";
-    octx.fillRect(0, 0, LOGIC_W, LOGIC_H);
+    // Never leave black: always paint forest base first at logic size too
+    if (forestImg && forestImg.complete && forestImg.naturalWidth > 0) {
+      const iw = forestImg.naturalWidth;
+      const ih = forestImg.naturalHeight;
+      const scale = Math.max(LOGIC_W / iw, LOGIC_H / ih);
+      const dw = iw * scale;
+      const dh = ih * scale;
+      octx.drawImage(
+        forestImg,
+        (LOGIC_W - dw) / 2,
+        (LOGIC_H - dh) / 2,
+        dw,
+        dh
+      );
+    } else {
+      octx.fillStyle = "#0a0b10";
+      octx.fillRect(0, 0, LOGIC_W, LOGIC_H);
+    }
     octx.drawImage(
-      tmp,
+      grainCanvas.current,
       crop.sx,
       crop.sy,
       crop.sw,
@@ -410,10 +425,11 @@ function PostCapture({
       LOGIC_H
     );
 
+    // 5) LUT + seeded NETD noise
     const id = octx.getImageData(0, 0, LOGIC_W, LOGIC_H);
     const d = id.data;
     const seed = hashSeed(
-      "3d-deer",
+      "3d-hybrid",
       netdMk,
       distanceM,
       fog,
@@ -427,9 +443,7 @@ function PostCapture({
     const fogLift = fog ? 10 : 0;
 
     for (let i = 0; i < d.length; i += 4) {
-      // Luma of rendered thermal scene
       let y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      // Soft contrast
       y = (y - 128) * (0.9 + 0.1 * contrast) + 128 + fogLift;
       const n = (rand() - 0.5) * noiseAmp * 0.9;
       y = Math.max(0, Math.min(255, y + n));
@@ -438,7 +452,6 @@ function PostCapture({
       if (palette === "whitehot") {
         d[i] = d[i + 1] = d[i + 2] = y;
       } else {
-        // Iron / red-hot LUT
         let r: number, g: number, b: number;
         if (t < 0.25) {
           const k = t / 0.25;
@@ -469,7 +482,7 @@ function PostCapture({
     }
     octx.putImageData(id, 0, 0);
 
-    // Soft circular vignette (ocular feel)
+    // Vignette
     const cx = LOGIC_W / 2;
     const cy = LOGIC_H / 2;
     const grd = octx.createRadialGradient(
@@ -481,14 +494,13 @@ function PostCapture({
       LOGIC_H * 0.72
     );
     grd.addColorStop(0, "rgba(0,0,0,0)");
-    grd.addColorStop(1, "rgba(0,0,0,0.55)");
+    grd.addColorStop(1, "rgba(0,0,0,0.5)");
     octx.fillStyle = grd;
     octx.fillRect(0, 0, LOGIC_W, LOGIC_H);
 
-    // HUD distances
     octx.font = "600 11px Manrope, system-ui, sans-serif";
     octx.fillStyle = "rgba(225,29,42,0.95)";
-    octx.fillText(`${grainW}×${grainH} 3D`, 10, 16);
+    octx.fillText(`${grainW}×${grainH} hybrid`, 10, 16);
     octx.fillStyle = "rgba(245,246,247,0.85)";
     octx.fillText(`${Math.round(distanceM)} m`, 10, 32);
     if (digiZoom > 1) {
@@ -499,44 +511,16 @@ function PostCapture({
     }
 
     onFrame(outCanvas.current);
-    // Prevent default r3f present of raw scene (we show 2D canvas)
     gl.setRenderTarget(null);
     gl.clear();
   }, 1);
 
-  // Keep camera FOV / zoom updated
-  void size;
   return null;
 }
-
-function CameraRig({
-  fovDeg,
-  digiZoom,
-}: {
-  fovDeg: number;
-  digiZoom: number;
-}) {
-  const { camera } = useThree();
-  useEffect(() => {
-    const cam = camera as THREE.PerspectiveCamera;
-    cam.fov = fovDeg;
-    cam.zoom = Math.max(1, digiZoom);
-    cam.near = 0.05;
-    cam.far = 8000;
-    cam.position.set(0, CAMERA_EYE_HEIGHT_M, 0);
-    cam.up.set(0, 1, 0);
-    cam.lookAt(0, CAMERA_EYE_HEIGHT_M * 0.55, -100);
-    cam.updateProjectionMatrix();
-  }, [camera, fovDeg, digiZoom]);
-  return null;
-}
-
-// ─── Scene shell ──────────────────────────────────────────────────────────
 
 function SceneContent({
   distanceM,
   rangeD,
-  maxRangeM,
   palette,
   fog,
   netdMk,
@@ -544,12 +528,11 @@ function SceneContent({
   matrix,
   deerVisible,
   fovDeg,
-  fovRad,
+  forestImg,
   onFrame,
 }: {
   distanceM: number;
   rangeD: number;
-  maxRangeM: number;
   palette: Palette;
   fog: boolean;
   netdMk: number;
@@ -557,48 +540,21 @@ function SceneContent({
   matrix: ThermalMatrix;
   deerVisible: boolean;
   fovDeg: number;
-  fovRad: number;
+  forestImg: HTMLImageElement | null;
   onFrame: (c: HTMLCanvasElement) => void;
 }) {
   const grainW = matrixPixelWidth(matrix);
   const grainH = matrixPixelHeight(matrix);
 
-  // Detect floor: if still in band but FOV projects &lt;2 grain on critical, boost scale
-  const passPx = (2 * rangeD) / Math.max(1, distanceM);
-  const frac = angularFrameHeightFrac(
-    DEER_VISUAL_HEIGHT_M,
-    distanceM,
-    fovRad
-  );
-  const critGrain =
-    frac * grainH * (DEER_CRITICAL_SIZE_M / DEER_VISUAL_HEIGHT_M);
-  let scaleBoost = 1;
-  if (passPx >= 2 && critGrain < 2 && critGrain > 0) {
-    scaleBoost = Math.min(8, 2.5 / critGrain);
-  }
-
   return (
     <>
-      <color attach="background" args={["#05060a"]} />
-      <ambientLight intensity={0.15} />
-      {/* Fill light so emissive-only still reads if tone mapping sneaks in */}
-      <directionalLight position={[2, 6, 4]} intensity={0.05} />
-      <CameraRig fovDeg={fovDeg} digiZoom={1} />
-      <ColdGround />
-      {/* Separate Suspense: forest must not block deer, and vice versa */}
+      {/* Transparent clear — forest is 2D full-frame behind/under composite */}
+      <color attach="background" args={["#000000"]} />
+      <ambientLight intensity={0.12} />
+      <directionalLight position={[2, 6, 4]} intensity={0.04} />
+      <CameraRig fovDeg={fovDeg} />
       <Suspense fallback={null}>
-        <ForestBackdrop
-          maxRangeM={maxRangeM}
-          palette={palette}
-          fovDeg={fovDeg}
-        />
-      </Suspense>
-      <Suspense fallback={null}>
-        <DeerModel
-          distanceM={distanceM}
-          visible={deerVisible}
-          scaleBoost={scaleBoost}
-        />
+        <DeerModel distanceM={distanceM} visible={deerVisible} />
       </Suspense>
       <PostCapture
         grainW={grainW}
@@ -609,6 +565,7 @@ function SceneContent({
         fog={fog}
         distanceM={distanceM}
         rangeD={rangeD}
+        forestImg={forestImg}
         onFrame={onFrame}
       />
     </>
@@ -633,12 +590,22 @@ export function ThermalSimulator3D({
   const [weather, setWeather] = useState<Weather>("clear");
   const [palette, setPalette] = useState<Palette>("whitehot");
   const [fps, setFps] = useState(0);
+  const [forestImg, setForestImg] = useState<HTMLImageElement | null>(null);
   const displayRef = useRef<HTMLCanvasElement>(null);
   const fpsRef = useRef({ t: 0, n: 0 });
 
   useEffect(() => {
     setMatrix(params.matrix);
   }, [params.matrix]);
+
+  // Preload full-frame forest (2D) — never a 3D plane
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => setForestImg(img);
+    img.onerror = () => setForestImg(null);
+    img.src = FOREST_BACKDROP_URL;
+  }, []);
 
   const simParams: ThermalSimParams = useMemo(
     () => ({
@@ -655,7 +622,6 @@ export function ThermalSimulator3D({
     () => deerDetectionRangeM(simParams.detectionRangeM),
     [simParams.detectionRangeM]
   );
-
   const sliderMax = Math.max(300, rangeD);
 
   useEffect(() => {
@@ -700,8 +666,9 @@ export function ThermalSimulator3D({
     fovRad
   );
 
-  // Past D: hide deer (status none ⇔ no hot mark) — same as 2D fade
+  // Past D: hide deer only (forest stays full-frame)
   const showDeer = targetSubjectVisibility(distance, rangeD, fog) > 0.02;
+  const feetFrac = deerFeetYFrac(distance);
 
   const onFrame = useCallback((src: HTMLCanvasElement) => {
     const dst = displayRef.current;
@@ -717,17 +684,15 @@ export function ThermalSimulator3D({
     const now = performance.now();
     fpsRef.current.n += 1;
     if (now - fpsRef.current.t > 500) {
-      setFps(Math.round((fpsRef.current.n * 1000) / (now - fpsRef.current.t)));
+      setFps(
+        Math.round((fpsRef.current.n * 1000) / (now - fpsRef.current.t))
+      );
       fpsRef.current = { t: now, n: 0 };
     }
   }, []);
 
   const statusLabel = isRu ? STATUS_RU[status] : STATUS_UK[status];
   const statusHint = isRu ? STATUS_HINT_RU[status] : STATUS_HINT_UK[status];
-  const ocular =
-    deviceType === "scope" ||
-    deviceType === "binocular" ||
-    deviceType === "clipon";
 
   return (
     <section
@@ -736,17 +701,21 @@ export function ThermalSimulator3D({
         className
       )}
       style={{ background: "var(--surface)" }}
-      aria-label={isRu ? "3D симулятор тепловизора" : "3D симулятор тепловізора"}
+      aria-label={
+        isRu ? "3D симулятор тепловизора (гибрид)" : "3D симулятор тепловізора (гібрид)"
+      }
     >
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-bold tracking-tight text-primary sm:text-xl">
-            {isRu ? "3D-симулятор (олень)" : "3D-симулятор (олень)"}
+            {isRu
+              ? "Симулятор (гібрид: 2D ліс + 3D олень)"
+              : "Симулятор (гібрид: 2D ліс + 3D олень)"}
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-secondary">
             {isRu
-              ? "Реальная перспектива: FOV из объектива, олень на дистанции Z. Лес холодный, цель горячая. Остальные цели временно скрыты."
-              : "Реальна перспектива: FOV з об'єктива, олень на дистанції Z. Ліс холодний, ціль гаряча. Інші цілі тимчасово приховані."}
+              ? "Лес — full-frame 2D. Олень — 3D на Z=−d, без scaleBoost. Ноги на земле (horizon 0.73)."
+              : "Ліс — full-frame 2D. Олень — 3D на Z=−d, без scaleBoost. Ноги на землі (horizon 0.73)."}
           </p>
         </div>
         <div className="text-right">
@@ -761,33 +730,43 @@ export function ThermalSimulator3D({
           <p className="mt-0.5 text-[10px] text-faint">{statusHint}</p>
           <p className="mt-0.5 text-[10px] tabular-nums text-faint">
             Johnson ≈ {critPx.toFixed(1)} px · FOV↓ {fovDeg.toFixed(1)}° ·{" "}
-            {frameFrac * 100 < 10
-              ? `${(frameFrac * 100).toFixed(1)}%`
-              : `${Math.round(frameFrac * 100)}%`}{" "}
-            {isRu ? "кадра" : "кадру"}
+            {(frameFrac * 100).toFixed(1)}% · feetY {(feetFrac * 100).toFixed(0)}%
             {fps > 0 ? ` · ${fps} fps` : ""}
           </p>
         </div>
       </div>
 
       <div
-        className={cn(
-          "relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black",
-          ocular && "rounded-full sm:rounded-xl"
-        )}
+        className="relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
         style={{
           boxShadow:
             "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)",
         }}
       >
-        {/* Hidden WebGL canvas (scene) + visible 2D post canvas */}
+        {/* CSS full-frame forest underlay (always 100% — never a 3D plane hole) */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: `url(${FOREST_BACKDROP_URL})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter:
+              palette === "ironhot"
+                ? "sepia(0.35) hue-rotate(-20deg) brightness(0.85)"
+                : "brightness(0.9)",
+          }}
+          aria-hidden
+        />
+
         <div className="relative w-full" style={{ aspectRatio: "4 / 3" }}>
+          {/* Hidden WebGL: deer only, transparent clear */}
           <div className="pointer-events-none absolute inset-0 opacity-0">
             <Canvas
               dpr={1}
               gl={{
                 antialias: false,
-                alpha: false,
+                alpha: true,
+                premultipliedAlpha: false,
                 powerPreference: "high-performance",
                 preserveDrawingBuffer: true,
               }}
@@ -798,11 +777,13 @@ export function ThermalSimulator3D({
                 position: [0, CAMERA_EYE_HEIGHT_M, 0],
               }}
               style={{ width: LOGIC_W, height: LOGIC_H }}
+              onCreated={({ gl }) => {
+                gl.setClearColor(0x000000, 0);
+              }}
             >
               <SceneContent
                 distanceM={distance}
                 rangeD={rangeD}
-                maxRangeM={sliderMax}
                 palette={palette}
                 fog={fog}
                 netdMk={simParams.netdMk}
@@ -810,18 +791,21 @@ export function ThermalSimulator3D({
                 matrix={simParams.matrix}
                 deerVisible={showDeer}
                 fovDeg={fovDeg}
-                fovRad={fovRad}
+                forestImg={forestImg}
                 onFrame={onFrame}
               />
             </Canvas>
           </div>
+
+          {/* Visible composite (forest + deer + post) */}
           <canvas
             ref={displayRef}
             width={LOGIC_W}
             height={LOGIC_H}
-            className="block h-auto w-full"
+            className="relative block h-auto w-full"
             style={{ aspectRatio: "4 / 3", imageRendering: "pixelated" }}
           />
+
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
             <div className="pointer-events-auto flex items-center gap-1">
               <button
@@ -881,8 +865,8 @@ export function ThermalSimulator3D({
             </button>
             <span className="self-center text-[10px] text-faint">
               {isRu
-                ? "Кабан / лиса / человек — скоро (3D). Сейчас только олень."
-                : "Кабан / лисиця / людина — скоро (3D). Зараз лише олень."}
+                ? "Только олень (3D). Без scaleBoost."
+                : "Лише олень (3D). Без scaleBoost."}
             </span>
           </div>
         </fieldset>
@@ -905,9 +889,9 @@ export function ThermalSimulator3D({
               className="thermal-range w-full"
             />
             <span className="mt-1 block text-[10px] text-faint">
-              {isRu
-                ? `Z = −${distance} m · доля кадра ≈ ${(frameFrac * 100).toFixed(1)}% (FOV↓ ${fovDeg.toFixed(1)}°). Туман/палитра не двигают оленя.`
-                : `Z = −${distance} m · частка кадру ≈ ${(frameFrac * 100).toFixed(1)}% (FOV↓ ${fovDeg.toFixed(1)}°). Туман/палітра не рухають оленя.`}
+              Z=−{distance} m · FOV↓ {fovDeg.toFixed(1)}° · frame ≈{" "}
+              {(frameFrac * 100).toFixed(1)}% · feetY≈{(feetFrac * 100).toFixed(0)}%
+              (horizon {(HORIZON_FRAC * 100).toFixed(0)}%) · no scaleBoost
             </span>
           </label>
         </div>
@@ -919,7 +903,7 @@ export function ThermalSimulator3D({
           <div className="flex gap-2">
             {(
               [
-                ["clear", isRu ? "Ясно" : "Ясно"],
+                ["clear", "Ясно"],
                 ["fog", isRu ? "Туман" : "Туман"],
               ] as const
             ).map(([k, lab]) => (
@@ -1018,9 +1002,10 @@ export function ThermalSimulator3D({
       </div>
 
       <p className="mt-4 text-[10px] leading-relaxed text-faint">
-        {isRu
-          ? `3D: deer.glb (~47 KB без текстур) · Z=−d м · FOV_верт из f/pitch/матрицы · статус Johnson по grain · NETD→шум · digi×1…32. Модель: ${simParams.label} · NETD ${simParams.netdMk} mK · D_олень≈${rangeD} м.`
-          : `3D: deer.glb (~47 KB без текстур) · Z=−d м · FOV_верт з f/pitch/матриці · статус Johnson по grain · NETD→шум · digi×1…32. Модель: ${simParams.label} · NETD ${simParams.netdMk} mK · D_олень≈${rangeD} м.`}
+        Hybrid: full-frame 2D forest + 3D deer Z=−d · eye {CAMERA_EYE_HEIGHT_M} m ·
+        horizon {HORIZON_FRAC} · no scaleBoost · {simParams.label} · NETD{" "}
+        {simParams.netdMk} mK · D≈{rangeD} m
+        {deviceType ? ` · ${deviceType}` : ""}
       </p>
     </section>
   );
