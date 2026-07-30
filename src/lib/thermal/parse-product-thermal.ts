@@ -1,6 +1,9 @@
 /**
  * Extract thermal simulator inputs from product fields / specs.
  * Detection status uses Johnson criteria (2 / 8 / 13 pixels on target).
+ *
+ * Visual deer size is calibrated so that after matrix pixelation the target
+ * height on the sensor ≈ Johnson pixel count — badge and picture stay in sync.
  */
 
 export type ThermalMatrix = 256 | 384 | 640;
@@ -9,7 +12,7 @@ export type ThermalProductInput = {
   resolution?: string | null;
   detectionRangeM?: number | null;
   specs?: Record<string, string> | null;
-  /** Display label only — never used to parse matrix (avoids false positives in names). */
+  /** Display label only — never used to parse matrix. */
   name?: string;
 };
 
@@ -17,13 +20,11 @@ export type ThermalSimParams = {
   matrix: ThermalMatrix;
   /** Passport detection range D (m) — Johnson calibration anchor */
   detectionRangeM: number;
-  /** Noise-equivalent temperature difference (mK), lower = cleaner */
   netdMk: number;
   refreshRateHz: number | null;
   label: string;
 };
 
-/** Lightweight catalog row for model comparison dropdowns */
 export type ThermalCompareOption = {
   id: string;
   slug: string;
@@ -34,24 +35,28 @@ export type ThermalCompareOption = {
   refreshRateHz: number | null;
 };
 
-/**
- * Typical detection range D for large animal / deer when product has no value.
- * Mid of industry ranges: 256→800–1300, 384→1300–1900, 640→1900–2800.
- */
+/** Johnson thresholds (line-pairs / critical dimension on target). */
+export const JOHNSON_PX = {
+  /** ≥13 → identification (details) */
+  identify: 13,
+  /** ≥8 → recognition (animal class) */
+  recognize: 8,
+  /** ≥2 → detection (something is there); = 2 at dist = D */
+  detect: 2,
+} as const;
+
 export function defaultDetectionRangeM(matrix: ThermalMatrix): number {
   if (matrix >= 640) return 2350;
   if (matrix >= 384) return 1600;
   return 1050;
 }
 
-/** Typical NETD (mK) for matrix class presets */
 export function defaultNetdMk(matrix: ThermalMatrix): number {
   if (matrix >= 640) return 25;
   if (matrix >= 384) return 35;
   return 40;
 }
 
-/** Quick-compare presets: generation classes */
 export function matrixClassPreset(matrix: ThermalMatrix): ThermalSimParams {
   return {
     matrix,
@@ -62,11 +67,6 @@ export function matrixClassPreset(matrix: ThermalMatrix): ThermalSimParams {
   };
 }
 
-/**
- * Parse sensor matrix from resolution field + specs only.
- * Never from product name (avoids "…640…" false positives in titles).
- * Prefer full patterns like 640×512 over bare digits.
- */
 export function parseMatrix(
   res?: string | null,
   specs?: Record<string, string> | null
@@ -79,26 +79,22 @@ export function parseMatrix(
         specParts.push(String(v));
       }
     }
-    // Common exact keys
     if (specs["Матриця"]) specParts.push(specs["Матриця"]);
     if (specs["Матрица"]) specParts.push(specs["Матрица"]);
     if (specs["Resolution"]) specParts.push(specs["Resolution"]);
   }
   const raw = specParts.join(" ");
 
-  // Full WxH patterns first
   if (/640\s*[x×]\s*512/i.test(raw)) return 640;
   if (/384\s*[x×]\s*288/i.test(raw)) return 384;
   if (/256\s*[x×]\s*192/i.test(raw)) return 256;
   if (/160\s*[x×]\s*120/i.test(raw)) return 256;
 
-  // Bare width only when clearly a matrix token (not arbitrary number in a long string)
   if (/(?:^|[^\d])640(?:[^\d]|$)/.test(raw) && /512|matrix|матриц/i.test(raw))
     return 640;
   if (/(?:^|[^\d])384(?:[^\d]|$)/.test(raw)) return 384;
   if (/(?:^|[^\d])256(?:[^\d]|$)/.test(raw)) return 256;
 
-  // Resolution-only field like "640" or "640x512" already handled; pure "640"
   const resOnly = (res || "").trim();
   if (/^640(\s*[x×]\s*512)?$/i.test(resOnly)) return 640;
   if (/^384(\s*[x×]\s*288)?$/i.test(resOnly)) return 384;
@@ -141,13 +137,18 @@ export function parseRange(
 }
 
 /**
- * Offscreen width for matrix pixelation (visual grain only).
- * 256 → large pixels, 384 → medium, 640 → fine.
+ * Offscreen width for matrix pixelation (sensor simulation).
+ * 256 → large blocks, 384 → medium, 640 → fine.
  */
 export function matrixPixelWidth(matrix: ThermalMatrix): number {
   if (matrix >= 640) return 240;
   if (matrix >= 384) return 144;
   return 96;
+}
+
+/** Sensor height for 16:9 logical frame (matches canvas aspect). */
+export function matrixPixelHeight(matrix: ThermalMatrix): number {
+  return Math.round(matrixPixelWidth(matrix) * (9 / 16));
 }
 
 export function parseProductThermal(p: ThermalProductInput): ThermalSimParams {
@@ -183,9 +184,8 @@ export type DetectStatus =
   | "none";
 
 /**
- * Johnson criteria: pixels on target at distance.
- * At dist = D (detection range) → 2 px (threshold of detection).
- * recognize ≈ D/4 (8 px), identify ≈ D/6.5 (13 px).
+ * Johnson: pixels on target at distance.
+ * At dist = D → exactly 2 px (detection limit of passport range).
  */
 export function pixelsOnTarget(distanceM: number, detectionRangeM: number): number {
   const dist = Math.max(distanceM, 1);
@@ -193,34 +193,85 @@ export function pixelsOnTarget(distanceM: number, detectionRangeM: number): numb
   return (2 * D) / dist;
 }
 
+/** Fog reduces effective resolution on target (atmospheric attenuation). */
+export function effectivePixelsOnTarget(
+  distanceM: number,
+  detectionRangeM: number,
+  fog = false
+): number {
+  let px = pixelsOnTarget(distanceM, detectionRangeM);
+  if (fog) px *= 0.6;
+  return px;
+}
+
 /**
  * Status from Johnson pixel count (calibrated to passport D).
- * Optional fog reduces effective pixels (atmospheric attenuation).
- * NETD / matrix do NOT change status — they affect noise & pixelation visuals only.
+ * NETD does not change status (noise only). Matrix does not change status
+ * (grain only) — but visual size uses matrix so blocks match px count.
  */
 export function computeDetectStatus(opts: {
   distanceM: number;
-  /** Passport detection range D (m) */
   maxRangeM: number;
   matrix?: ThermalMatrix;
   netdMk?: number;
   fog?: boolean;
 }): DetectStatus {
-  const { distanceM, maxRangeM, fog = false } = opts;
-  let px = pixelsOnTarget(distanceM, maxRangeM);
-  if (fog) px *= 0.6;
-
-  if (px >= 13) return "identify";
-  if (px >= 8) return "recognize";
-  if (px >= 2) return "detect";
+  const px = effectivePixelsOnTarget(
+    opts.distanceM,
+    opts.maxRangeM,
+    opts.fog ?? false
+  );
+  if (px >= JOHNSON_PX.identify) return "identify";
+  if (px >= JOHNSON_PX.recognize) return "recognize";
+  if (px >= JOHNSON_PX.detect) return "detect";
   return "none";
 }
 
 /**
- * NETD → noise amplitude for simulator (linear, higher NETD = more grain).
- * Reference: ≤20 clean, 25–35 medium, ≥50 heavy.
- * Also scales with fog and normalized distance (0 at 50 m, 1 at D).
+ * Max distance (m) for each status band (clear weather).
+ * identify: dist ≤ 2D/13 ≈ D/6.5
+ * recognize: dist ≤ 2D/8 = D/4
+ * detect: dist ≤ D
  */
+export function johnsonBandDistancesM(detectionRangeM: number): {
+  identifyMaxM: number;
+  recognizeMaxM: number;
+  detectMaxM: number;
+} {
+  const D = Math.max(1, detectionRangeM);
+  return {
+    identifyMaxM: Math.round((2 * D) / JOHNSON_PX.identify),
+    recognizeMaxM: Math.round((2 * D) / JOHNSON_PX.recognize),
+    detectMaxM: Math.round(D),
+  };
+}
+
+/**
+ * Deer height as fraction of logic frame height so that AFTER matrix
+ * downscale the target height ≈ effective Johnson pixels.
+ *
+ *   frac * logicH * (pixH/logicH) = px  →  frac = px / pixH
+ */
+export function johnsonDeerHeightFrac(
+  distanceM: number,
+  detectionRangeM: number,
+  matrix: ThermalMatrix,
+  fog = false,
+  logicH = 270
+): number {
+  const pixH = matrixPixelHeight(matrix);
+  const px = effectivePixelsOnTarget(distanceM, detectionRangeM, fog);
+  // At least ~1 logic pixel worth; at most 82% frame (antlers fit)
+  const frac = px / Math.max(1, pixH);
+  const minFrac = 1.2 / logicH;
+  return Math.max(minFrac, Math.min(0.82, frac));
+}
+
+/** Human-readable explanation of current status (uk/ru via caller). */
+export function statusMeaningKey(status: DetectStatus): string {
+  return status;
+}
+
 export function netdNoiseAmp(
   netdMk: number,
   fog: boolean,
@@ -237,9 +288,6 @@ export function netdNoiseAmp(
   return base * fogMul * distMul;
 }
 
-/**
- * NETD → contrast (lower NETD = sharper thermal contrast).
- */
 export function netdContrast(netdMk: number, fog: boolean): number {
   const c = 42 / Math.max(netdMk, 15);
   return c * (fog ? 0.68 : 1);

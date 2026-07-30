@@ -4,11 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   computeDetectStatus,
   defaultDetectionRangeM,
+  effectivePixelsOnTarget,
+  johnsonBandDistancesM,
+  johnsonDeerHeightFrac,
+  JOHNSON_PX,
   matrixClassPreset,
+  matrixPixelHeight,
   matrixPixelWidth,
   netdContrast,
   netdNoiseAmp,
-  pixelsOnTarget,
   type DetectStatus,
   type ThermalCompareOption,
   type ThermalMatrix,
@@ -16,7 +20,6 @@ import {
 } from "@/lib/thermal/parse-product-thermal";
 import {
   atmosphericTransmission,
-  deerHeightFrac,
   deerScreenRect,
   defaultSimDistanceM,
   DIGI_ZOOM_STEPS,
@@ -82,6 +85,20 @@ const STATUS_RU: Record<DetectStatus, string> = {
   recognize: "Распознавание",
   detect: "Обнаружение",
   none: "Не видно",
+};
+
+/** Short meaning under the badge */
+const STATUS_HINT_UK: Record<DetectStatus, string> = {
+  identify: "видно деталі (≥13 px на цілі)",
+  recognize: "зрозуміло, що тварина (≥8 px)",
+  detect: "видно, що щось є (≥2 px)",
+  none: "менше 2 px — ціль зливається з шумом",
+};
+const STATUS_HINT_RU: Record<DetectStatus, string> = {
+  identify: "видны детали (≥13 px на цели)",
+  recognize: "понятно, что животное (≥8 px)",
+  detect: "видно, что что-то есть (≥2 px)",
+  none: "меньше 2 px — цель тонет в шуме",
 };
 
 const STATUS_COLOR: Record<DetectStatus, string> = {
@@ -533,13 +550,22 @@ export function ThermalSimulator({
         if (sctx) {
           sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
           const sink = Math.max(1, Math.round(LOGIC_H * 0.005));
+          // Size tied to Johnson px on THIS panel's matrix+D (badge ↔ picture)
+          const hFrac = johnsonDeerHeightFrac(
+            distance,
+            panelParams.detectionRangeM,
+            panelParams.matrix,
+            weather === "fog",
+            LOGIC_H
+          );
           const rect = deerScreenRect(
             distance,
             LOGIC_W,
             LOGIC_H,
             sprite.aspect,
             DIST_MIN_M,
-            sink
+            sink,
+            hFrac
           );
           const trans = atmosphericTransmission(
             distance,
@@ -736,14 +762,29 @@ export function ThermalSimulator({
   }, [ready, activePanels, renderPanel, distance, digiZoom, weather, palette]);
 
   const panelStatus = (p: ThermalSimParams) => {
+    const fog = weather === "fog";
     const status = computeDetectStatus({
       distanceM: distance,
       maxRangeM: p.detectionRangeM,
-      fog: weather === "fog",
+      fog,
     });
-    let px = pixelsOnTarget(distance, p.detectionRangeM);
-    if (weather === "fog") px *= 0.6;
-    return { status, px };
+    const px = effectivePixelsOnTarget(
+      distance,
+      p.detectionRangeM,
+      fog
+    );
+    const bands = johnsonBandDistancesM(p.detectionRangeM);
+    const pixH = matrixPixelHeight(p.matrix);
+    // Expected height on sensor after pixelation (should ≈ px)
+    const visualSensorPx =
+      johnsonDeerHeightFrac(
+        distance,
+        p.detectionRangeM,
+        p.matrix,
+        fog,
+        LOGIC_H
+      ) * pixH;
+    return { status, px, bands, visualSensorPx, pixH };
   };
 
   const setCanvasRef = (key: PanelKey) => (el: HTMLCanvasElement | null) => {
@@ -785,8 +826,13 @@ export function ThermalSimulator({
         )}
       >
         {activePanels.map((panel) => {
-          const { status, px } = panelStatus(panel.params);
+          const { status, px, bands, visualSensorPx } = panelStatus(
+            panel.params
+          );
           const statusLabel = isRu ? STATUS_RU[status] : STATUS_UK[status];
+          const statusHint = isRu
+            ? STATUS_HINT_RU[status]
+            : STATUS_HINT_UK[status];
           return (
             <div key={panel.key}>
               {/* Model name always above the thermal window */}
@@ -797,14 +843,14 @@ export function ThermalSimulator({
                 <h3 className="mt-0.5 text-sm font-bold leading-snug text-primary sm:text-base">
                   {panel.modelName}
                 </h3>
-                <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
                   <p className="text-[11px] tabular-nums text-faint">
                     {panel.params.matrix}×
                     {Math.round(panel.params.matrix * 0.75)} · D=
                     {panel.params.detectionRangeM} м · NETD{" "}
                     {panel.params.netdMk} mK
                   </p>
-                  <div className="text-right">
+                  <div className="max-w-[14rem] text-right">
                     <span
                       className={cn(
                         "inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
@@ -813,11 +859,60 @@ export function ThermalSimulator({
                     >
                       {statusLabel}
                     </span>
+                    <p className="mt-0.5 text-[10px] leading-snug text-faint">
+                      {statusHint}
+                    </p>
                     <p className="mt-0.5 text-[10px] tabular-nums text-faint">
-                      Johnson ≈ {px.toFixed(1)} px
+                      Johnson{" "}
+                      <strong className="text-secondary">{px.toFixed(1)} px</strong>
+                      {" · "}
+                      {isRu ? "на матрице" : "на матриці"} ≈{" "}
+                      {visualSensorPx.toFixed(1)} px
                     </p>
                   </div>
                 </div>
+                {/* Distance bands for this device D */}
+                <p className="mt-1.5 text-[10px] leading-relaxed text-faint">
+                  {isRu ? (
+                    <>
+                      Пороги при D={panel.params.detectionRangeM} м:{" "}
+                      <span className="text-emerald-400/90">
+                        идентиф. ≤{bands.identifyMaxM} м
+                      </span>
+                      {" · "}
+                      <span className="text-sky-300/90">
+                        распозн. ≤{bands.recognizeMaxM} м
+                      </span>
+                      {" · "}
+                      <span className="text-amber-300/90">
+                        обнаруж. ≤{bands.detectMaxM} м
+                      </span>
+                      {" · "}
+                      <span className="text-zinc-400">
+                        дальше — не видно (&lt;{JOHNSON_PX.detect} px)
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      Пороги при D={panel.params.detectionRangeM} м:{" "}
+                      <span className="text-emerald-400/90">
+                        ідентиф. ≤{bands.identifyMaxM} м
+                      </span>
+                      {" · "}
+                      <span className="text-sky-300/90">
+                        розпізн. ≤{bands.recognizeMaxM} м
+                      </span>
+                      {" · "}
+                      <span className="text-amber-300/90">
+                        виявл. ≤{bands.detectMaxM} м
+                      </span>
+                      {" · "}
+                      <span className="text-zinc-400">
+                        далі — не видно (&lt;{JOHNSON_PX.detect} px)
+                      </span>
+                    </>
+                  )}
+                </p>
               </div>
               <div
                 className="relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
@@ -918,8 +1013,8 @@ export function ThermalSimulator({
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `Олень реально удаляется: размер ∝ 1/d. 50 м — крупно на земле; 1000 м — маленькая тёплая точка вдали на подстилке. Ноги всегда на земле.`
-                : `Олень реально віддаляється: розмір ∝ 1/d. 50 м — крупно на землі; 1000 м — маленька тепла точка вдалині на підстилці. Ноги завжди на землі.`}
+                ? `Размер цели на матрице = критерий Джонсона: px = 2×(D/дистанция). При dist=D ровно 2 px (граница обнаружения). Картинка калибрована: высота оленя на сенсоре ≈ эти px.`
+                : `Розмір цілі на матриці = критерій Джонсона: px = 2×(D/дистанція). При dist=D рівно 2 px (межа виявлення). Картинка калібрована: висота оленя на сенсорі ≈ ці px.`}
             </span>
           </label>
         </div>
@@ -949,8 +1044,8 @@ export function ThermalSimulator({
           </div>
           <p className="mt-1.5 text-[10px] text-faint">
             {isRu
-              ? `Увеличивает пиксели матрицы (без новой детализации). На ${distance} м цель ≈ ${Math.max(1, Math.round(deerHeightFrac(distance) * LOGIC_H))} px — «Увеличить цель» → ×${inspectDigiZoom(distance)}.`
-              : `Збільшує пікселі матриці (без нової деталізації). На ${distance} м ціль ≈ ${Math.max(1, Math.round(deerHeightFrac(distance) * LOGIC_H))} px — «Збільшити ціль» → ×${inspectDigiZoom(distance)}.`}
+              ? `Цифровой зум только увеличивает блоки матрицы. «Увеличить цель» → ×${inspectDigiZoom(distance)} — чтобы на большой дистанции увидеть hot-mark (статус «Обнаружение»).`
+              : `Цифровий зум лише збільшує блоки матриці. «Збільшити ціль» → ×${inspectDigiZoom(distance)} — щоб на великій дистанції побачити hot-mark (статус «Виявлення»).`}
           </p>
         </fieldset>
 
@@ -1108,8 +1203,8 @@ export function ThermalSimulator({
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
         {isRu
-          ? "Перспектива: олень уменьшается как 1/дистанция (на 1000 м — в 20 раз меньше, чем на 50 м) и стоит на плоскости земли. Лес — фиксированный FOV прибора. Статус — Джонсон; шум — NETD; пиксели — матрица."
-          : "Перспектива: олень зменшується як 1/дистанція (на 1000 м — у 20 разів менше, ніж на 50 м) і стоїть на площині землі. Ліс — фіксований FOV приладу. Статус — Джонсон; шум — NETD; пікселі — матриця."}
+          ? `Джонсон: ≥${JOHNSON_PX.identify} px идентификация, ≥${JOHNSON_PX.recognize} распознавание, ≥${JOHNSON_PX.detect} обнаружение. px=2×(D/dist). Размер оленя на матрице синхронизирован с px. Шум ← NETD; зернистость ← матрица. Лес холодный, цель горячая.`
+          : `Джонсон: ≥${JOHNSON_PX.identify} px ідентифікація, ≥${JOHNSON_PX.recognize} розпізнавання, ≥${JOHNSON_PX.detect} виявлення. px=2×(D/dist). Розмір оленя на матриці синхронізовано з px. Шум ← NETD; зернистість ← матриця. Ліс холодний, ціль гаряча.`}
       </p>
       <p className="mt-2 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-faint/90">
         {isRu

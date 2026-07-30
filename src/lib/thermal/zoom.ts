@@ -62,7 +62,12 @@ export function deerScreenRect(
   frameH: number,
   spriteAspect: number,
   dMin: number = DIST_MIN_M,
-  feetSinkPx: number = 0
+  feetSinkPx: number = 0,
+  /**
+   * Optional height fraction (0–1 of frame). When set (Johnson-calibrated),
+   * overrides pure geometric 1/d size so sensor pixels match status badge.
+   */
+  heightFracOverride?: number
 ): {
   x: number;
   y: number;
@@ -72,7 +77,11 @@ export function deerScreenRect(
   cy: number;
   feetY: number;
 } {
-  const h = deerHeightFrac(distanceM, dMin) * frameH;
+  const frac =
+    heightFracOverride != null && Number.isFinite(heightFracOverride)
+      ? heightFracOverride
+      : deerHeightFrac(distanceM, dMin);
+  const h = Math.max(1, frac * frameH);
   const w = Math.max(1, h * spriteAspect);
   const feetY = deerFeetYFrac(distanceM, dMin) * frameH + feetSinkPx;
   const cx = DEER_CENTER_X * frameW;
