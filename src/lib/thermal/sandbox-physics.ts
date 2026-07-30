@@ -331,9 +331,26 @@ export function sandboxOpticsHeightFrac(
   return Math.max(0.004, Math.min(0.55, frac));
 }
 
+/** Same fade as PDP: past D_detect hot mark dies (status none ⇔ no pixels). */
+export const SANDBOX_DETECT_FADE_PAST = 0.08;
+
+export function sandboxSubjectVisibility(
+  distanceM: number,
+  detectRangeM: number,
+  fog = false
+): number {
+  const D = Math.max(1, detectRangeM);
+  const d = Math.max(1, distanceM);
+  const Deff = fog ? D * 0.6 : D;
+  if (d <= Deff) return 1;
+  const fadeEnd = Deff * (1 + SANDBOX_DETECT_FADE_PAST);
+  if (d >= fadeEnd) return 0;
+  const u = (d - Deff) / (fadeEnd - Deff);
+  return (1 - u) * (1 - u);
+}
+
 /**
- * FOV size + detect floor (when optics Johnson ≥2 px but FOV projects sub-pixel).
- * Matches PDP: "detect" always has a visible hot mark on grain.
+ * FOV size + detect floor inside band; 0 past D (no ghost hot mark).
  */
 export function sandboxRenderHeightFrac(
   visualHeightM: number,
@@ -344,8 +361,15 @@ export function sandboxRenderHeightFrac(
   pitchUm: number,
   focalMm: number,
   /** Clear-weather Johnson px on critical (from optics formula) */
-  johnsonPxClear: number
+  johnsonPxClear: number,
+  fog = false,
+  /** Passport / computed detect range for fade past D */
+  detectRangeM?: number
 ): number {
+  const D = detectRangeM ?? Math.max(1, distanceM * (johnsonPxClear / 2));
+  const vis = sandboxSubjectVisibility(distanceM, D, fog);
+  if (vis <= 0) return 0;
+
   const fovFrac = sandboxOpticsHeightFrac(
     visualHeightM,
     distanceM,
@@ -359,15 +383,17 @@ export function sandboxRenderHeightFrac(
   const critGrain =
     bodyGrain * (criticalSizeM / Math.max(0.05, visualHeightM));
 
+  let frac = fovFrac;
   if (johnsonPxClear >= JOHNSON_N.detect && critGrain < JOHNSON_N.detect) {
     const bodyNeed =
       (2.5 * visualHeightM) / Math.max(0.05, criticalSizeM);
-    return Math.max(fovFrac, Math.min(0.1, bodyNeed / Math.max(1, grainH)));
+    frac = Math.max(fovFrac, Math.min(0.1, bodyNeed / Math.max(1, grainH)));
   }
-  return fovFrac;
+  if (vis < 1) frac *= vis;
+  return frac;
 }
 
-/** Critical grain after render floor — for status badge (fog optional). */
+/** Critical grain after render floor / fade — for status badge. */
 export function sandboxRenderedCriticalGrain(
   visualHeightM: number,
   criticalSizeM: number,
@@ -377,7 +403,8 @@ export function sandboxRenderedCriticalGrain(
   pitchUm: number,
   focalMm: number,
   johnsonPxClear: number,
-  fog = false
+  fog = false,
+  detectRangeM?: number
 ): number {
   const hFrac = sandboxRenderHeightFrac(
     visualHeightM,
@@ -387,8 +414,11 @@ export function sandboxRenderedCriticalGrain(
     matrixH,
     pitchUm,
     focalMm,
-    johnsonPxClear
+    johnsonPxClear,
+    fog,
+    detectRangeM
   );
+  if (hFrac <= 0) return 0;
   const body = hFrac * sandboxMatrixPixelHeight(matrixW);
   const crit =
     body * (criticalSizeM / Math.max(0.05, visualHeightM));

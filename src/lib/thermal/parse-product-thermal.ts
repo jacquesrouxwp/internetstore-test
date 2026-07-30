@@ -338,6 +338,12 @@ export function visualCriticalGrainPx(
  */
 export const DETECT_GRAIN_MIN = 2.5;
 
+/**
+ * How far past passport D the hot mark is allowed to linger (fraction of D).
+ * Example: D=1200 → fully gone by ~1296 m (not still glowing at 1300).
+ */
+export const DETECT_FADE_PAST_D = 0.08;
+
 export function detectFloorHeightFrac(
   visualHeightM: number,
   criticalSizeM: number,
@@ -351,17 +357,47 @@ export function detectFloorHeightFrac(
 }
 
 /**
- * Draw height: FOV-honest at normal ranges; if passport still in detect band
- * but FOV critical < 2 grain px, boost to a visible hot mark (~2.5 grain on critical).
- * → badge "detect" and picture always agree; 50 m stays ~FOV (not full-screen).
+ * Subject visibility vs passport detection limit.
+ * 1 for d ≤ D (and clear-weather detect band); ramps to 0 over DETECT_FADE_PAST_D.
+ * Fog shortens the effective band (same ×0.6 as Johnson status).
+ *
+ * This is the fix for: status "none" at 1300 m while yellow pixels still lit at 1200 size.
+ */
+export function targetSubjectVisibility(
+  distanceM: number,
+  detectionRangeM: number,
+  fog = false
+): number {
+  const D = Math.max(1, detectionRangeM);
+  const d = Math.max(1, distanceM);
+  // Fog: effective detect range ≈ D × 0.6 (px ×0.6 → need closer for 2 px)
+  const Deff = fog ? D * 0.6 : D;
+
+  if (d <= Deff) return 1;
+
+  const fadeEnd = Deff * (1 + DETECT_FADE_PAST_D);
+  if (d >= fadeEnd) return 0;
+
+  const u = (d - Deff) / (fadeEnd - Deff); // 0 at Deff → 1 at fadeEnd
+  // Smooth ease-out: stays a faint ghost briefly, then gone
+  return (1 - u) * (1 - u);
+}
+
+/**
+ * Draw height: FOV-honest at normal ranges; detect floor inside band;
+ * **zero past fade** so "не виявлено" has no hot mark.
  */
 export function renderTargetHeightFrac(
   visualHeightM: number,
   criticalSizeM: number,
   distanceM: number,
   detectionRangeM: number,
-  params: Pick<ThermalSimParams, "matrix" | "focalMm" | "pitchUm">
+  params: Pick<ThermalSimParams, "matrix" | "focalMm" | "pitchUm">,
+  fog = false
 ): number {
+  const vis = targetSubjectVisibility(distanceM, detectionRangeM, fog);
+  if (vis <= 0) return 0;
+
   const fovFrac = opticsTargetHeightFrac(
     visualHeightM,
     distanceM,
@@ -377,22 +413,26 @@ export function renderTargetHeightFrac(
     false
   );
 
-  // Beyond passport D → pure FOV (may vanish) — status will be none
-  if (passPx < JOHNSON_PX.detect) return fovFrac;
+  let frac = fovFrac;
 
-  // Within passport detect band but FOV can't resolve critical → visible floor
-  if (critFov < JOHNSON_PX.detect) {
-    return Math.max(
+  // Inside clear-weather detect band: ensure visible hot mark if FOV sub-pixel
+  if (passPx >= JOHNSON_PX.detect && critFov < JOHNSON_PX.detect) {
+    frac = Math.max(
       fovFrac,
       detectFloorHeightFrac(visualHeightM, criticalSizeM, params.matrix)
     );
   }
-  return fovFrac;
+
+  // Past D: shrink with visibility so we don't leave a full detect blob while fading
+  if (vis < 1) {
+    frac *= vis;
+  }
+
+  return frac;
 }
 
 /**
- * Status from what is actually drawn (FOV + detect floor), not raw passport alone.
- * Passport D still sets slider max and bands reference.
+ * Status from drawn pixels. Past D (vis=0) → always none — no "ghost detect".
  */
 export function computeDetectStatusVisual(opts: {
   visualHeightM: number;
@@ -405,13 +445,23 @@ export function computeDetectStatusVisual(opts: {
   fog?: boolean;
 }): DetectStatus {
   const fog = opts.fog ?? false;
+  const vis = targetSubjectVisibility(
+    opts.distanceM,
+    opts.detectionRangeM,
+    fog
+  );
+  if (vis <= 0) return "none";
+
   const hFrac = renderTargetHeightFrac(
     opts.visualHeightM,
     opts.criticalSizeM,
     opts.distanceM,
     opts.detectionRangeM,
-    opts
+    opts,
+    fog
   );
+  if (hFrac <= 0) return "none";
+
   const bodyGrain = hFrac * matrixPixelHeight(opts.matrix);
   const critGrain =
     bodyGrain *
@@ -424,7 +474,7 @@ export function computeDetectStatusVisual(opts: {
   return "none";
 }
 
-/** Effective critical grain after render floor (for HUD). */
+/** Effective critical grain after render floor / fade (for HUD). */
 export function renderedCriticalGrainPx(
   visualHeightM: number,
   criticalSizeM: number,
@@ -438,8 +488,10 @@ export function renderedCriticalGrainPx(
     criticalSizeM,
     distanceM,
     detectionRangeM,
-    params
+    params,
+    fog
   );
+  if (hFrac <= 0) return 0;
   const body = hFrac * matrixPixelHeight(params.matrix);
   const crit =
     body * (criticalSizeM / Math.max(0.05, visualHeightM));

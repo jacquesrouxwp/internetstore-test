@@ -24,6 +24,7 @@ import {
   sandboxMatrixPixelWidth,
   sandboxRenderHeightFrac,
   sandboxRenderedCriticalGrain,
+  sandboxSubjectVisibility,
   statusFromPixels,
   type PixelPitchUm,
   type SandboxInputs,
@@ -366,7 +367,7 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       const sctx = sub.getContext("2d", { willReadFrequently: true });
       if (sctx) {
         sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
-        // FOV + detect floor (status and picture stay in sync)
+        // FOV + detect floor inside band; 0 past D (no ghost pixels)
         const hFrac = sandboxRenderHeightFrac(
           TARGET_VISUAL_HEIGHT_M[inputs.target],
           TARGET_SIZE_M[inputs.target],
@@ -375,57 +376,77 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
           inputs.matrixH,
           inputs.pitchUm,
           inputs.focalMm,
-          computed.pixelsOnTargetClear
+          computed.pixelsOnTargetClear,
+          fog,
+          detM
         );
-        const h = Math.max(1, hFrac * LOGIC_H);
-        const w = Math.max(1, h * sprite.aspect);
-        const feetY = deerFeetYFrac(inputs.distanceM) * LOGIC_H + 1;
-        const cx = LOGIC_W * 0.5;
-        const x = cx - w / 2;
-        const y = feetY - h;
-        focusX = cx / LOGIC_W;
-        focusY = (y + h * 0.45) / LOGIC_H;
+        const vis = sandboxSubjectVisibility(
+          inputs.distanceM,
+          detM,
+          fog
+        );
 
-        // Alpha from range only (fog = noise/contrast, not geometry).
-        // Floor 0.38 at D so detect blob stays a hot mark (same as PDP).
-        const t =
-          1 -
-          0.62 *
-            Math.min(1, Math.max(0, (inputs.distanceM - 50) / Math.max(1, detM - 50)));
-        const trans = Math.max(0.38, t);
+        if (hFrac > 0 && vis > 0.02) {
+          const h = Math.max(0.5, hFrac * LOGIC_H);
+          const w = Math.max(0.5, h * sprite.aspect);
+          const feetY = deerFeetYFrac(inputs.distanceM) * LOGIC_H + 1;
+          const cx = LOGIC_W * 0.5;
+          const x = cx - w / 2;
+          const y = feetY - h;
+          focusX = cx / LOGIC_W;
+          focusY = (y + h * 0.45) / LOGIC_H;
 
-        // Cool ground contact (same idea as PDP) — before hot subject
-        {
-          const rx = Math.max(3, w * 0.55);
-          const ry = Math.max(2, w * 0.14);
-          const shadow = cctx.createRadialGradient(cx, feetY, 0, cx, feetY, rx);
-          shadow.addColorStop(0, `rgba(4, 6, 10, ${0.75 * trans})`);
-          shadow.addColorStop(0.5, `rgba(8, 10, 14, ${0.32 * trans})`);
-          shadow.addColorStop(1, "rgba(0,0,0,0)");
-          cctx.fillStyle = shadow;
-          cctx.beginPath();
-          cctx.ellipse(cx, feetY + 1, rx, ry, 0, 0, Math.PI * 2);
-          cctx.fill();
+          const t =
+            1 -
+            0.62 *
+              Math.min(
+                1,
+                Math.max(0, (inputs.distanceM - 50) / Math.max(1, detM - 50))
+              );
+          const trans = Math.max(0.38, t) * vis;
+
+          if (vis > 0.15) {
+            const rx = Math.max(3, w * 0.55);
+            const ry = Math.max(2, w * 0.14);
+            const shadow = cctx.createRadialGradient(
+              cx,
+              feetY,
+              0,
+              cx,
+              feetY,
+              rx
+            );
+            shadow.addColorStop(0, `rgba(4, 6, 10, ${0.75 * trans})`);
+            shadow.addColorStop(0.5, `rgba(8, 10, 14, ${0.32 * trans})`);
+            shadow.addColorStop(1, "rgba(0,0,0,0)");
+            cctx.fillStyle = shadow;
+            cctx.beginPath();
+            cctx.ellipse(cx, feetY + 1, rx, ry, 0, 0, Math.PI * 2);
+            cctx.fill();
+          }
+
+          sctx.globalAlpha = Math.max(0.05, 0.4 + 0.55 * trans) * vis;
+          sctx.imageSmoothingEnabled = h > 8;
+          sctx.drawImage(
+            sprite.canvas,
+            sprite.cx,
+            sprite.cy,
+            sprite.cw,
+            sprite.ch,
+            x,
+            y,
+            w,
+            h
+          );
+          sctx.globalAlpha = 1;
+          const sd = sctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
+          applyThermalPalette(sd.data, palette, "hot", true);
+          sctx.putImageData(sd, 0, 0);
+          cctx.drawImage(sub, 0, 0);
+        } else {
+          focusX = 0.5;
+          focusY = 0.78;
         }
-
-        sctx.globalAlpha = 0.4 + 0.6 * trans;
-        sctx.imageSmoothingEnabled = h > 8;
-        sctx.drawImage(
-          sprite.canvas,
-          sprite.cx,
-          sprite.cy,
-          sprite.cw,
-          sprite.ch,
-          x,
-          y,
-          w,
-          h
-        );
-        sctx.globalAlpha = 1;
-        const sd = sctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
-        applyThermalPalette(sd.data, palette, "hot", true);
-        sctx.putImageData(sd, 0, 0);
-        cctx.drawImage(sub, 0, 0);
       }
     }
 
@@ -540,6 +561,13 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
 
   // Status from rendered grain (FOV + detect floor) — matches picture
   const visualStatus = useMemo(() => {
+    const detM = Math.max(200, computed.dri.detectM);
+    const vis = sandboxSubjectVisibility(
+      inputs.distanceM,
+      detM,
+      inputs.fog
+    );
+    if (vis <= 0) return "none" as const;
     const critClear = sandboxRenderedCriticalGrain(
       TARGET_VISUAL_HEIGHT_M[inputs.target],
       TARGET_SIZE_M[inputs.target],
@@ -549,10 +577,11 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       inputs.pitchUm,
       inputs.focalMm,
       computed.pixelsOnTargetClear,
-      false
+      false,
+      detM
     );
     return statusFromPixels(critClear, inputs.fog);
-  }, [inputs, computed.pixelsOnTargetClear]);
+  }, [inputs, computed.pixelsOnTargetClear, computed.dri.detectM]);
 
   const statusLabel = isRu
     ? STATUS_RU[visualStatus]
@@ -650,7 +679,9 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
                   inputs.matrixH,
                   inputs.pitchUm,
                   inputs.focalMm,
-                  computed.pixelsOnTargetClear
+                  computed.pixelsOnTargetClear,
+                  inputs.fog,
+                  Math.max(200, computed.dri.detectM)
                 );
                 const z = inspectDigiZoom(inputs.distanceM, DIST_MIN_M, hf);
                 setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);

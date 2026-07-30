@@ -9,6 +9,7 @@ import {
   renderTargetHeightFrac,
   renderedCriticalGrainPx,
   resolveFovVerticalRad,
+  targetSubjectVisibility,
   JOHNSON_PX,
   matrixClassPreset,
   matrixPixelHeight,
@@ -752,56 +753,73 @@ export function ThermalSimulator({
         if (sctx) {
           sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
           const sink = Math.max(1, Math.round(LOGIC_H * 0.005));
-          // FOV size + detect floor so "виявлено" always has a visible hot mark
+          const fog = weather === "fog";
+          // FOV + detect floor inside band; 0 past D → no yellow ghost pixels
           const hFrac = renderTargetHeightFrac(
             activeTarget.visualHeightM,
             activeTarget.criticalSizeM,
             distance,
             rangeD,
-            panelParams
+            panelParams,
+            fog
           );
-          const rect = deerScreenRect(
-            distance,
-            LOGIC_W,
-            LOGIC_H,
-            sprite.aspect,
-            DIST_MIN_M,
-            sink,
-            hFrac
-          );
-          // Alpha from range only — never from fog (fog = noise/contrast only)
-          const trans = atmosphericTransmission(distance, rangeD, false);
-          focusX = rect.cx / LOGIC_W;
-          focusY = rect.cy / LOGIC_H;
+          const vis = targetSubjectVisibility(distance, rangeD, fog);
 
-          drawGroundContact(
-            cctx,
-            rect.cx,
-            rect.feetY,
-            rect.w,
-            Math.max(0.35, trans)
-          );
+          // Past detect: skip subject entirely (status none ⇔ no hot mark)
+          if (hFrac > 0 && vis > 0.02) {
+            const rect = deerScreenRect(
+              distance,
+              LOGIC_W,
+              LOGIC_H,
+              sprite.aspect,
+              DIST_MIN_M,
+              sink,
+              hFrac
+            );
+            // Alpha from range; multiplied by vis so fade past D melts into noise
+            const trans =
+              atmosphericTransmission(distance, rangeD, false) * vis;
+            focusX = rect.cx / LOGIC_W;
+            focusY = rect.cy / LOGIC_H;
 
-          sctx.globalAlpha = 0.45 + 0.55 * trans;
-          sctx.imageSmoothingEnabled = rect.h > 8;
-          sctx.drawImage(
-            sprite.canvas,
-            sprite.cx,
-            sprite.cy,
-            sprite.cw,
-            sprite.ch,
-            rect.x,
-            rect.y,
-            Math.max(1, rect.w),
-            Math.max(1, rect.h)
-          );
-          sctx.globalAlpha = 1;
+            if (vis > 0.15) {
+              drawGroundContact(
+                cctx,
+                rect.cx,
+                rect.feetY,
+                rect.w,
+                Math.max(0.2, trans)
+              );
+            }
 
-          const subData = sctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
-          applyThermalPalette(subData.data, palette, "hot", true);
-          sctx.putImageData(subData, 0, 0);
+            // Do NOT force min 1px when vanishing — use real rect size
+            const dw = Math.max(0.5, rect.w);
+            const dh = Math.max(0.5, rect.h);
+            sctx.globalAlpha = Math.max(0.05, 0.4 + 0.55 * trans) * vis;
+            sctx.imageSmoothingEnabled = dh > 8;
+            sctx.drawImage(
+              sprite.canvas,
+              sprite.cx,
+              sprite.cy,
+              sprite.cw,
+              sprite.ch,
+              rect.x,
+              rect.y,
+              dw,
+              dh
+            );
+            sctx.globalAlpha = 1;
 
-          cctx.drawImage(sub, 0, 0);
+            const subData = sctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
+            applyThermalPalette(subData.data, palette, "hot", true);
+            sctx.putImageData(subData, 0, 0);
+
+            cctx.drawImage(sub, 0, 0);
+          } else {
+            // Keep digi-zoom focus near ground center when target is gone
+            focusX = 0.5;
+            focusY = 0.78;
+          }
         }
       }
 
@@ -1002,7 +1020,8 @@ export function ThermalSimulator({
       activeTarget.criticalSizeM,
       distance,
       rangeD,
-      p
+      p,
+      fog
     );
     const visualSensorPx = hFrac * pixH;
     const fovVertDeg =

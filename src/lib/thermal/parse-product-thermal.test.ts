@@ -22,6 +22,7 @@ import {
   renderedCriticalGrainPx,
   resolveFovVerticalRad,
   targetFrameHeightFrac,
+  targetSubjectVisibility,
 } from "./parse-product-thermal";
 
 describe("pixelsOnTarget (Johnson)", () => {
@@ -287,6 +288,56 @@ describe("render + status sync (detect never on empty frame)", () => {
       fog: false,
     });
     assert.equal(st, "none");
+  });
+
+  it("D=1200: detect+pixels at 1200; gone at 1300 (no ghost hot mark)", () => {
+    const Dp = 1200;
+    const p = { matrix: 384 as const, focalMm: 25, pitchUm: 12 };
+    const atD = computeDetectStatusVisual({
+      visualHeightM: human.visual,
+      criticalSizeM: human.critical,
+      distanceM: Dp,
+      detectionRangeM: Dp,
+      ...p,
+      fog: false,
+    });
+    const past = computeDetectStatusVisual({
+      visualHeightM: human.visual,
+      criticalSizeM: human.critical,
+      distanceM: 1300,
+      detectionRangeM: Dp,
+      ...p,
+      fog: false,
+    });
+    const grainD = renderedCriticalGrainPx(
+      human.visual,
+      human.critical,
+      Dp,
+      Dp,
+      p,
+      false
+    );
+    const grainPast = renderedCriticalGrainPx(
+      human.visual,
+      human.critical,
+      1300,
+      Dp,
+      p,
+      false
+    );
+    const fracPast = renderTargetHeightFrac(
+      human.visual,
+      human.critical,
+      1300,
+      Dp,
+      p,
+      false
+    );
+    assert.equal(atD, "detect");
+    assert.ok(grainD >= 2, `at D grain=${grainD}`);
+    assert.equal(past, "none");
+    assert.equal(grainPast, 0);
+    assert.equal(fracPast, 0);
   });
 
   it("fog can demote recognize → detect without shrinking geometry floor path", () => {
