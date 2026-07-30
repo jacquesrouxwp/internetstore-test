@@ -332,6 +332,70 @@ export function sandboxOpticsHeightFrac(
 }
 
 /**
+ * FOV size + detect floor (when optics Johnson ≥2 px but FOV projects sub-pixel).
+ * Matches PDP: "detect" always has a visible hot mark on grain.
+ */
+export function sandboxRenderHeightFrac(
+  visualHeightM: number,
+  criticalSizeM: number,
+  distanceM: number,
+  matrixW: SandboxMatrix,
+  matrixH: number,
+  pitchUm: number,
+  focalMm: number,
+  /** Clear-weather Johnson px on critical (from optics formula) */
+  johnsonPxClear: number
+): number {
+  const fovFrac = sandboxOpticsHeightFrac(
+    visualHeightM,
+    distanceM,
+    matrixH,
+    pitchUm,
+    focalMm,
+    1
+  );
+  const grainH = sandboxMatrixPixelHeight(matrixW);
+  const bodyGrain = fovFrac * grainH;
+  const critGrain =
+    bodyGrain * (criticalSizeM / Math.max(0.05, visualHeightM));
+
+  if (johnsonPxClear >= JOHNSON_N.detect && critGrain < JOHNSON_N.detect) {
+    const bodyNeed =
+      (2.5 * visualHeightM) / Math.max(0.05, criticalSizeM);
+    return Math.max(fovFrac, Math.min(0.1, bodyNeed / Math.max(1, grainH)));
+  }
+  return fovFrac;
+}
+
+/** Critical grain after render floor — for status badge (fog optional). */
+export function sandboxRenderedCriticalGrain(
+  visualHeightM: number,
+  criticalSizeM: number,
+  distanceM: number,
+  matrixW: SandboxMatrix,
+  matrixH: number,
+  pitchUm: number,
+  focalMm: number,
+  johnsonPxClear: number,
+  fog = false
+): number {
+  const hFrac = sandboxRenderHeightFrac(
+    visualHeightM,
+    criticalSizeM,
+    distanceM,
+    matrixW,
+    matrixH,
+    pitchUm,
+    focalMm,
+    johnsonPxClear
+  );
+  const body = hFrac * sandboxMatrixPixelHeight(matrixW);
+  const crit =
+    body * (criticalSizeM / Math.max(0.05, visualHeightM));
+  return fog ? crit * 0.6 : crit;
+}
+
+/**
  * @deprecated Prefer sandboxOpticsHeightFrac — size is FOV-based.
  */
 export function sandboxTargetHeightFrac(

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   computeDetectStatus,
+  computeDetectStatusVisual,
   defaultDetectionRangeM,
   DEFAULT_FOV_VERT_DEG,
   effectivePixelsOnTarget,
@@ -17,6 +18,8 @@ import {
   parseMatrix,
   parseProductThermal,
   pixelsOnTarget,
+  renderTargetHeightFrac,
+  renderedCriticalGrainPx,
   resolveFovVerticalRad,
   targetFrameHeightFrac,
 } from "./parse-product-thermal";
@@ -205,9 +208,136 @@ describe("parseFocalMm", () => {
     );
   });
 
-  it("reads from model name LE15 / LH25", () => {
+  it("reads from model name LE15 / LH25 / CQ50 / 640-50", () => {
     assert.equal(parseFocalMm(null, "Hikmicro LYNX LE15 3.0"), 15);
     assert.equal(parseFocalMm(null, "LH25 3.0"), 25);
+    assert.equal(parseFocalMm(null, "CONDOR LRF CQ50L 2.0"), 50);
+    assert.equal(parseFocalMm(null, "Pard Leopard 640-50 LRF"), 50);
+  });
+});
+
+describe("render + status sync (detect never on empty frame)", () => {
+  const human = { visual: 1.8, critical: 0.75 };
+  const params = { matrix: 384 as const, focalMm: 15, pitchUm: 12 };
+  const D = 1150;
+
+  it("at 50 m FOV size ~15–25%, status at least detect (not empty)", () => {
+    const frac = renderTargetHeightFrac(
+      human.visual,
+      human.critical,
+      50,
+      D,
+      params
+    );
+    assert.ok(frac >= 0.12 && frac <= 0.3, `frac=${frac}`);
+    const st = computeDetectStatusVisual({
+      visualHeightM: human.visual,
+      criticalSizeM: human.critical,
+      distanceM: 50,
+      detectionRangeM: D,
+      ...params,
+      fog: false,
+    });
+    // 15 mm / 384: ~7 crit grain → detect; longer f reaches recognize/identify
+    assert.ok(st !== "none", st);
+  });
+
+  it("at 50 m with 35 mm lens reaches recognize/identify", () => {
+    const st = computeDetectStatusVisual({
+      visualHeightM: human.visual,
+      criticalSizeM: human.critical,
+      distanceM: 50,
+      detectionRangeM: 1600,
+      matrix: 384,
+      focalMm: 35,
+      pitchUm: 12,
+      fog: false,
+    });
+    assert.ok(st === "identify" || st === "recognize", st);
+  });
+
+  it("at passport D: status detect AND critical grain ≥ 2", () => {
+    const st = computeDetectStatusVisual({
+      visualHeightM: human.visual,
+      criticalSizeM: human.critical,
+      distanceM: D,
+      detectionRangeM: D,
+      ...params,
+      fog: false,
+    });
+    assert.equal(st, "detect");
+    const crit = renderedCriticalGrainPx(
+      human.visual,
+      human.critical,
+      D,
+      D,
+      params,
+      false
+    );
+    assert.ok(crit >= 2, `crit grain ${crit}`);
+  });
+
+  it("beyond D: status none", () => {
+    const st = computeDetectStatusVisual({
+      visualHeightM: human.visual,
+      criticalSizeM: human.critical,
+      distanceM: D * 1.5,
+      detectionRangeM: D,
+      ...params,
+      fog: false,
+    });
+    assert.equal(st, "none");
+  });
+
+  it("fog can demote recognize → detect without shrinking geometry floor path", () => {
+    // Mid-near: clear may be identify; fog multiplies critical by 0.6
+    const clear = computeDetectStatusVisual({
+      visualHeightM: human.visual,
+      criticalSizeM: human.critical,
+      distanceM: D / 4,
+      detectionRangeM: D,
+      ...params,
+      fog: false,
+    });
+    const foggy = computeDetectStatusVisual({
+      visualHeightM: human.visual,
+      criticalSizeM: human.critical,
+      distanceM: D / 4,
+      detectionRangeM: D,
+      ...params,
+      fog: true,
+    });
+    // fog status is equal or worse
+    const rank = { none: 0, detect: 1, recognize: 2, identify: 3 };
+    assert.ok(rank[foggy] <= rank[clear]);
+  });
+
+  it("fox at long range collapses sooner than deer (same device)", () => {
+    const p = { matrix: 640 as const, focalMm: 35, pitchUm: 12 };
+    const Dpass = 1900;
+    // Same absolute distance far for fox critical D
+    const dist = 700;
+    const foxSt = computeDetectStatusVisual({
+      visualHeightM: 0.4,
+      criticalSizeM: 0.3,
+      distanceM: dist,
+      detectionRangeM: Math.round((Dpass * 0.3) / 0.75),
+      ...p,
+      fog: false,
+    });
+    const deerSt = computeDetectStatusVisual({
+      visualHeightM: 1.3,
+      criticalSizeM: 1.0,
+      distanceM: dist,
+      detectionRangeM: Math.round((Dpass * 1.0) / 0.75),
+      ...p,
+      fog: false,
+    });
+    const rank = { none: 0, detect: 1, recognize: 2, identify: 3 };
+    assert.ok(
+      rank[foxSt] <= rank[deerSt],
+      `fox=${foxSt} deer=${deerSt}`
+    );
   });
 });
 

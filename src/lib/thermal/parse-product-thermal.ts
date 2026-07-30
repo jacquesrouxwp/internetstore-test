@@ -186,12 +186,16 @@ export function parseFocalMm(
   const patterns = [
     /(?:f|ф)\s*[=:]?\s*(\d{1,3})\s*(?:мм|mm)?/i,
     /(\d{1,3})\s*(?:мм|mm)/i,
-    /(?:LE|LH|LQ|CQ|TL|TR)\s*(\d{2,3})/i,
+    // Hikmicro / Pard style: LE15, LH35, CQ50L, FQ50, HQ50, H50R, XG30, 640-50
+    /(?:LE|LH|LQ|CQ|FQ|HQ|TL|TR|XG)\s*(\d{2,3})/i,
+    /\bH\s*(\d{2})R?\b/i,
+    /(\d{3})\s*[-–]\s*(\d{2})\b/, // 640-50 → 50
   ];
   for (const re of patterns) {
     const m = text.match(re);
     if (m) {
-      const n = Number(m[1]);
+      // last capture is focal when 640-50
+      const n = Number(m[m.length - 1]);
       if (n >= 9 && n <= 150) return n;
     }
   }
@@ -296,6 +300,150 @@ export function opticsTargetHeightFrac(
     pitchUm: params.pitchUm,
   });
   return targetFrameHeightFrac(visualHeightM, distanceM, fov, opticalMag);
+}
+
+/** Body height on matrix-grain after pixelation (what the canvas resolves). */
+export function visualBodyGrainPx(
+  visualHeightM: number,
+  distanceM: number,
+  params: Pick<ThermalSimParams, "matrix" | "focalMm" | "pitchUm">
+): number {
+  return (
+    opticsTargetHeightFrac(visualHeightM, distanceM, params, 1) *
+    matrixPixelHeight(params.matrix)
+  );
+}
+
+/**
+ * Critical dimension on grain (Johnson status must use THIS — not passport alone).
+ * critical ≈ body × (criticalSize / visualHeight)
+ */
+export function visualCriticalGrainPx(
+  visualHeightM: number,
+  criticalSizeM: number,
+  distanceM: number,
+  params: Pick<ThermalSimParams, "matrix" | "focalMm" | "pitchUm">,
+  fog = false
+): number {
+  const body = visualBodyGrainPx(visualHeightM, distanceM, params);
+  const ratio = criticalSizeM / Math.max(0.05, visualHeightM);
+  let px = body * ratio;
+  if (fog) px *= 0.6;
+  return px;
+}
+
+/**
+ * Min body height fraction so critical dimension ≈ DETECT_GRAIN_MIN after grain.
+ * Used only when passport claims detect but FOV projects a sub-pixel (invisible).
+ */
+export const DETECT_GRAIN_MIN = 2.5;
+
+export function detectFloorHeightFrac(
+  visualHeightM: number,
+  criticalSizeM: number,
+  matrix: ThermalMatrix
+): number {
+  const grainH = matrixPixelHeight(matrix);
+  const bodyNeed =
+    (DETECT_GRAIN_MIN * visualHeightM) / Math.max(0.05, criticalSizeM);
+  // Cap: never force more than ~10% frame just for a detect blob
+  return Math.min(0.1, bodyNeed / Math.max(1, grainH));
+}
+
+/**
+ * Draw height: FOV-honest at normal ranges; if passport still in detect band
+ * but FOV critical < 2 grain px, boost to a visible hot mark (~2.5 grain on critical).
+ * → badge "detect" and picture always agree; 50 m stays ~FOV (not full-screen).
+ */
+export function renderTargetHeightFrac(
+  visualHeightM: number,
+  criticalSizeM: number,
+  distanceM: number,
+  detectionRangeM: number,
+  params: Pick<ThermalSimParams, "matrix" | "focalMm" | "pitchUm">
+): number {
+  const fovFrac = opticsTargetHeightFrac(
+    visualHeightM,
+    distanceM,
+    params,
+    1
+  );
+  const passPx = pixelsOnTarget(distanceM, detectionRangeM);
+  const critFov = visualCriticalGrainPx(
+    visualHeightM,
+    criticalSizeM,
+    distanceM,
+    params,
+    false
+  );
+
+  // Beyond passport D → pure FOV (may vanish) — status will be none
+  if (passPx < JOHNSON_PX.detect) return fovFrac;
+
+  // Within passport detect band but FOV can't resolve critical → visible floor
+  if (critFov < JOHNSON_PX.detect) {
+    return Math.max(
+      fovFrac,
+      detectFloorHeightFrac(visualHeightM, criticalSizeM, params.matrix)
+    );
+  }
+  return fovFrac;
+}
+
+/**
+ * Status from what is actually drawn (FOV + detect floor), not raw passport alone.
+ * Passport D still sets slider max and bands reference.
+ */
+export function computeDetectStatusVisual(opts: {
+  visualHeightM: number;
+  criticalSizeM: number;
+  distanceM: number;
+  detectionRangeM: number;
+  matrix: ThermalMatrix;
+  focalMm: number | null;
+  pitchUm: number | null;
+  fog?: boolean;
+}): DetectStatus {
+  const fog = opts.fog ?? false;
+  const hFrac = renderTargetHeightFrac(
+    opts.visualHeightM,
+    opts.criticalSizeM,
+    opts.distanceM,
+    opts.detectionRangeM,
+    opts
+  );
+  const bodyGrain = hFrac * matrixPixelHeight(opts.matrix);
+  const critGrain =
+    bodyGrain *
+    (opts.criticalSizeM / Math.max(0.05, opts.visualHeightM)) *
+    (fog ? 0.6 : 1);
+
+  if (critGrain >= JOHNSON_PX.identify) return "identify";
+  if (critGrain >= JOHNSON_PX.recognize) return "recognize";
+  if (critGrain >= JOHNSON_PX.detect) return "detect";
+  return "none";
+}
+
+/** Effective critical grain after render floor (for HUD). */
+export function renderedCriticalGrainPx(
+  visualHeightM: number,
+  criticalSizeM: number,
+  distanceM: number,
+  detectionRangeM: number,
+  params: Pick<ThermalSimParams, "matrix" | "focalMm" | "pitchUm">,
+  fog = false
+): number {
+  const hFrac = renderTargetHeightFrac(
+    visualHeightM,
+    criticalSizeM,
+    distanceM,
+    detectionRangeM,
+    params
+  );
+  const body = hFrac * matrixPixelHeight(params.matrix);
+  const crit =
+    body * (criticalSizeM / Math.max(0.05, visualHeightM));
+  return fog ? crit * 0.6 : crit;
 }
 
 export function parseProductThermal(p: ThermalProductInput): ThermalSimParams {

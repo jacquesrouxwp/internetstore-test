@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  computeDetectStatus,
+  computeDetectStatusVisual,
   defaultDetectionRangeM,
   effectivePixelsOnTarget,
   johnsonBandDistancesM,
-  opticsTargetHeightFrac,
+  renderTargetHeightFrac,
+  renderedCriticalGrainPx,
   resolveFovVerticalRad,
   JOHNSON_PX,
   matrixClassPreset,
@@ -751,12 +752,13 @@ export function ThermalSimulator({
         if (sctx) {
           sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
           const sink = Math.max(1, Math.round(LOGIC_H * 0.005));
-          // Size: FOV optics × visual height / distance (fog must not move/resize)
-          const hFrac = opticsTargetHeightFrac(
+          // FOV size + detect floor so "виявлено" always has a visible hot mark
+          const hFrac = renderTargetHeightFrac(
             activeTarget.visualHeightM,
+            activeTarget.criticalSizeM,
             distance,
-            panelParams,
-            1
+            rangeD,
+            panelParams
           );
           const rect = deerScreenRect(
             distance,
@@ -945,6 +947,7 @@ export function ThermalSimulator({
       withScopeReticle,
       activeTarget.id,
       activeTarget.visualHeightM,
+      activeTarget.criticalSizeM,
       panelDetectionD,
     ]
   );
@@ -972,17 +975,36 @@ export function ThermalSimulator({
   const panelStatus = (p: ThermalSimParams) => {
     const fog = weather === "fog";
     const rangeD = panelDetectionD(p.detectionRangeM);
-    const status = computeDetectStatus({
+    // Status from what is actually drawn (FOV + detect floor) — never "detect" on empty frame
+    const status = computeDetectStatusVisual({
+      visualHeightM: activeTarget.visualHeightM,
+      criticalSizeM: activeTarget.criticalSizeM,
       distanceM: distance,
-      maxRangeM: rangeD,
+      detectionRangeM: rangeD,
+      matrix: p.matrix,
+      focalMm: p.focalMm,
+      pitchUm: p.pitchUm,
       fog,
     });
-    const px = effectivePixelsOnTarget(distance, rangeD, fog);
+    const passportPx = effectivePixelsOnTarget(distance, rangeD, fog);
+    const px = renderedCriticalGrainPx(
+      activeTarget.visualHeightM,
+      activeTarget.criticalSizeM,
+      distance,
+      rangeD,
+      p,
+      fog
+    );
     const bands = johnsonBandDistancesM(rangeD);
     const pixH = matrixPixelHeight(p.matrix);
-    // Visual size: FOV × body height (stable under fog)
-    const visualSensorPx =
-      opticsTargetHeightFrac(activeTarget.visualHeightM, distance, p, 1) * pixH;
+    const hFrac = renderTargetHeightFrac(
+      activeTarget.visualHeightM,
+      activeTarget.criticalSizeM,
+      distance,
+      rangeD,
+      p
+    );
+    const visualSensorPx = hFrac * pixH;
     const fovVertDeg =
       (resolveFovVerticalRad({
         matrix: p.matrix,
@@ -991,7 +1013,17 @@ export function ThermalSimulator({
       }) *
         180) /
       Math.PI;
-    return { status, px, bands, visualSensorPx, pixH, rangeD, fovVertDeg };
+    return {
+      status,
+      px,
+      passportPx,
+      bands,
+      visualSensorPx,
+      pixH,
+      rangeD,
+      fovVertDeg,
+      hFrac,
+    };
   };
 
   const setCanvasRef = (key: PanelKey) => (el: HTMLCanvasElement | null) => {
@@ -1044,9 +1076,15 @@ export function ThermalSimulator({
         )}
       >
         {activePanels.map((panel) => {
-          const { status, px, bands, visualSensorPx, fovVertDeg } = panelStatus(
-            panel.params
-          );
+          const {
+            status,
+            px,
+            passportPx,
+            bands,
+            visualSensorPx,
+            fovVertDeg,
+            hFrac,
+          } = panelStatus(panel.params);
           const statusLabel = isRu ? STATUS_RU[status] : STATUS_UK[status];
           const statusHint = isRu
             ? STATUS_HINT_RU[status]
@@ -1088,8 +1126,13 @@ export function ThermalSimulator({
                       Johnson{" "}
                       <strong className="text-secondary">{px.toFixed(1)} px</strong>
                       {" · "}
-                      {isRu ? "высота на матрице" : "висота на матриці"} ≈{" "}
-                      {visualSensorPx.toFixed(1)} px
+                      {isRu ? "тело" : "тіло"} ≈ {visualSensorPx.toFixed(1)} px
+                      {Math.abs(passportPx - px) > 0.4 && (
+                        <span className="text-faint/80">
+                          {" "}
+                          ({isRu ? "паспорт" : "паспорт"} {passportPx.toFixed(1)})
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -1173,7 +1216,7 @@ export function ThermalSimulator({
                     <button
                       type="button"
                       onClick={() => setDigiZoom(nextDigiZoom(digiZoom, 1))}
-                      disabled={digiZoom >= 16}
+                      disabled={digiZoom >= 32}
                       className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
                       aria-label="+"
                     >
@@ -1183,7 +1226,7 @@ export function ThermalSimulator({
                   <button
                     type="button"
                     onClick={() => {
-                      const z = inspectDigiZoom(distance);
+                      const z = inspectDigiZoom(distance, DIST_MIN_M, hFrac);
                       setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);
                     }}
                     className="pointer-events-auto rounded-md border border-[var(--accent)]/80 bg-[rgba(225,29,42,0.85)] px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg"
@@ -1302,8 +1345,8 @@ export function ThermalSimulator({
           </div>
           <p className="mt-1.5 text-[10px] text-faint">
             {isRu
-              ? `Цифровой зум только увеличивает блоки матрицы. «Увеличить цель» → ×${inspectDigiZoom(distance)} — чтобы на большой дистанции увидеть hot-mark (статус «Обнаружение»).`
-              : `Цифровий зум лише збільшує блоки матриці. «Збільшити ціль» → ×${inspectDigiZoom(distance)} — щоб на великій дистанції побачити hot-mark (статус «Виявлення»).`}
+              ? `Цифровой зум (до ×32) только увеличивает блоки матрицы — новой детали нет. На D цель = тепловая точка; «Увеличить цель» делает её заметной.`
+              : `Цифровий зум (до ×32) лише збільшує блоки матриці — нової деталі немає. На D ціль = теплова точка; «Збільшити ціль» робить її помітною.`}
           </p>
         </fieldset>
 
@@ -1461,8 +1504,8 @@ export function ThermalSimulator({
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
         {isRu
-          ? `Размер цели: (высота_м/дистанция)/FOV_верт из объектива+pitch+матрицы (типовой FOV~11° если линза неизвестна). Джонсон-статус: ≥${JOHNSON_PX.identify}/${JOHNSON_PX.recognize}/${JOHNSON_PX.detect} px, px=2×(D/dist). На D — тепловая точка. Шум←NETD; зерно←матрица. Лес холодный, цель горячая.`
-          : `Розмір цілі: (висота_м/дистанція)/FOV_верт з об'єктива+pitch+матриці (типовий FOV~11° якщо лінза невідома). Johnson-статус: ≥${JOHNSON_PX.identify}/${JOHNSON_PX.recognize}/${JOHNSON_PX.detect} px, px=2×(D/dist). На D — теплова пляма. Шум←NETD; зерно←матриця. Ліс холодний, ціль гаряча.`}
+          ? `Размер: FOV×высота тела. Статус Johnson по пикселям на матрице (≥${JOHNSON_PX.identify}/${JOHNSON_PX.recognize}/${JOHNSON_PX.detect}). На паспортной D — видимая тепловая точка (не пустой кадр). Цифровой зум до ×32. Шум←NETD; зерно←матрица.`
+          : `Розмір: FOV×висота тіла. Статус Johnson за пікселями на матриці (≥${JOHNSON_PX.identify}/${JOHNSON_PX.recognize}/${JOHNSON_PX.detect}). На паспортній D — видима теплова точка (не порожній кадр). Цифровий зум до ×32. Шум←NETD; зерно←матриця.`}
       </p>
       <p className="mt-2 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-faint/90">
         {isRu

@@ -89,12 +89,16 @@ describe("inspectDigiZoom — make far detection visible", () => {
     assert.ok(inspectDigiZoom(50) <= 4);
   });
 
-  it("at 2300 m uses max ×16 so hot mark is obvious", () => {
-    assert.equal(inspectDigiZoom(2300), 16);
+  it("at 2300 m uses ×32 so hot mark is inspectable", () => {
+    assert.equal(inspectDigiZoom(2300), 32);
   });
 
   it("at 1000 m at least ×8", () => {
     assert.ok(inspectDigiZoom(1000) >= 8);
+  });
+
+  it("tiny FOV frac at range → ×32", () => {
+    assert.equal(inspectDigiZoom(2000, 50, 0.008), 32);
   });
 });
 

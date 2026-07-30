@@ -17,12 +17,14 @@ import {
   PITCH_OPTIONS,
   TARGET_SIZE_M,
   TARGET_SUBJECT_SRC,
+  TARGET_VISUAL_HEIGHT_M,
   calibrationRs75DetectM,
   clampSandboxInputs,
   computeSandbox,
   sandboxMatrixPixelWidth,
-  sandboxOpticsHeightFrac,
-  TARGET_VISUAL_HEIGHT_M,
+  sandboxRenderHeightFrac,
+  sandboxRenderedCriticalGrain,
+  statusFromPixels,
   type PixelPitchUm,
   type SandboxInputs,
   type SandboxMatrix,
@@ -364,14 +366,16 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       const sctx = sub.getContext("2d", { willReadFrequently: true });
       if (sctx) {
         sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
-        // Size from optics FOV × body height — fog must not move/resize target
-        const hFrac = sandboxOpticsHeightFrac(
+        // FOV + detect floor (status and picture stay in sync)
+        const hFrac = sandboxRenderHeightFrac(
           TARGET_VISUAL_HEIGHT_M[inputs.target],
+          TARGET_SIZE_M[inputs.target],
           inputs.distanceM,
+          inputs.matrixW,
           inputs.matrixH,
           inputs.pitchUm,
           inputs.focalMm,
-          1
+          computed.pixelsOnTargetClear
         );
         const h = Math.max(1, hFrac * LOGIC_H);
         const w = Math.max(1, h * sprite.aspect);
@@ -382,12 +386,13 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
         focusX = cx / LOGIC_W;
         focusY = (y + h * 0.45) / LOGIC_H;
 
-        // Alpha from range only (fog = noise/contrast/status, not geometry)
+        // Alpha from range only (fog = noise/contrast, not geometry).
+        // Floor 0.38 at D so detect blob stays a hot mark (same as PDP).
         const t =
           1 -
-          0.78 *
+          0.62 *
             Math.min(1, Math.max(0, (inputs.distanceM - 50) / Math.max(1, detM - 50)));
-        const trans = Math.max(0.25, t);
+        const trans = Math.max(0.38, t);
 
         // Cool ground contact (same idea as PDP) — before hot subject
         {
@@ -533,9 +538,25 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
     render();
   }, [render]);
 
+  // Status from rendered grain (FOV + detect floor) — matches picture
+  const visualStatus = useMemo(() => {
+    const critClear = sandboxRenderedCriticalGrain(
+      TARGET_VISUAL_HEIGHT_M[inputs.target],
+      TARGET_SIZE_M[inputs.target],
+      inputs.distanceM,
+      inputs.matrixW,
+      inputs.matrixH,
+      inputs.pitchUm,
+      inputs.focalMm,
+      computed.pixelsOnTargetClear,
+      false
+    );
+    return statusFromPixels(critClear, inputs.fog);
+  }, [inputs, computed.pixelsOnTargetClear]);
+
   const statusLabel = isRu
-    ? STATUS_RU[computed.status]
-    : STATUS_UK[computed.status];
+    ? STATUS_RU[visualStatus]
+    : STATUS_UK[visualStatus];
 
   const applyPreset = (id: string) => {
     setPresetId(id);
@@ -574,7 +595,7 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
           <span
             className={cn(
               "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide",
-              STATUS_COLOR[computed.status]
+              STATUS_COLOR[visualStatus]
             )}
           >
             {statusLabel}
@@ -611,7 +632,7 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
               <button
                 type="button"
                 className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
-                disabled={digiZoom >= 16}
+                disabled={digiZoom >= 32}
                 onClick={() => setDigiZoom(nextDigiZoom(digiZoom, 1))}
               >
                 +
@@ -621,7 +642,17 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
               type="button"
               className="pointer-events-auto rounded-md border border-[var(--accent)]/80 bg-[rgba(225,29,42,0.85)] px-2.5 py-1.5 text-[11px] font-bold uppercase text-white"
               onClick={() => {
-                const z = inspectDigiZoom(inputs.distanceM);
+                const hf = sandboxRenderHeightFrac(
+                  TARGET_VISUAL_HEIGHT_M[inputs.target],
+                  TARGET_SIZE_M[inputs.target],
+                  inputs.distanceM,
+                  inputs.matrixW,
+                  inputs.matrixH,
+                  inputs.pitchUm,
+                  inputs.focalMm,
+                  computed.pixelsOnTargetClear
+                );
+                const z = inspectDigiZoom(inputs.distanceM, DIST_MIN_M, hf);
                 setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);
               }}
             >

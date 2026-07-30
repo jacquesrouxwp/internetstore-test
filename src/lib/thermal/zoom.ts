@@ -50,10 +50,11 @@ export function atmosphericTransmission(
 ): number {
   const D = Math.max(200, detectionRangeM);
   const t = Math.max(0, Math.min(1, distanceM / D));
-  // Stronger wash at range so far deer "melts" into noise (honest at 1000 m)
-  const clearFloor = 0.22;
-  const base = 1 - (1 - clearFloor) * Math.pow(t, 0.85);
-  return fog ? base * 0.65 : base;
+  // At d=D keep enough alpha so a 2–3 px detect blob is still a hot mark
+  // (was 0.22 — noise + grain washed the spot to “nothing” while badge said detect)
+  const clearFloor = 0.38;
+  const base = 1 - (1 - clearFloor) * Math.pow(t, 0.9);
+  return fog ? base * 0.7 : base;
 }
 
 export function deerScreenRect(
@@ -109,28 +110,34 @@ export function digitalZoomCrop(
   return { sx, sy, sw, sh };
 }
 
-/** Allowed digital zoom steps (magnify sensor blocks — no new detail). */
-export const DIGI_ZOOM_STEPS = [1, 2, 4, 8, 16] as const;
+/**
+ * Digital zoom steps — magnify sensor blocks only (no new detail).
+ * ×32 is useful at passport-D: a 2–3 grain hot mark becomes inspectable.
+ */
+export const DIGI_ZOOM_STEPS = [1, 2, 4, 8, 16, 32] as const;
 export type DigiZoomStep = (typeof DIGI_ZOOM_STEPS)[number];
 
 /**
- * Pick a digital zoom so the deer is ~40–55% of frame height after magnify.
- * At 2300 m the animal is ~1–3 px — ×16 makes a clear hot blob ("detection works").
+ * Pick digi zoom so target ~35–50% of frame after magnify.
+ * Pass frameHeightFrac when known (FOV/render); else geometric 1/d fallback.
  */
 export function inspectDigiZoom(
   distanceM: number,
-  dMin: number = DIST_MIN_M
+  dMin: number = DIST_MIN_M,
+  frameHeightFrac?: number
 ): DigiZoomStep {
-  const frac = deerHeightFrac(distanceM, dMin);
-  // target apparent fraction after zoom ≈ 0.42
-  const needed = 0.42 / Math.max(frac, 0.004);
+  const frac =
+    frameHeightFrac != null && Number.isFinite(frameHeightFrac)
+      ? Math.max(0.003, frameHeightFrac)
+      : deerHeightFrac(distanceM, dMin);
+  const needed = 0.4 / Math.max(frac, 0.003);
   let best: DigiZoomStep = 1;
   for (const z of DIGI_ZOOM_STEPS) {
-    if (z <= needed + 0.15) best = z;
+    if (z <= needed + 0.2) best = z;
   }
-  // At long range always offer at least ×8 so "Виявлення" is obvious
-  if (distanceM >= 800 && best < 8) best = 8;
-  if (distanceM >= 1500 && best < 16) best = 16;
+  if (distanceM >= 600 && best < 8) best = 8;
+  if (distanceM >= 1000 && best < 16) best = 16;
+  if (distanceM >= 1600 && best < 32) best = 32;
   return best;
 }
 
