@@ -21,6 +21,8 @@ export default function ThermalDemoPage() {
     netdMk: defaultNetdMk(matrix),
     refreshRateHz: 50,
     label: `Demo ${matrix}`,
+    focalMm: matrix >= 640 ? 35 : matrix >= 384 ? 25 : 19,
+    pitchUm: 12,
   };
 
   return (

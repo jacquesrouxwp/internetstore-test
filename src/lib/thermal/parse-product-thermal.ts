@@ -2,8 +2,9 @@
  * Extract thermal simulator inputs from product fields / specs.
  * Detection status uses Johnson criteria (2 / 8 / 13 pixels on target).
  *
- * Visual deer size is calibrated so that after matrix pixelation the target
- * height on the sensor ≈ Johnson pixel count — badge and picture stay in sync.
+ * Visible target size is FOV-based (optics), not a free “fill the frame” scale:
+ *   frame_height_frac = (visualHeight / distance) / FOV_vert × opticalMag
+ * Status still follows passport D; at long range both picture and badge → hot spot.
  */
 
 export type ThermalMatrix = 256 | 384 | 640;
@@ -23,6 +24,10 @@ export type ThermalSimParams = {
   netdMk: number;
   refreshRateHz: number | null;
   label: string;
+  /** Lens focal length (mm) when known — drives vertical FOV for size */
+  focalMm: number | null;
+  /** Pixel pitch (µm); default 12 when only focal is known */
+  pitchUm: number | null;
 };
 
 export type ThermalCompareOption = {
@@ -33,7 +38,12 @@ export type ThermalCompareOption = {
   detectionRangeM: number;
   netdMk: number;
   refreshRateHz: number | null;
+  focalMm: number | null;
+  pitchUm: number | null;
 };
+
+/** Typical vertical FOV when lens not in product card (~10–12°). */
+export const DEFAULT_FOV_VERT_DEG = 11;
 
 /** Johnson thresholds (line-pairs / critical dimension on target). */
 export const JOHNSON_PX = {
@@ -57,13 +67,24 @@ export function defaultNetdMk(matrix: ThermalMatrix): number {
   return 40;
 }
 
+/** Real sensor vertical pixel count for FOV (not offscreen grain height). */
+export function matrixVertPixels(matrix: ThermalMatrix): number {
+  if (matrix >= 640) return 512;
+  if (matrix >= 384) return 288;
+  return 192;
+}
+
 export function matrixClassPreset(matrix: ThermalMatrix): ThermalSimParams {
+  // Typical mid-class lens by matrix for demos when no product optics
+  const focalMm = matrix >= 640 ? 35 : matrix >= 384 ? 25 : 19;
   return {
     matrix,
     detectionRangeM: defaultDetectionRangeM(matrix),
     netdMk: defaultNetdMk(matrix),
     refreshRateHz: 50,
     label: `${matrix}×${matrix === 640 ? 512 : matrix === 384 ? 288 : 192}`,
+    focalMm,
+    pitchUm: 12,
   };
 }
 
@@ -137,6 +158,61 @@ export function parseRange(
 }
 
 /**
+ * Focal length (mm) from specs / model name (e.g. "Об'єктив 35 мм", "LE15", "f=25").
+ */
+export function parseFocalMm(
+  specs?: Record<string, string> | null,
+  name?: string | null
+): number | null {
+  const chunks: string[] = [];
+  if (specs) {
+    for (const [k, v] of Object.entries(specs)) {
+      if (
+        /фокус|focal|объект|об'єкт|об'єктив|лінз|линз|lens|objective|оптик|f\b/i.test(
+          k
+        )
+      ) {
+        chunks.push(String(v));
+      }
+      // bare "25 мм" values on lens-ish keys already covered; also scan values
+      if (/\d{1,3}\s*мм/i.test(String(v)) && /мм|mm|focal|линз|лінз|объект/i.test(k + v)) {
+        chunks.push(`${k} ${v}`);
+      }
+    }
+  }
+  if (name) chunks.push(name);
+
+  const text = chunks.join(" | ");
+  const patterns = [
+    /(?:f|ф)\s*[=:]?\s*(\d{1,3})\s*(?:мм|mm)?/i,
+    /(\d{1,3})\s*(?:мм|mm)/i,
+    /(?:LE|LH|LQ|CQ|TL|TR)\s*(\d{2,3})/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) {
+      const n = Number(m[1]);
+      if (n >= 9 && n <= 150) return n;
+    }
+  }
+  return null;
+}
+
+/** Pixel pitch µm from specs (12 / 17 / 10 / 8). */
+export function parsePitchUm(
+  specs?: Record<string, string> | null
+): number | null {
+  if (!specs) return null;
+  for (const [k, v] of Object.entries(specs)) {
+    if (/pitch|піксель|пиксель|мкм|µm|um\b/i.test(k + " " + v)) {
+      const m = String(v).match(/\b(17|12|10|8)\b/);
+      if (m) return Number(m[1]);
+    }
+  }
+  return null;
+}
+
+/**
  * Offscreen width for matrix pixelation (sensor simulation).
  * 256 → large blocks, 384 → medium, 640 → fine.
  */
@@ -151,6 +227,77 @@ export function matrixPixelHeight(matrix: ThermalMatrix): number {
   return Math.round(matrixPixelWidth(matrix) * (3 / 4));
 }
 
+/**
+ * FOV_vert (rad) = 2 × atan( (pitch_µm × vert_px / 1000) / (2 × f_mm) )
+ */
+export function fovVerticalRadFromOptics(
+  matrixVertPx: number,
+  pitchUm: number,
+  focalMm: number
+): number {
+  const f = Math.max(1, focalMm);
+  const sensorH_mm = (Math.max(1, pitchUm) * Math.max(1, matrixVertPx)) / 1000;
+  return 2 * Math.atan(sensorH_mm / (2 * f));
+}
+
+export function resolveFovVerticalRad(opts: {
+  matrix: ThermalMatrix;
+  focalMm?: number | null;
+  pitchUm?: number | null;
+  /** Override degrees if product quotes FOV directly */
+  fovVertDeg?: number | null;
+}): number {
+  if (opts.fovVertDeg != null && Number.isFinite(opts.fovVertDeg) && opts.fovVertDeg > 0) {
+    return (opts.fovVertDeg * Math.PI) / 180;
+  }
+  const f = opts.focalMm;
+  if (f != null && Number.isFinite(f) && f > 0) {
+    const pitch = opts.pitchUm != null && opts.pitchUm > 0 ? opts.pitchUm : 12;
+    return fovVerticalRadFromOptics(matrixVertPixels(opts.matrix), pitch, f);
+  }
+  return (DEFAULT_FOV_VERT_DEG * Math.PI) / 180;
+}
+
+/**
+ * Frame height fraction from real angular size vs instrument FOV.
+ *   angular ≈ height_m / distance_m   (rad, small-angle)
+ *   frac = (angular / FOV_vert) × opticalMag
+ *
+ * Fog must NOT change this. Digi-zoom is applied later as a crop.
+ */
+export function targetFrameHeightFrac(
+  visualHeightM: number,
+  distanceM: number,
+  fovVertRad: number,
+  opticalMag = 1
+): number {
+  const d = Math.max(1, distanceM);
+  const h = Math.max(0.05, visualHeightM);
+  const fov = Math.max(1e-6, fovVertRad);
+  const mag = Math.max(0.25, opticalMag);
+  const angular = h / d;
+  const frac = (angular / fov) * mag;
+  // Soft clamps: never full-screen hero; never invisible (1–2 logic px min)
+  return Math.max(0.004, Math.min(0.55, frac));
+}
+
+/**
+ * Convenience: height frac for a product panel + target visual height.
+ */
+export function opticsTargetHeightFrac(
+  visualHeightM: number,
+  distanceM: number,
+  params: Pick<ThermalSimParams, "matrix" | "focalMm" | "pitchUm">,
+  opticalMag = 1
+): number {
+  const fov = resolveFovVerticalRad({
+    matrix: params.matrix,
+    focalMm: params.focalMm,
+    pitchUm: params.pitchUm,
+  });
+  return targetFrameHeightFrac(visualHeightM, distanceM, fov, opticalMag);
+}
+
 export function parseProductThermal(p: ThermalProductInput): ThermalSimParams {
   const matrix = parseMatrix(p.resolution, p.specs);
   return {
@@ -159,6 +306,8 @@ export function parseProductThermal(p: ThermalProductInput): ThermalSimParams {
     netdMk: parseNetd(p.specs),
     refreshRateHz: parseRefresh(p.specs),
     label: p.name || "Thermal",
+    focalMm: parseFocalMm(p.specs, p.name),
+    pitchUm: parsePitchUm(p.specs),
   };
 }
 
@@ -174,6 +323,8 @@ export function toCompareOption(
     detectionRangeM: sim.detectionRangeM,
     netdMk: sim.netdMk,
     refreshRateHz: sim.refreshRateHz,
+    focalMm: sim.focalMm,
+    pitchUm: sim.pitchUm,
   };
 }
 
@@ -247,30 +398,27 @@ export function johnsonBandDistancesM(detectionRangeM: number): {
 }
 
 /**
- * Deer height as fraction of logic frame height so that AFTER matrix
- * downscale the target height ≈ Johnson pixels (clear weather).
- *
- * Fog must NOT change size/position — only status (effectivePixels) and noise.
- *   frac * logicH * (pixH/logicH) = px  →  frac = px / pixH
+ * @deprecated Use opticsTargetHeightFrac — size is FOV-based, not Johnson-forced.
+ * Kept for call sites/tests that still pass detectionRange + matrix only.
+ * Uses default FOV when optics unknown; ignores detectionRange for size.
  */
 export function johnsonDeerHeightFrac(
   distanceM: number,
-  detectionRangeM: number,
+  _detectionRangeM: number,
   matrix: ThermalMatrix,
-  /**
-   * Kept for call-site compatibility. Fog must NOT change size/position —
-   * only status (effectivePixels) and noise elsewhere.
-   */
   fog = false,
-  logicH = 360
+  _logicH = 360,
+  visualHeightM = 1.3
 ): number {
   void fog;
-  const pixH = matrixPixelHeight(matrix);
-  // Always clear-weather px for geometry (anchor + scale stable under fog)
-  const px = effectivePixelsOnTarget(distanceM, detectionRangeM, false);
-  const frac = px / Math.max(1, pixH);
-  const minFrac = 1.2 / logicH;
-  return Math.max(minFrac, Math.min(0.82, frac));
+  void _detectionRangeM;
+  void _logicH;
+  return opticsTargetHeightFrac(
+    visualHeightM,
+    distanceM,
+    { matrix, focalMm: null, pitchUm: null },
+    1
+  );
 }
 
 /** Human-readable explanation of current status (uk/ru via caller). */

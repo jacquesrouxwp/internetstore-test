@@ -3,16 +3,22 @@ import { describe, it } from "node:test";
 import {
   computeDetectStatus,
   defaultDetectionRangeM,
+  DEFAULT_FOV_VERT_DEG,
   effectivePixelsOnTarget,
+  fovVerticalRadFromOptics,
   johnsonBandDistancesM,
-  johnsonDeerHeightFrac,
+  opticsTargetHeightFrac,
+  parseFocalMm,
   JOHNSON_PX,
   matrixClassPreset,
   matrixPixelHeight,
   matrixPixelWidth,
+  matrixVertPixels,
   parseMatrix,
   parseProductThermal,
   pixelsOnTarget,
+  resolveFovVerticalRad,
+  targetFrameHeightFrac,
 } from "./parse-product-thermal";
 
 describe("pixelsOnTarget (Johnson)", () => {
@@ -106,40 +112,102 @@ describe("johnsonBandDistancesM", () => {
   });
 });
 
-describe("johnsonDeerHeightFrac — visual sensor px ≈ Johnson px", () => {
-  it("at dist=D, sensor height ≈ 2 px for any matrix", () => {
-    for (const m of [256, 384, 640] as const) {
-      const D = defaultDetectionRangeM(m);
-      const frac = johnsonDeerHeightFrac(D, D, m, false, 360);
-      const sensorH = frac * matrixPixelHeight(m);
-      assert.ok(
-        Math.abs(sensorH - 2) < 0.15,
-        `matrix ${m}: sensorH=${sensorH} want ~2`
-      );
-    }
+describe("FOV-based target size (optics)", () => {
+  it("human at 50 m is ~15–25% of frame with default FOV ~11°", () => {
+    const fov = (DEFAULT_FOV_VERT_DEG * Math.PI) / 180;
+    const frac = targetFrameHeightFrac(1.8, 50, fov, 1);
+    assert.ok(frac >= 0.15 && frac <= 0.25, `frac=${frac}`);
   });
 
-  it("at dist=D/4, sensor height ≈ 8 px (recognize)", () => {
-    const m = 640;
-    const D = 2000;
-    const frac = johnsonDeerHeightFrac(D / 4, D, m, false, 360);
-    const sensorH = frac * matrixPixelHeight(m);
-    assert.ok(Math.abs(sensorH - 8) < 0.2, `got ${sensorH}`);
+  it("human at 200 m is much smaller than at 50 m", () => {
+    const fov = (DEFAULT_FOV_VERT_DEG * Math.PI) / 180;
+    const a = targetFrameHeightFrac(1.8, 50, fov, 1);
+    const b = targetFrameHeightFrac(1.8, 200, fov, 1);
+    assert.ok(b < a * 0.35, `50m=${a} 200m=${b}`);
+    assert.ok(b < 0.08, `still too large at 200m: ${b}`);
   });
 
-  it("at dist=2D/13, sensor height ≈ 13 px (identify)", () => {
-    const m = 384;
+  it("at long range (passport D) target is a tiny hot mark", () => {
+    const params = { matrix: 384 as const, focalMm: 25, pitchUm: 12 };
     const D = 1600;
-    const dist = (2 * D) / 13;
-    const frac = johnsonDeerHeightFrac(dist, D, m, false, 360);
-    const sensorH = frac * matrixPixelHeight(m);
-    assert.ok(Math.abs(sensorH - 13) < 0.25, `got ${sensorH}`);
+    const frac = opticsTargetHeightFrac(1.8, D, params, 1);
+    const sensorH = frac * matrixPixelHeight(384);
+    // blob, not a figure — a few px at most
+    assert.ok(sensorH < 6, `sensorH at D=${sensorH}`);
+    assert.ok(frac < 0.05);
   });
 
-  it("fog does NOT change visual size (only status/noise)", () => {
-    const clear = johnsonDeerHeightFrac(400, 1600, 640, false, 360);
-    const foggy = johnsonDeerHeightFrac(400, 1600, 640, true, 360);
-    assert.equal(foggy, clear);
+  it("longer focal → larger target at same distance", () => {
+    const short = opticsTargetHeightFrac(1.3, 100, {
+      matrix: 384,
+      focalMm: 15,
+      pitchUm: 12,
+    });
+    const long = opticsTargetHeightFrac(1.3, 100, {
+      matrix: 384,
+      focalMm: 50,
+      pitchUm: 12,
+    });
+    assert.ok(long > short * 2.5, `15mm=${short} 50mm=${long}`);
+  });
+
+  it("fox visual height smaller than deer at same range/optics", () => {
+    const p = { matrix: 640 as const, focalMm: 35, pitchUm: 12 };
+    const deer = opticsTargetHeightFrac(1.3, 100, p);
+    const fox = opticsTargetHeightFrac(0.4, 100, p);
+    assert.ok(Math.abs(fox / deer - 0.4 / 1.3) < 0.02);
+  });
+
+  it("fog-independent: same inputs → same size (no fog in formula)", () => {
+    const a = opticsTargetHeightFrac(1.8, 50, {
+      matrix: 640,
+      focalMm: 35,
+      pitchUm: 12,
+    });
+    const b = opticsTargetHeightFrac(1.8, 50, {
+      matrix: 640,
+      focalMm: 35,
+      pitchUm: 12,
+    });
+    assert.equal(a, b);
+  });
+
+  it("FOV from optics formula matches 2×atan(H/(2f))", () => {
+    const rad = fovVerticalRadFromOptics(288, 12, 25);
+    const sensorH = (12 * 288) / 1000;
+    const expect = 2 * Math.atan(sensorH / (2 * 25));
+    assert.ok(Math.abs(rad - expect) < 1e-12);
+  });
+
+  it("missing optics → default FOV ~11°", () => {
+    const rad = resolveFovVerticalRad({
+      matrix: 384,
+      focalMm: null,
+      pitchUm: null,
+    });
+    assert.ok(
+      Math.abs(rad - (DEFAULT_FOV_VERT_DEG * Math.PI) / 180) < 1e-12
+    );
+  });
+
+  it("matrixVertPixels matches real sensors", () => {
+    assert.equal(matrixVertPixels(256), 192);
+    assert.equal(matrixVertPixels(384), 288);
+    assert.equal(matrixVertPixels(640), 512);
+  });
+});
+
+describe("parseFocalMm", () => {
+  it("reads lens from specs", () => {
+    assert.equal(
+      parseFocalMm({ "Об'єктив": "35 мм" }, null),
+      35
+    );
+  });
+
+  it("reads from model name LE15 / LH25", () => {
+    assert.equal(parseFocalMm(null, "Hikmicro LYNX LE15 3.0"), 15);
+    assert.equal(parseFocalMm(null, "LH25 3.0"), 25);
   });
 });
 
@@ -185,6 +253,16 @@ describe("parseProductThermal", () => {
     assert.equal(p.matrix, 640);
     assert.equal(p.detectionRangeM, 2100);
     assert.equal(p.netdMk, 25);
+  });
+
+  it("parses focal from model name when specs omit lens", () => {
+    const p = parseProductThermal({
+      name: "LYNX LE19 3.0",
+      resolution: "384x288",
+      detectionRangeM: 900,
+      specs: { NETD: "35 mK" },
+    });
+    assert.equal(p.focalMm, 19);
   });
 });
 

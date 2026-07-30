@@ -21,7 +21,8 @@ import {
   clampSandboxInputs,
   computeSandbox,
   sandboxMatrixPixelWidth,
-  sandboxTargetHeightFrac,
+  sandboxOpticsHeightFrac,
+  TARGET_VISUAL_HEIGHT_M,
   type PixelPitchUm,
   type SandboxInputs,
   type SandboxMatrix,
@@ -363,11 +364,14 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       const sctx = sub.getContext("2d", { willReadFrequently: true });
       if (sctx) {
         sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
-        // Size from clear-weather Johnson only — fog must not move/resize target
-        const hFrac = sandboxTargetHeightFrac(
-          computed.pixelsOnTargetClear,
-          inputs.matrixW,
-          LOGIC_H
+        // Size from optics FOV × body height — fog must not move/resize target
+        const hFrac = sandboxOpticsHeightFrac(
+          TARGET_VISUAL_HEIGHT_M[inputs.target],
+          inputs.distanceM,
+          inputs.matrixH,
+          inputs.pitchUm,
+          inputs.focalMm,
+          1
         );
         const h = Math.max(1, hFrac * LOGIC_H);
         const w = Math.max(1, h * sprite.aspect);

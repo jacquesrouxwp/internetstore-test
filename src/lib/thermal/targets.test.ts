@@ -7,12 +7,16 @@ import {
 } from "./targets";
 
 describe("THERMAL_TARGETS", () => {
-  it("has deer, boar, fox, human with expected critical sizes", () => {
+  it("has deer, boar, fox, human with expected critical + visual sizes", () => {
     const byId = Object.fromEntries(THERMAL_TARGETS.map((t) => [t.id, t]));
     assert.equal(byId.deer.criticalSizeM, 1.0);
+    assert.equal(byId.deer.visualHeightM, 1.3);
     assert.equal(byId.boar.criticalSizeM, 0.7);
+    assert.equal(byId.boar.visualHeightM, 1.0);
     assert.equal(byId.fox.criticalSizeM, 0.3);
+    assert.equal(byId.fox.visualHeightM, 0.4);
     assert.equal(byId.human.criticalSizeM, 0.75);
+    assert.equal(byId.human.visualHeightM, 1.8);
   });
 
   it("each target has uk/ru labels and subject path", () => {
@@ -20,6 +24,7 @@ describe("THERMAL_TARGETS", () => {
       assert.ok(t.labelUk.length > 0);
       assert.ok(t.labelRu.length > 0);
       assert.ok(t.subjectSrc.startsWith("/thermal/"));
+      assert.ok(t.visualHeightM > t.criticalSizeM * 0.5);
     }
   });
 

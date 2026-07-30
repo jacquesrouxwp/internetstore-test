@@ -52,6 +52,14 @@ export const TARGET_SIZE_M: Record<TargetKind, number> = {
   fox: 0.3,
 };
 
+/** Standing / body height (m) for FOV angular size on screen. */
+export const TARGET_VISUAL_HEIGHT_M: Record<TargetKind, number> = {
+  human: 1.8,
+  deer: 1.3,
+  boar: 1.0,
+  fox: 0.4,
+};
+
 export const TARGET_SUBJECT_SRC: Record<TargetKind, string> = {
   deer: "/thermal/deer_subject_whitehot.jpg",
   boar: "/thermal/subject_boar_whitehot.jpg",
@@ -303,7 +311,28 @@ export function sandboxMatrixPixelHeight(matrixW: SandboxMatrix): number {
 }
 
 /**
- * Deer/target height fraction so after matrix downscale height ≈ Johnson px.
+ * FOV-based target height fraction (same physics as PDP).
+ * FOV_vert = 2×atan((pitch×H)/(2×f)); frac = (h/d)/FOV_vert
+ */
+export function sandboxOpticsHeightFrac(
+  visualHeightM: number,
+  distanceM: number,
+  matrixH: number,
+  pitchUm: number,
+  focalMm: number,
+  opticalMag = 1
+): number {
+  const f = Math.max(1, focalMm);
+  const sensorH_mm = (Math.max(1, pitchUm) * Math.max(1, matrixH)) / 1000;
+  const fovVert = 2 * Math.atan(sensorH_mm / (2 * f));
+  const d = Math.max(1, distanceM);
+  const angular = Math.max(0.05, visualHeightM) / d;
+  const frac = (angular / Math.max(1e-6, fovVert)) * Math.max(0.25, opticalMag);
+  return Math.max(0.004, Math.min(0.55, frac));
+}
+
+/**
+ * @deprecated Prefer sandboxOpticsHeightFrac — size is FOV-based.
  */
 export function sandboxTargetHeightFrac(
   pxOnTarget: number,

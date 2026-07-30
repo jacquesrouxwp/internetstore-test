@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   INPUT_LIMITS,
+  TARGET_VISUAL_HEIGHT_M,
   calibrationRs75DetectM,
   clampSandboxInputs,
   computeDri,
@@ -10,6 +11,7 @@ import {
   ifovMrad,
   johnsonRangeM,
   pixelsOnTargetOptics,
+  sandboxOpticsHeightFrac,
   sensorWidthMm,
   statusFromPixels,
 } from "./sandbox-physics";
@@ -180,5 +182,25 @@ describe("johnsonRangeM unit check", () => {
     const a = johnsonRangeM(1, 25, 12, 2, 1);
     const b = johnsonRangeM(1, 50, 12, 2, 1);
     assert.ok(b > a * 1.9);
+  });
+});
+
+describe("sandboxOpticsHeightFrac", () => {
+  it("human ~15–25% frame at 50 m with typical 640/12µm/35mm", () => {
+    const frac = sandboxOpticsHeightFrac(
+      TARGET_VISUAL_HEIGHT_M.human,
+      50,
+      512,
+      12,
+      35,
+      1
+    );
+    assert.ok(frac >= 0.12 && frac <= 0.35, `frac=${frac}`);
+  });
+
+  it("scales as 1/distance", () => {
+    const a = sandboxOpticsHeightFrac(1.3, 100, 288, 12, 25, 1);
+    const b = sandboxOpticsHeightFrac(1.3, 200, 288, 12, 25, 1);
+    assert.ok(Math.abs(a / b - 2) < 0.05);
   });
 });

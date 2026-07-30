@@ -6,7 +6,8 @@ import {
   defaultDetectionRangeM,
   effectivePixelsOnTarget,
   johnsonBandDistancesM,
-  johnsonDeerHeightFrac,
+  opticsTargetHeightFrac,
+  resolveFovVerticalRad,
   JOHNSON_PX,
   matrixClassPreset,
   matrixPixelHeight,
@@ -511,6 +512,8 @@ function optionToParams(o: ThermalCompareOption): ThermalSimParams {
     netdMk: o.netdMk,
     refreshRateHz: o.refreshRateHz,
     label: o.name,
+    focalMm: o.focalMm ?? null,
+    pitchUm: o.pitchUm ?? null,
   };
 }
 
@@ -573,6 +576,8 @@ export function ThermalSimulator({
       ...params,
       matrix: allowMatrixPick ? matrix : params.matrix,
       label: params.label || (isRu ? "Этот прибор" : "Цей прилад"),
+      focalMm: params.focalMm ?? null,
+      pitchUm: params.pitchUm ?? null,
     }),
     [params, matrix, allowMatrixPick, isRu]
   );
@@ -746,13 +751,12 @@ export function ThermalSimulator({
         if (sctx) {
           sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
           const sink = Math.max(1, Math.round(LOGIC_H * 0.005));
-          // Size: clear-weather Johnson only (fog must not move/resize)
-          const hFrac = johnsonDeerHeightFrac(
+          // Size: FOV optics × visual height / distance (fog must not move/resize)
+          const hFrac = opticsTargetHeightFrac(
+            activeTarget.visualHeightM,
             distance,
-            rangeD,
-            panelParams.matrix,
-            false,
-            LOGIC_H
+            panelParams,
+            1
           );
           const rect = deerScreenRect(
             distance,
@@ -940,6 +944,7 @@ export function ThermalSimulator({
       viewForm,
       withScopeReticle,
       activeTarget.id,
+      activeTarget.visualHeightM,
       panelDetectionD,
     ]
   );
@@ -975,16 +980,18 @@ export function ThermalSimulator({
     const px = effectivePixelsOnTarget(distance, rangeD, fog);
     const bands = johnsonBandDistancesM(rangeD);
     const pixH = matrixPixelHeight(p.matrix);
-    // Visual size: clear-weather Johnson (stable under fog)
+    // Visual size: FOV × body height (stable under fog)
     const visualSensorPx =
-      johnsonDeerHeightFrac(
-        distance,
-        rangeD,
-        p.matrix,
-        false,
-        LOGIC_H
-      ) * pixH;
-    return { status, px, bands, visualSensorPx, pixH, rangeD };
+      opticsTargetHeightFrac(activeTarget.visualHeightM, distance, p, 1) * pixH;
+    const fovVertDeg =
+      (resolveFovVerticalRad({
+        matrix: p.matrix,
+        focalMm: p.focalMm,
+        pitchUm: p.pitchUm,
+      }) *
+        180) /
+      Math.PI;
+    return { status, px, bands, visualSensorPx, pixH, rangeD, fovVertDeg };
   };
 
   const setCanvasRef = (key: PanelKey) => (el: HTMLCanvasElement | null) => {
@@ -1037,7 +1044,7 @@ export function ThermalSimulator({
         )}
       >
         {activePanels.map((panel) => {
-          const { status, px, bands, visualSensorPx } = panelStatus(
+          const { status, px, bands, visualSensorPx, fovVertDeg } = panelStatus(
             panel.params
           );
           const statusLabel = isRu ? STATUS_RU[status] : STATUS_UK[status];
@@ -1060,6 +1067,10 @@ export function ThermalSimulator({
                     {Math.round(panel.params.matrix * 0.75)} · D=
                     {panel.params.detectionRangeM} м · NETD{" "}
                     {panel.params.netdMk} mK
+                    {panel.params.focalMm
+                      ? ` · f=${panel.params.focalMm} мм`
+                      : ""}
+                    {" · "}FOV↓ {fovVertDeg.toFixed(1)}°
                   </p>
                   <div className="max-w-[14rem] text-right">
                     <span
@@ -1077,7 +1088,7 @@ export function ThermalSimulator({
                       Johnson{" "}
                       <strong className="text-secondary">{px.toFixed(1)} px</strong>
                       {" · "}
-                      {isRu ? "на матрице" : "на матриці"} ≈{" "}
+                      {isRu ? "высота на матрице" : "висота на матриці"} ≈{" "}
                       {visualSensorPx.toFixed(1)} px
                     </p>
                   </div>
@@ -1206,8 +1217,8 @@ export function ThermalSimulator({
             <span className="font-normal text-faint">
               (
               {isRu
-                ? `крит. размер ${activeTarget.criticalSizeM} м · D_выявл. ≈ ${panelDetectionD(currentParams.detectionRangeM)} м`
-                : `крит. розмір ${activeTarget.criticalSizeM} м · D_виявл. ≈ ${panelDetectionD(currentParams.detectionRangeM)} м`}
+                ? `высота ${activeTarget.visualHeightM} м · крит. ${activeTarget.criticalSizeM} м · D ≈ ${panelDetectionD(currentParams.detectionRangeM)} м`
+                : `висота ${activeTarget.visualHeightM} м · крит. ${activeTarget.criticalSizeM} м · D ≈ ${panelDetectionD(currentParams.detectionRangeM)} м`}
               )
             </span>
           </legend>
@@ -1260,8 +1271,8 @@ export function ThermalSimulator({
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `px = 2×(D_цели/дистанция); D_цели = D_паспорта × (размер/0.75). Туман меняет только шум/статус, не размер и не позицию.`
-                : `px = 2×(D_цілі/дистанція); D_цілі = D_паспорта × (розмір/0.75). Туман змінює лише шум/статус, не розмір і не позицію.`}
+                ? `Размер на экране = (высота/дистанция)/FOV_верт (оптика). Статус Johnson: px=2×(D/d). Туман — только шум/статус, не размер.`
+                : `Розмір на екрані = (висота/дистанція)/FOV_верт (оптика). Статус Johnson: px=2×(D/d). Туман — лише шум/статус, не розмір.`}
             </span>
           </label>
         </div>
@@ -1450,8 +1461,8 @@ export function ThermalSimulator({
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
         {isRu
-          ? `Джонсон: ≥${JOHNSON_PX.identify} px идентификация, ≥${JOHNSON_PX.recognize} распознавание, ≥${JOHNSON_PX.detect} обнаружение. px=2×(D/dist). Размер оленя на матрице синхронизирован с px. Шум ← NETD; зернистость ← матрица. Лес холодный, цель горячая.`
-          : `Джонсон: ≥${JOHNSON_PX.identify} px ідентифікація, ≥${JOHNSON_PX.recognize} розпізнавання, ≥${JOHNSON_PX.detect} виявлення. px=2×(D/dist). Розмір оленя на матриці синхронізовано з px. Шум ← NETD; зернистість ← матриця. Ліс холодний, ціль гаряча.`}
+          ? `Размер цели: (высота_м/дистанция)/FOV_верт из объектива+pitch+матрицы (типовой FOV~11° если линза неизвестна). Джонсон-статус: ≥${JOHNSON_PX.identify}/${JOHNSON_PX.recognize}/${JOHNSON_PX.detect} px, px=2×(D/dist). На D — тепловая точка. Шум←NETD; зерно←матрица. Лес холодный, цель горячая.`
+          : `Розмір цілі: (висота_м/дистанція)/FOV_верт з об'єктива+pitch+матриці (типовий FOV~11° якщо лінза невідома). Johnson-статус: ≥${JOHNSON_PX.identify}/${JOHNSON_PX.recognize}/${JOHNSON_PX.detect} px, px=2×(D/dist). На D — теплова пляма. Шум←NETD; зерно←матриця. Ліс холодний, ціль гаряча.`}
       </p>
       <p className="mt-2 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-faint/90">
         {isRu
