@@ -22,7 +22,6 @@ import {
   renderedCriticalGrainPx,
   resolveFovVerticalRad,
   targetFrameHeightFrac,
-  targetSubjectVisibility,
 } from "./parse-product-thermal";
 
 describe("pixelsOnTarget (Johnson)", () => {
