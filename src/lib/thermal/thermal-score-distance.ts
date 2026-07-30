@@ -90,7 +90,14 @@ export function resolveScore(px: number): number {
   return pw(px, RESOLVE_ANCHORS);
 }
 
-/** Effective thermal performance at a concrete distance */
+/**
+ * Effective thermal performance at a concrete distance.
+ *
+ * Weighted heavily toward Johnson resolve (px on target) so the buyer insight holds:
+ *  - close range (both saturated) → small gap (~2–5%)
+ *  - far range (one still resolves, other collapses) → large gap (25%+)
+ * IQ + NETD remain a light hardware tie-break, not the dominant term.
+ */
 export function performanceAtDistance(
   s: Specs,
   sensor: Sensor,
@@ -100,7 +107,7 @@ export function performanceAtDistance(
   const px = pixelsOnTarget(sensor, target, d);
   const resolve = resolveScore(px);
   return Math.round(
-    0.6 * resolve + 0.25 * imageQuality(s) + 0.15 * netdScore(s.netdMk)
+    0.92 * resolve + 0.05 * imageQuality(s) + 0.03 * netdScore(s.netdMk)
   );
 }
 
