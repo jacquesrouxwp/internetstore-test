@@ -15,7 +15,6 @@ import { formatPrice } from "@/lib/utils";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
-import { ThermalScorePanel } from "@/components/product/ThermalScorePanel";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
@@ -279,19 +278,6 @@ export default async function ProductPage({ params }: Props) {
         </div>
       </div>
 
-      {scoreBreakdown && (
-        <div className="mt-10">
-          <ThermalScorePanel
-            breakdown={scoreBreakdown}
-            percentilePerf={scorePercentile}
-            catalogPeers={scorePeers}
-            productId={product.id}
-            productName={name}
-            locale={loc}
-          />
-        </div>
-      )}
-
       <div className="mt-14 grid gap-8 lg:grid-cols-2">
         <section className="product-panel">
           <h2 className="product-panel__title">{t("specs")}</h2>
@@ -339,6 +325,10 @@ export default async function ProductPage({ params }: Props) {
               specs: product.specs,
               name: name,
             })}
+            scoreSpecs={scoreBreakdown?.specs ?? null}
+            scoreCatalogPeers={scorePeers}
+            scoreProductName={name}
+            scorePercentile={scorePercentile}
           />
         </div>
       )}

@@ -39,6 +39,9 @@ import {
 } from "@/lib/thermal/targets";
 import { cn } from "@/lib/utils";
 import type { DeviceType } from "@/types";
+import type { Specs } from "@/lib/thermal/thermal-score";
+import type { CatalogPeer } from "@/lib/thermal/thermal-score-distance";
+import { ThermalScoreHud } from "@/components/product/ThermalScoreHud";
 
 type Palette = "whitehot" | "ironhot";
 type Weather = "clear" | "fog";
@@ -105,6 +108,11 @@ type Props = {
   className?: string;
   /** Product form factor — drives round vs rect frame + reticle */
   deviceType?: DeviceType | string | null;
+  /** Score HUD: specs for live distance scoring (same product) */
+  scoreSpecs?: Specs | null;
+  scoreCatalogPeers?: CatalogPeer[];
+  scoreProductName?: string;
+  scorePercentile?: number | null;
 };
 
 const STATUS_UK: Record<DetectStatus, string> = {
@@ -549,6 +557,10 @@ export function ThermalSimulator({
   sceneId = "deer",
   className,
   deviceType = "mono",
+  scoreSpecs = null,
+  scoreCatalogPeers = [],
+  scoreProductName,
+  scorePercentile = null,
 }: Props) {
   const isRu = locale === "ru";
   const scene = SCENES.find((s) => s.id === sceneId) || SCENES[0];
@@ -1216,6 +1228,20 @@ export function ThermalSimulator({
                   role="img"
                   aria-label={`${panel.modelName}: ${statusLabel}, ${distance} m`}
                 />
+
+                {/* Score HUD — only on main product panel; shares distance + target */}
+                {panel.key === "current" && scoreSpecs && (
+                  <ThermalScoreHud
+                    specs={scoreSpecs}
+                    distanceM={distance}
+                    targetId={targetId}
+                    catalogPeers={scoreCatalogPeers}
+                    productId={currentProductId}
+                    productName={scoreProductName || currentParams.label}
+                    percentilePerf={scorePercentile}
+                    locale={locale}
+                  />
+                )}
 
                 {/* On-screen digi-zoom: inspect far detection hot-mark */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
