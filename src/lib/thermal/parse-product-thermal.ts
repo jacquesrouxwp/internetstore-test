@@ -146,9 +146,9 @@ export function matrixPixelWidth(matrix: ThermalMatrix): number {
   return 96;
 }
 
-/** Sensor height for 16:9 logical frame (matches canvas aspect). */
+/** Sensor height for 4:3 logical frame (matches real thermal sensors / canvas). */
 export function matrixPixelHeight(matrix: ThermalMatrix): number {
-  return Math.round(matrixPixelWidth(matrix) * (9 / 16));
+  return Math.round(matrixPixelWidth(matrix) * (3 / 4));
 }
 
 export function parseProductThermal(p: ThermalProductInput): ThermalSimParams {
@@ -257,7 +257,7 @@ export function johnsonDeerHeightFrac(
   detectionRangeM: number,
   matrix: ThermalMatrix,
   fog = false,
-  logicH = 270
+  logicH = 360
 ): number {
   const pixH = matrixPixelHeight(matrix);
   const px = effectivePixelsOnTarget(distanceM, detectionRangeM, fog);

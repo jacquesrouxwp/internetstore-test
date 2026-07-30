@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 type Palette = "whitehot" | "ironhot";
 
 const LOGIC_W = 480;
-const LOGIC_H = 270;
+const LOGIC_H = 360; // 4:3 thermal sensor
 const SPRITE_S = 512;
 const FOREST_LUMA_SCALE = 0.32;
 const FOREST_LUMA_MAX = 0.38;
@@ -449,7 +449,7 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
     cctx.putImageData(imageData, 0, 0);
 
     const pixW = sandboxMatrixPixelWidth(inputs.matrixW);
-    const pixH = Math.round(pixW * (9 / 16));
+    const pixH = Math.round(pixW * (3 / 4));
     if (!matrixRef.current) matrixRef.current = document.createElement("canvas");
     const mCan = matrixRef.current;
     mCan.width = pixW;
@@ -570,7 +570,7 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
             width={LOGIC_W}
             height={LOGIC_H}
             className="block h-auto w-full"
-            style={{ aspectRatio: `${LOGIC_W} / ${LOGIC_H}` }}
+            style={{ aspectRatio: "4 / 3" }}
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
             <div className="pointer-events-auto flex items-center gap-1">

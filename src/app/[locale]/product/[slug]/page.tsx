@@ -272,6 +272,7 @@ export default async function ProductPage({ params }: Props) {
           <ThermalSimulator
             locale={loc}
             currentProductId={product.id}
+            deviceType={product.deviceType}
             compareOptions={thermalCompareOptions}
             params={parseProductThermal({
               resolution: product.resolution,

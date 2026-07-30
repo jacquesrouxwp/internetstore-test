@@ -284,7 +284,7 @@ export function sandboxMatrixPixelWidth(matrixW: SandboxMatrix): number {
 }
 
 export function sandboxMatrixPixelHeight(matrixW: SandboxMatrix): number {
-  return Math.round(sandboxMatrixPixelWidth(matrixW) * (9 / 16));
+  return Math.round(sandboxMatrixPixelWidth(matrixW) * (3 / 4));
 }
 
 /**

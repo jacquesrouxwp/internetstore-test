@@ -29,6 +29,7 @@ import {
   nextDigiZoom,
 } from "@/lib/thermal/zoom";
 import { cn } from "@/lib/utils";
+import type { DeviceType } from "@/types";
 
 type Palette = "whitehot" | "ironhot";
 type Weather = "clear" | "fog";
@@ -37,7 +38,7 @@ type Weather = "clear" | "fog";
  * Two-layer perspective:
  *  - Forest: fixed FOV (instrument field of view does not change)
  *  - Deer: real sprite, height ∝ 1/d, feet on ground plane ∝ 1/d
- * At 1000 m the deer is a tiny hot mark far down the clearing — not a static stamp.
+ * Frame: 4:3 (real thermal sensors). Ocular devices get round FOV + optional reticle.
  */
 export type ThermalScene = {
   id: string;
@@ -57,12 +58,33 @@ const SCENES: ThermalScene[] = [
   },
 ];
 
+/** 4:3 — matches 384×288 / 640×512 class sensors */
 const LOGIC_W = 480;
-const LOGIC_H = 270;
+const LOGIC_H = 360;
 const SPRITE_S = 512;
 
 /** Exactly two windows when comparing: this product + one peer. */
 type PanelKey = "current" | "compare";
+
+/** Ocular = round FOV; screen = rectangular 4:3 display. */
+export type ThermalViewForm = "ocular" | "screen";
+
+export function thermalViewFormFromDevice(
+  deviceType?: DeviceType | string | null
+): ThermalViewForm {
+  // Scope / binocular / clip-on / classic monocular → look through an eyepiece
+  if (
+    deviceType === "scope" ||
+    deviceType === "binocular" ||
+    deviceType === "clipon"
+  ) {
+    return "ocular";
+  }
+  // Default mono → many modern units are screen monoculars (rect 4:3)
+  // Opt-in ocular mono via "ocular" string if needed later
+  if (deviceType === "ocular" || deviceType === "eyepiece") return "ocular";
+  return "screen";
+}
 
 type Props = {
   params: ThermalSimParams;
@@ -72,6 +94,8 @@ type Props = {
   allowMatrixPick?: boolean;
   sceneId?: string;
   className?: string;
+  /** Product form factor — drives round vs rect frame + reticle */
+  deviceType?: DeviceType | string | null;
 };
 
 const STATUS_UK: Record<DetectStatus, string> = {
@@ -221,6 +245,156 @@ function drawForestCover(
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
 }
 
+/**
+ * Black corners + circular FOV (eyepiece). Soft falloff at rim.
+ * Scope reticle: mild mil-dot style cross.
+ */
+function applyDeviceFrame(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  form: ThermalViewForm,
+  withScopeReticle: boolean
+) {
+  const cx = w / 2;
+  const cy = h / 2;
+
+  if (form === "ocular") {
+    const r = Math.min(w, h) * 0.48;
+    // Even-odd: full rect minus circle → black outside FOV
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2, true);
+    ctx.fillStyle = "#000000";
+    ctx.fill("evenodd");
+
+    // Soft edge inside the circle
+    const edge = ctx.createRadialGradient(cx, cy, r * 0.72, cx, cy, r);
+    edge.addColorStop(0, "rgba(0,0,0,0)");
+    edge.addColorStop(0.65, "rgba(0,0,0,0)");
+    edge.addColorStop(1, "rgba(0,0,0,0.88)");
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = edge;
+    ctx.fill();
+
+    // Thin bright ring (lens rim)
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 0.5, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(180,185,195,0.22)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    if (withScopeReticle) {
+      drawScopeReticle(ctx, cx, cy, r * 0.78);
+    }
+  } else {
+    // Screen mono: rectangular 4:3 with mild edge vignette only
+    const grd = ctx.createRadialGradient(
+      cx,
+      cy,
+      h * 0.32,
+      cx,
+      cy,
+      h * 0.72
+    );
+    grd.addColorStop(0, "rgba(0,0,0,0)");
+    grd.addColorStop(1, "rgba(0,0,0,0.38)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, w, h);
+    // Bezel
+    ctx.strokeStyle = "rgba(40,44,52,0.9)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(1.5, 1.5, w - 3, h - 3);
+  }
+}
+
+function drawScopeReticle(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  arm: number
+) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(225, 50, 50, 0.55)";
+  ctx.lineWidth = 1;
+  // Cross
+  ctx.beginPath();
+  ctx.moveTo(cx - arm, cy);
+  ctx.lineTo(cx + arm, cy);
+  ctx.moveTo(cx, cy - arm);
+  ctx.lineTo(cx, cy + arm);
+  ctx.stroke();
+  // Center gap
+  ctx.strokeStyle = "rgba(0,0,0,0.5)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, cy);
+  ctx.lineTo(cx + 5, cy);
+  ctx.moveTo(cx, cy - 5);
+  ctx.lineTo(cx, cy + 5);
+  ctx.stroke();
+  // Mild mil ticks
+  ctx.strokeStyle = "rgba(225, 50, 50, 0.4)";
+  ctx.lineWidth = 1;
+  const step = arm / 5;
+  for (let i = 1; i <= 4; i++) {
+    const t = step * i;
+    const tick = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx + t, cy - tick);
+    ctx.lineTo(cx + t, cy + tick);
+    ctx.moveTo(cx - t, cy - tick);
+    ctx.lineTo(cx - t, cy + tick);
+    ctx.moveTo(cx - tick, cy + t);
+    ctx.lineTo(cx + tick, cy + t);
+    ctx.moveTo(cx - tick, cy - t);
+    ctx.lineTo(cx + tick, cy - t);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** HUD along frame edge — inside circle for ocular, top-left for screen. */
+function drawDeviceHud(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  form: ThermalViewForm,
+  lines: { text: string; color: string }[]
+) {
+  ctx.save();
+  ctx.font = "600 11px Manrope, system-ui, sans-serif";
+  if (form === "ocular") {
+    const r = Math.min(w, h) * 0.48;
+    const cx = w / 2;
+    const cy = h / 2;
+    // Arc of text near bottom-left inside circle
+    let y = cy + r * 0.42;
+    const x = cx - r * 0.62;
+    for (const line of lines) {
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillText(line.text, x + 1, y + 1);
+      ctx.fillStyle = line.color;
+      ctx.fillText(line.text, x, y);
+      y += 14;
+    }
+  } else {
+    let y = 18;
+    const x = 12;
+    for (const line of lines) {
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fillText(line.text, x + 1, y + 1);
+      ctx.fillStyle = line.color;
+      ctx.fillText(line.text, x, y);
+      y += 15;
+    }
+  }
+  ctx.restore();
+}
+
 function drawGroundContact(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -363,9 +537,12 @@ export function ThermalSimulator({
   allowMatrixPick = false,
   sceneId = "deer",
   className,
+  deviceType = "mono",
 }: Props) {
   const isRu = locale === "ru";
   const scene = SCENES.find((s) => s.id === sceneId) || SCENES[0];
+  const viewForm = thermalViewFormFromDevice(deviceType);
+  const withScopeReticle = deviceType === "scope" || deviceType === "clipon";
 
   const [distance, setDistance] = useState(() =>
     defaultSimDistanceM(params.detectionRangeM || 1200)
@@ -667,7 +844,7 @@ export function ThermalSimulator({
       cctx.putImageData(imageData, 0, 0);
 
       const pixW = matrixPixelWidth(panelParams.matrix);
-      const pixH = Math.round(pixW * (LOGIC_H / LOGIC_W));
+      const pixH = Math.round(pixW * (LOGIC_H / LOGIC_W)); // 4:3
       if (!matrixRef.current) {
         matrixRef.current = document.createElement("canvas");
       }
@@ -690,64 +867,56 @@ export function ThermalSimulator({
       ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
       ctx.drawImage(mCan, sx, sy, sw, sh, 0, 0, LOGIC_W, LOGIC_H);
 
-      const grd = ctx.createRadialGradient(
-        LOGIC_W / 2,
-        LOGIC_H / 2,
-        LOGIC_H * 0.28,
-        LOGIC_W / 2,
-        LOGIC_H / 2,
-        LOGIC_H * 0.78
-      );
-      grd.addColorStop(0, "rgba(0,0,0,0)");
-      grd.addColorStop(1, "rgba(0,0,0,0.42)");
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
+      // Device frame: ocular circle (+ reticle) or screen rect 4:3
+      applyDeviceFrame(ctx, LOGIC_W, LOGIC_H, viewForm, withScopeReticle);
 
-      ctx.fillStyle = "rgba(225,29,42,0.95)";
-      ctx.font = "600 11px Manrope, system-ui, sans-serif";
-      ctx.fillText(
-        `${panelParams.matrix}×${Math.round(panelParams.matrix * 0.75)}`,
-        12,
-        20
-      );
-      ctx.fillStyle = "rgba(245,246,247,0.8)";
-      ctx.fillText(`${distance} m`, 12, 36);
-      ctx.fillText(
-        `D ${panelParams.detectionRangeM} · NETD ${panelParams.netdMk}`,
-        12,
-        52
-      );
+      const hudLines: { text: string; color: string }[] = [
+        {
+          text: `${panelParams.matrix}×${Math.round(panelParams.matrix * 0.75)}`,
+          color: "rgba(225,29,42,0.95)",
+        },
+        {
+          text: `${distance} m`,
+          color: "rgba(245,246,247,0.88)",
+        },
+        {
+          text: `D ${panelParams.detectionRangeM} · NETD ${panelParams.netdMk}`,
+          color: "rgba(245,246,247,0.75)",
+        },
+      ];
       if (panelParams.refreshRateHz) {
-        ctx.fillText(`${panelParams.refreshRateHz} Hz`, 12, 68);
+        hudLines.push({
+          text: `${panelParams.refreshRateHz} Hz`,
+          color: "rgba(245,246,247,0.7)",
+        });
       }
       if (digiZoom > 1) {
-        // Magnification badge
-        ctx.fillStyle = "rgba(225,29,42,0.95)";
-        ctx.font = "700 12px Manrope, system-ui, sans-serif";
-        ctx.textAlign = "right";
-        ctx.fillText(`DIGI ×${digiZoom}`, LOGIC_W - 12, 20);
-        ctx.textAlign = "left";
+        hudLines.push({
+          text: `DIGI ×${digiZoom}`,
+          color: "rgba(225,29,42,0.95)",
+        });
+      }
+      drawDeviceHud(ctx, LOGIC_W, LOGIC_H, viewForm, hudLines);
 
-        // Center reticle — shows where the hot mark is under inspection
+      // Digi-zoom inspect: small cross (only if not full scope reticle already)
+      if (digiZoom > 1 && !withScopeReticle) {
         const cx = LOGIC_W / 2;
         const cy = LOGIC_H / 2;
-        ctx.strokeStyle = "rgba(225,29,42,0.75)";
+        ctx.strokeStyle = "rgba(225,29,42,0.7)";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(cx - 14, cy);
-        ctx.lineTo(cx - 4, cy);
-        ctx.moveTo(cx + 4, cy);
-        ctx.lineTo(cx + 14, cy);
-        ctx.moveTo(cx, cy - 14);
-        ctx.lineTo(cx, cy - 4);
-        ctx.moveTo(cx, cy + 4);
-        ctx.lineTo(cx, cy + 14);
+        ctx.moveTo(cx - 12, cy);
+        ctx.lineTo(cx - 3, cy);
+        ctx.moveTo(cx + 3, cy);
+        ctx.lineTo(cx + 12, cy);
+        ctx.moveTo(cx, cy - 12);
+        ctx.lineTo(cx, cy - 3);
+        ctx.moveTo(cx, cy + 3);
+        ctx.lineTo(cx, cy + 12);
         ctx.stroke();
-        ctx.strokeStyle = "rgba(245,246,247,0.35)";
-        ctx.strokeRect(cx - 28, cy - 20, 56, 40);
       }
     },
-    [scene, distance, digiZoom, weather, palette]
+    [scene, distance, digiZoom, weather, palette, viewForm, withScopeReticle]
   );
 
   useEffect(() => {
@@ -814,6 +983,17 @@ export function ThermalSimulator({
             {isRu
               ? `Матрица ${currentParams.matrix}, NETD ≤${currentParams.netdMk} mK, D=${currentParams.detectionRangeM} м · ${scene.labelRu}`
               : `Матриця ${currentParams.matrix}, NETD ≤${currentParams.netdMk} mK, D=${currentParams.detectionRangeM} м · ${scene.labelUk}`}
+          </p>
+          <p className="mt-0.5 text-[11px] text-faint">
+            {isRu
+              ? viewForm === "ocular"
+                ? "Кадр 4:3 · круглое поле (окуляр)" +
+                  (withScopeReticle ? " · прицельная сетка" : "")
+                : "Кадр 4:3 · прямоугольный экран монокуляра"
+              : viewForm === "ocular"
+                ? "Кадр 4:3 · кругле поле (окуляр)" +
+                  (withScopeReticle ? " · прицільна сітка" : "")
+                : "Кадр 4:3 · прямокутний екран монокуляра"}
           </p>
         </div>
       </div>
@@ -928,7 +1108,7 @@ export function ThermalSimulator({
                   width={LOGIC_W}
                   height={LOGIC_H}
                   className="block h-auto w-full"
-                  style={{ aspectRatio: `${LOGIC_W} / ${LOGIC_H}` }}
+                  style={{ aspectRatio: "4 / 3" }}
                   role="img"
                   aria-label={`${panel.modelName}: ${statusLabel}, ${distance} m`}
                 />

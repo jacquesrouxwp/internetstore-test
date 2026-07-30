@@ -110,7 +110,7 @@ describe("johnsonDeerHeightFrac — visual sensor px ≈ Johnson px", () => {
   it("at dist=D, sensor height ≈ 2 px for any matrix", () => {
     for (const m of [256, 384, 640] as const) {
       const D = defaultDetectionRangeM(m);
-      const frac = johnsonDeerHeightFrac(D, D, m, false, 270);
+      const frac = johnsonDeerHeightFrac(D, D, m, false, 360);
       const sensorH = frac * matrixPixelHeight(m);
       assert.ok(
         Math.abs(sensorH - 2) < 0.15,
@@ -122,7 +122,7 @@ describe("johnsonDeerHeightFrac — visual sensor px ≈ Johnson px", () => {
   it("at dist=D/4, sensor height ≈ 8 px (recognize)", () => {
     const m = 640;
     const D = 2000;
-    const frac = johnsonDeerHeightFrac(D / 4, D, m, false, 270);
+    const frac = johnsonDeerHeightFrac(D / 4, D, m, false, 360);
     const sensorH = frac * matrixPixelHeight(m);
     assert.ok(Math.abs(sensorH - 8) < 0.2, `got ${sensorH}`);
   });
@@ -131,14 +131,14 @@ describe("johnsonDeerHeightFrac — visual sensor px ≈ Johnson px", () => {
     const m = 384;
     const D = 1600;
     const dist = (2 * D) / 13;
-    const frac = johnsonDeerHeightFrac(dist, D, m, false, 270);
+    const frac = johnsonDeerHeightFrac(dist, D, m, false, 360);
     const sensorH = frac * matrixPixelHeight(m);
     assert.ok(Math.abs(sensorH - 13) < 0.25, `got ${sensorH}`);
   });
 
   it("fog shrinks visual size with effective px", () => {
-    const clear = johnsonDeerHeightFrac(400, 1600, 640, false, 270);
-    const foggy = johnsonDeerHeightFrac(400, 1600, 640, true, 270);
+    const clear = johnsonDeerHeightFrac(400, 1600, 640, false, 360);
+    const foggy = johnsonDeerHeightFrac(400, 1600, 640, true, 360);
     assert.ok(foggy < clear);
     assert.ok(
       Math.abs(foggy / clear - 0.6) < 0.05,
@@ -148,9 +148,9 @@ describe("johnsonDeerHeightFrac — visual sensor px ≈ Johnson px", () => {
 });
 
 describe("matrixPixelHeight aspect", () => {
-  it("16:9 relative to width", () => {
-    assert.equal(matrixPixelHeight(640), Math.round(240 * 9 / 16));
-    assert.equal(matrixPixelHeight(256), Math.round(96 * 9 / 16));
+  it("4:3 relative to width (thermal sensor)", () => {
+    assert.equal(matrixPixelHeight(640), Math.round(240 * 3 / 4));
+    assert.equal(matrixPixelHeight(256), Math.round(96 * 3 / 4));
   });
 });
 
