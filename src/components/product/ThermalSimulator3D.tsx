@@ -222,42 +222,61 @@ function DeerModel({
 useGLTF.preload(DEER_GLB_URL, true);
 
 // ─── Cold forest backdrop ─────────────────────────────────────────────────
+// BUG (was): color × ~0.12 crushed forest_whitehot to near-black → "no forest".
+// Also size used fixed 12° FOV; real FOV can be wider → plane didn't fill frame.
 
 function ForestBackdrop({
   maxRangeM,
   palette,
+  fovDeg,
 }: {
   maxRangeM: number;
   palette: Palette;
+  fovDeg: number;
 }) {
   const tex = useTexture(FOREST_BACKDROP_URL);
   useEffect(() => {
-    tex.colorSpace = THREE.SRGBColorSpace;
+    // Thermal plate is already grayscale luminance — don't double-sRGB crush
+    tex.colorSpace = THREE.NoColorSpace;
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
   }, [tex]);
 
-  // Plane far enough to always fill FOV; scale ~ tan(fov/2)*2*depth * aspect
-  const depth = Math.max(400, maxRangeM * 1.35);
-  const halfH = Math.tan((12 * Math.PI) / 360) * depth * 2.2;
-  const halfW = halfH * (LOGIC_W / LOGIC_H) * 1.15;
+  // Always BEHIND the farthest deer position; fill vertical FOV + margin
+  const z = -(Math.max(120, maxRangeM) * 1.2 + 40);
+  const halfFovRad = (Math.max(4, fovDeg) * Math.PI) / 360;
+  const halfH = Math.tan(halfFovRad) * Math.abs(z) * 1.45;
+  const halfW = halfH * (LOGIC_W / LOGIC_H) * 1.45;
 
-  const color =
+  // Cold tint but KEEP texture detail (×0.12 was the "no forest" bug)
+  const tint =
     palette === "ironhot"
-      ? new THREE.Color(0.08, 0.06, 0.18)
-      : new THREE.Color(0.12, 0.13, 0.15);
+      ? new THREE.Color(0.55, 0.48, 0.72)
+      : new THREE.Color(0.72, 0.74, 0.76);
 
   return (
-    <mesh position={[0, CAMERA_EYE_HEIGHT_M * 0.35, -depth]} renderOrder={-1}>
+    <mesh
+      position={[0, CAMERA_EYE_HEIGHT_M * 0.25, z]}
+      renderOrder={-2}
+      frustumCulled={false}
+    >
       <planeGeometry args={[halfW * 2, halfH * 2]} />
       <meshBasicMaterial
         map={tex}
-        color={color}
+        color={tint}
         toneMapped={false}
-        depthWrite={false}
+        depthWrite={true}
+        depthTest={true}
+        side={THREE.DoubleSide}
       />
     </mesh>
   );
 }
+
+// Preload so Suspense doesn't leave a black void for long
+useTexture.preload(FOREST_BACKDROP_URL);
 
 // ─── Ground plane (cold litter) ───────────────────────────────────────────
 
@@ -566,8 +585,15 @@ function SceneContent({
       <directionalLight position={[2, 6, 4]} intensity={0.05} />
       <CameraRig fovDeg={fovDeg} digiZoom={1} />
       <ColdGround />
+      {/* Separate Suspense: forest must not block deer, and vice versa */}
       <Suspense fallback={null}>
-        <ForestBackdrop maxRangeM={maxRangeM} palette={palette} />
+        <ForestBackdrop
+          maxRangeM={maxRangeM}
+          palette={palette}
+          fovDeg={fovDeg}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
         <DeerModel
           distanceM={distanceM}
           visible={deerVisible}
