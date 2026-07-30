@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   computeDetectStatusVisual,
-  defaultDetectionRangeM,
   effectivePixelsOnTarget,
   johnsonBandDistancesM,
   renderTargetHeightFrac,
@@ -11,9 +10,9 @@ import {
   resolveFovVerticalRad,
   targetSubjectVisibility,
   JOHNSON_PX,
-  matrixClassPreset,
   matrixPixelHeight,
   matrixPixelWidth,
+  matrixVertPixels,
   netdContrast,
   netdNoiseAmp,
   type DetectStatus,
@@ -40,8 +39,15 @@ import {
 import { cn } from "@/lib/utils";
 import type { DeviceType } from "@/types";
 import type { Specs } from "@/lib/thermal/thermal-score";
-import type { CatalogPeer } from "@/lib/thermal/thermal-score-distance";
+import {
+  sensorFromSpecs,
+  type CatalogPeer,
+} from "@/lib/thermal/thermal-score-distance";
 import { ThermalScoreHud } from "@/components/product/ThermalScoreHud";
+import { ThermalCompareInsight } from "@/components/product/ThermalCompareInsight";
+
+/** Synthetic id for “this product” in dual A/B dropdowns */
+const SELF_MODEL_ID = "__self__";
 
 type Palette = "whitehot" | "ironhot";
 type Weather = "clear" | "fog";
@@ -75,8 +81,8 @@ const LOGIC_W = 480;
 const LOGIC_H = 360;
 const SPRITE_S = 512;
 
-/** Exactly two windows when comparing: this product + one peer. */
-type PanelKey = "current" | "compare";
+/** Dual-panel keys: model A (left) and model B (right). */
+type PanelKey = "a" | "b";
 
 /** Ocular = round FOV; screen = rectangular 4:3 display. */
 export type ThermalViewForm = "ocular" | "screen";
@@ -527,25 +533,37 @@ function optionToParams(o: ThermalCompareOption): ThermalSimParams {
   };
 }
 
-function resolveCompareSelection(
-  optionId: string,
-  catalog: ThermalCompareOption[],
-  isRu: boolean
-): ThermalSimParams | null {
-  if (!optionId) return null;
-  if (optionId.startsWith("preset:")) {
-    const m = Number(optionId.replace("preset:", "")) as ThermalMatrix;
-    const preset = matrixClassPreset(m);
-    return {
-      ...preset,
-      label:
-        (isRu ? "Класс " : "Клас ") +
-        preset.label +
-        (isRu ? " (типовой)" : " (типовий)"),
-    };
-  }
-  const opt = catalog.find((c) => c.id === optionId);
-  return opt ? optionToParams(opt) : null;
+/** Build Specs for scoring HUD from a catalog compare option (+ peer price if known). */
+function optionToSpecs(
+  o: ThermalCompareOption,
+  peers: CatalogPeer[] = []
+): Specs {
+  const peer = peers.find((p) => p.id === o.id);
+  if (peer) return peer.specs;
+  return {
+    hPixels: o.matrix,
+    vPixels: matrixVertPixels(o.matrix),
+    pixelPitchUm: o.pitchUm ?? 12,
+    netdMk: o.netdMk,
+    refreshHz: o.refreshRateHz ?? 50,
+    detectionRangeM: o.detectionRangeM,
+    priceEur: 1000,
+  };
+}
+
+function simParamsToSpecs(
+  p: ThermalSimParams,
+  priceEur = 1000
+): Specs {
+  return {
+    hPixels: p.matrix,
+    vPixels: matrixVertPixels(p.matrix),
+    pixelPitchUm: p.pitchUm ?? 12,
+    netdMk: p.netdMk,
+    refreshHz: p.refreshRateHz ?? 50,
+    detectionRangeM: p.detectionRangeM,
+    priceEur,
+  };
 }
 
 export function ThermalSimulator({
@@ -575,11 +593,12 @@ export function ThermalSimulator({
   const [palette, setPalette] = useState<Palette>("whitehot");
   const [targetId, setTargetId] = useState<ThermalTargetId>("deer");
   const [matrix, setMatrix] = useState<ThermalMatrix>(params.matrix);
+  /** Dual A/B compare — always two real catalog models when on (no fixed 256 baseline). */
   const [compareOn, setCompareOn] = useState(false);
+  const [modelAId, setModelAId] = useState<string>(SELF_MODEL_ID);
+  const [modelBId, setModelBId] = useState<string>("");
 
   const activeTarget = useMemo(() => getThermalTarget(targetId), [targetId]);
-  /** Single peer to compare with (exactly 2 windows total when set). */
-  const [compareOptionId, setCompareOptionId] = useState<string>("preset:256");
   const [catalog, setCatalog] = useState<ThermalCompareOption[]>(
     compareOptionsProp || []
   );
@@ -589,44 +608,115 @@ export function ThermalSimulator({
     () => ({
       ...params,
       matrix: allowMatrixPick ? matrix : params.matrix,
-      label: params.label || (isRu ? "Этот прибор" : "Цей прилад"),
+      label:
+        scoreProductName ||
+        params.label ||
+        (isRu ? "Этот прибор" : "Цей прилад"),
       focalMm: params.focalMm ?? null,
       pitchUm: params.pitchUm ?? null,
     }),
-    [params, matrix, allowMatrixPick, isRu]
+    [params, matrix, allowMatrixPick, isRu, scoreProductName]
   );
 
-  const compareParams = useMemo(() => {
-    if (!compareOn) return null;
-    return resolveCompareSelection(compareOptionId, catalog, isRu);
-  }, [compareOn, compareOptionId, catalog, isRu]);
+  const selfSpecs: Specs = useMemo(() => {
+    if (scoreSpecs) return scoreSpecs;
+    const peer = scoreCatalogPeers.find((p) => p.id === currentProductId);
+    return simParamsToSpecs(currentParams, peer?.priceEur ?? 1000);
+  }, [scoreSpecs, scoreCatalogPeers, currentProductId, currentParams]);
 
-  /** Always 1 panel, or exactly 2 when compare is on. */
+  /** Resolve dropdown id → sim params + score specs for a panel. */
+  const resolveModel = useCallback(
+    (
+      id: string
+    ): {
+      params: ThermalSimParams;
+      specs: Specs;
+      modelName: string;
+      productId?: string;
+    } => {
+      if (id === SELF_MODEL_ID || (currentProductId && id === currentProductId)) {
+        return {
+          params: currentParams,
+          specs: selfSpecs,
+          modelName: currentParams.label,
+          productId: currentProductId,
+        };
+      }
+      const opt = catalog.find((c) => c.id === id);
+      if (!opt) {
+        return {
+          params: currentParams,
+          specs: selfSpecs,
+          modelName: currentParams.label,
+          productId: currentProductId,
+        };
+      }
+      return {
+        params: optionToParams(opt),
+        specs: optionToSpecs(opt, scoreCatalogPeers),
+        modelName: opt.name,
+        productId: opt.id,
+      };
+    },
+    [
+      catalog,
+      currentParams,
+      selfSpecs,
+      currentProductId,
+      scoreCatalogPeers,
+    ]
+  );
+
+  // Default B = first catalog model (real product, never a matrix class preset)
+  useEffect(() => {
+    if (!catalog.length) return;
+    if (!modelBId || !catalog.some((c) => c.id === modelBId)) {
+      const first =
+        catalog.find((c) => c.id !== currentProductId) || catalog[0];
+      if (first) setModelBId(first.id);
+    }
+  }, [catalog, modelBId, currentProductId]);
+
+  const modelA = useMemo(
+    () => resolveModel(modelAId),
+    [resolveModel, modelAId]
+  );
+  const modelB = useMemo(
+    () => resolveModel(modelBId || SELF_MODEL_ID),
+    [resolveModel, modelBId]
+  );
+
+  /** Always 1 panel, or exactly 2 (A + B) when compare is on. */
   const activePanels = useMemo(() => {
     const list: {
       key: PanelKey;
       params: ThermalSimParams;
-      /** Full model name shown above the canvas */
+      specs: Specs;
       modelName: string;
       badge: string;
+      productId?: string;
     }[] = [
       {
-        key: "current",
-        params: currentParams,
-        modelName: currentParams.label,
-        badge: isRu ? "Этот прибор" : "Цей прилад",
+        key: "a",
+        params: modelA.params,
+        specs: modelA.specs,
+        modelName: modelA.modelName,
+        badge: isRu ? "Модель A" : "Модель A",
+        productId: modelA.productId,
       },
     ];
-    if (compareOn && compareParams) {
+    if (compareOn && modelBId) {
       list.push({
-        key: "compare",
-        params: compareParams,
-        modelName: compareParams.label,
-        badge: isRu ? "Сравнение" : "Порівняння",
+        key: "b",
+        params: modelB.params,
+        specs: modelB.specs,
+        modelName: modelB.modelName,
+        badge: isRu ? "Модель B" : "Модель B",
+        productId: modelB.productId,
       });
     }
     return list;
-  }, [currentParams, compareOn, compareParams, isRu]);
+  }, [modelA, modelB, compareOn, modelBId, isRu]);
 
   /** Passport D is usually human; scale by target critical size */
   const panelDetectionD = useCallback(
@@ -1062,7 +1152,23 @@ export function ThermalSimulator({
     else canvasMap.current.delete(key);
   };
 
-  const catalogFiltered = catalog.filter((c) => c.id !== currentProductId);
+  /** Full dropdown list: this product first, then catalog peers. */
+  const modelSelectOptions = useMemo(() => {
+    const opts: { id: string; label: string }[] = [
+      {
+        id: SELF_MODEL_ID,
+        label: `${currentParams.label} · ${currentParams.matrix} · D=${currentParams.detectionRangeM}`,
+      },
+    ];
+    for (const o of catalog) {
+      if (currentProductId && o.id === currentProductId) continue;
+      opts.push({
+        id: o.id,
+        label: `${o.name} · ${o.matrix} · D=${o.detectionRangeM} · NETD ${o.netdMk}`,
+      });
+    }
+    return opts;
+  }, [catalog, currentParams, currentProductId]);
 
   return (
     <section
@@ -1097,7 +1203,79 @@ export function ThermalSimulator({
                 : "Кадр 4:3 · прямокутний екран монокуляра"}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setCompareOn((v) => !v)}
+          className={cn(
+            "rounded-lg border px-4 py-2 text-sm font-semibold transition",
+            compareOn
+              ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+              : "border-white/15 text-secondary hover:border-white/30"
+          )}
+        >
+          {compareOn
+            ? isRu
+              ? "Закрыть сравнение"
+              : "Закрити порівняння"
+            : isRu
+              ? "Сравнить две модели"
+              : "Порівняти дві моделі"}
+        </button>
       </div>
+
+      {/* Dual A/B model pickers — only real catalog products, no matrix-class presets */}
+      {compareOn && (
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-medium text-muted-ui">
+            {isRu ? "Модель A (слева)" : "Модель A (зліва)"}
+            <select
+              className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#12141a] px-3 py-2.5 text-sm text-primary"
+              value={modelAId}
+              onChange={(e) => setModelAId(e.target.value)}
+            >
+              {modelSelectOptions.map((o) => (
+                <option key={o.id} value={o.id} disabled={o.id === modelBId}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-xs font-medium text-muted-ui">
+            {isRu ? "Модель B (справа)" : "Модель B (справа)"}
+            <select
+              className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#12141a] px-3 py-2.5 text-sm text-primary"
+              value={modelBId}
+              onChange={(e) => setModelBId(e.target.value)}
+            >
+              {modelSelectOptions.map((o) => (
+                <option key={o.id} value={o.id} disabled={o.id === modelAId}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {/* Live % gap + crossover + math — between dropdowns and panels */}
+      {compareOn && modelBId && (
+        <ThermalCompareInsight
+          className="mb-4"
+          modelA={{
+            name: modelA.modelName,
+            specs: modelA.specs,
+            sensor: sensorFromSpecs(modelA.specs),
+          }}
+          modelB={{
+            name: modelB.modelName,
+            specs: modelB.specs,
+            sensor: sensorFromSpecs(modelB.specs),
+          }}
+          distanceM={distance}
+          targetId={targetId}
+          locale={locale}
+        />
+      )}
 
       <div
         className={cn(
@@ -1214,9 +1392,9 @@ export function ThermalSimulator({
                 className="relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
                 style={{
                   boxShadow:
-                    panel.key === "current"
+                    panel.key === "a"
                       ? "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)"
-                      : "0 0 0 3px #12141a",
+                      : "0 0 0 3px #12141a, 0 12px 40px rgba(0,0,0,0.45), inset 0 0 40px rgba(0,0,0,0.45)",
                 }}
               >
                 <canvas
@@ -1229,19 +1407,21 @@ export function ThermalSimulator({
                   aria-label={`${panel.modelName}: ${statusLabel}, ${distance} m`}
                 />
 
-                {/* Score HUD — only on main product panel; shares distance + target */}
-                {panel.key === "current" && scoreSpecs && (
-                  <ThermalScoreHud
-                    specs={scoreSpecs}
-                    distanceM={distance}
-                    targetId={targetId}
-                    catalogPeers={scoreCatalogPeers}
-                    productId={currentProductId}
-                    productName={scoreProductName || currentParams.label}
-                    percentilePerf={scorePercentile}
-                    locale={locale}
-                  />
-                )}
+                {/* Score HUD on EVERY panel — live 4 scores + Total at shared distance */}
+                <ThermalScoreHud
+                  specs={panel.specs}
+                  distanceM={distance}
+                  targetId={targetId}
+                  catalogPeers={compareOn ? [] : scoreCatalogPeers}
+                  productId={panel.productId}
+                  productName={panel.modelName}
+                  percentilePerf={
+                    panel.key === "a" && !compareOn ? scorePercentile : null
+                  }
+                  locale={locale}
+                  alwaysShowBreakdown
+                  hidePeerInsight={compareOn}
+                />
 
                 {/* On-screen digi-zoom: inspect far detection hot-mark */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
@@ -1451,100 +1631,24 @@ export function ThermalSimulator({
           </div>
         </fieldset>
 
-        <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setCompareOn((v) => {
-                  const next = !v;
-                  if (next && !compareOptionId) {
-                    setCompareOptionId("preset:256");
-                  }
-                  return next;
-                });
-              }}
-              className={cn(
-                "rounded-lg border px-4 py-2 text-sm font-semibold transition",
-                compareOn
-                  ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
-                  : "border-white/15 text-secondary hover:border-white/30"
-              )}
-            >
-              {compareOn
-                ? isRu
-                  ? "Закрыть сравнение"
-                  : "Закрити порівняння"
-                : isRu
-                  ? "Сравнить с другим прибором"
-                  : "Порівняти з іншим приладом"}
-            </button>
-            {allowMatrixPick && (
-              <label className="text-xs text-muted-ui">
-                {isRu ? "Матрица" : "Матриця"}
-                <select
-                  className="ml-2 rounded-lg border border-white/15 bg-[#12141a] px-2 py-1.5 text-sm text-primary"
-                  value={matrix}
-                  onChange={(e) =>
-                    setMatrix(Number(e.target.value) as ThermalMatrix)
-                  }
-                >
-                  <option value={256}>256×192</option>
-                  <option value={384}>384×288</option>
-                  <option value={640}>640×512</option>
-                </select>
-              </label>
-            )}
+        {allowMatrixPick && (
+          <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
+            <label className="text-xs text-muted-ui">
+              {isRu ? "Матрица (демо)" : "Матриця (демо)"}
+              <select
+                className="ml-2 rounded-lg border border-white/15 bg-[#12141a] px-2 py-1.5 text-sm text-primary"
+                value={matrix}
+                onChange={(e) =>
+                  setMatrix(Number(e.target.value) as ThermalMatrix)
+                }
+              >
+                <option value={256}>256×192</option>
+                <option value={384}>384×288</option>
+                <option value={640}>640×512</option>
+              </select>
+            </label>
           </div>
-
-          {compareOn && (
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3 sm:p-4">
-              <label className="block text-xs font-medium text-muted-ui">
-                {isRu
-                  ? "С чем сравниваем (одно окно рядом)"
-                  : "З чим порівнюємо (одне вікно поруч)"}
-                <select
-                  className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#12141a] px-3 py-2.5 text-sm text-primary"
-                  value={compareOptionId}
-                  onChange={(e) => setCompareOptionId(e.target.value)}
-                >
-                  <optgroup
-                    label={isRu ? "Быстрые классы матриц" : "Швидкі класи матриць"}
-                  >
-                    <option value="preset:256">
-                      Клас 256×192 · D={defaultDetectionRangeM(256)} · NETD 40
-                    </option>
-                    <option value="preset:384">
-                      Клас 384×288 · D={defaultDetectionRangeM(384)} · NETD 35
-                    </option>
-                    <option value="preset:640">
-                      Клас 640×512 · D={defaultDetectionRangeM(640)} · NETD 25
-                    </option>
-                  </optgroup>
-                  {catalogFiltered.length > 0 && (
-                    <optgroup
-                      label={
-                        isRu ? "Модели из каталога" : "Моделі з каталогу"
-                      }
-                    >
-                      {catalogFiltered.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.name} · {o.matrix} · D={o.detectionRangeM} · NETD{" "}
-                          {o.netdMk}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-              </label>
-              <p className="mt-2 text-[11px] text-faint">
-                {isRu
-                  ? "Всегда 2 окна: ваш прибор (слева) и выбранный для сравнения (справа)."
-                  : "Завжди 2 вікна: ваш прилад (зліва) і обраний для порівняння (справа)."}
-              </p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">

@@ -48,6 +48,13 @@ type Props = {
   percentilePerf?: number | null;
   locale?: string;
   className?: string;
+  /**
+   * Always show 4 sub-scores (presentation / dual-panel mode).
+   * Default true — scores must be visible in the corner without an extra click.
+   */
+  alwaysShowBreakdown?: boolean;
+  /** Hide auto peer/median insight when dual A/B compare owns that UI. */
+  hidePeerInsight?: boolean;
 };
 
 export function ThermalScoreHud({
@@ -60,10 +67,12 @@ export function ThermalScoreHud({
   percentilePerf,
   locale: _locale = "uk",
   className,
+  alwaysShowBreakdown = true,
+  hidePeerInsight = false,
 }: Props) {
   void _locale;
   const t = useTranslations("product");
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(alwaysShowBreakdown);
   const [tip, setTip] = useState(false);
 
   // Debounce ~50ms so slider stays smooth
@@ -82,6 +91,14 @@ export function ThermalScoreHud({
   );
 
   const insight = useMemo(() => {
+    if (hidePeerInsight || !catalogPeers.length) {
+      return {
+        gapMedian: null as number | null,
+        gapPeer: null as number | null,
+        peerName: null as string | null,
+        cross: null as number | null,
+      };
+    }
     const self: CatalogPeer = {
       id: productId || "self",
       name: productName || "—",
@@ -90,9 +107,7 @@ export function ThermalScoreHud({
       priceEur: specs.priceEur,
     };
     const peer = pickComparePeer(self, catalogPeers, dLive, target);
-    const median = catalogPeers.length
-      ? catalogMedianPerfAtDistance(catalogPeers, dLive, target)
-      : null;
+    const median = catalogMedianPerfAtDistance(catalogPeers, dLive, target);
     const gapMedian =
       median != null && median > 0
         ? gapPct(live.thermalPerformance, median)
@@ -132,6 +147,7 @@ export function ThermalScoreHud({
 
     return { gapMedian, gapPeer, peerName, cross };
   }, [
+    hidePeerInsight,
     specs,
     sensor,
     catalogPeers,
@@ -216,8 +232,8 @@ export function ThermalScoreHud({
           </p>
         )}
 
-        {/* Expanded: 4 sub-scores + crossover */}
-        {expanded && (
+        {/* 4 sub-scores (+ optional peer insight when not dual-compare) */}
+        {(expanded || alwaysShowBreakdown) && (
           <div className="mt-2 space-y-1.5 border-t border-white/[0.06] pt-2">
             {(
               [
@@ -244,7 +260,7 @@ export function ThermalScoreHud({
               </div>
             ))}
 
-            {insight.gapMedian != null && (
+            {!hidePeerInsight && insight.gapMedian != null && (
               <p className="pt-1 text-[8px] leading-snug text-white/50">
                 {insight.gapMedian >= 0
                   ? t("scoreGapBetterMedian", {
@@ -257,7 +273,7 @@ export function ThermalScoreHud({
                     })}
               </p>
             )}
-            {insight.cross != null && insight.peerName && (
+            {!hidePeerInsight && insight.cross != null && insight.peerName && (
               <p className="text-[8px] leading-snug text-white/60">
                 {t("scoreCrossover", {
                   m: insight.cross,
