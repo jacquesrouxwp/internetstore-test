@@ -116,7 +116,22 @@
     "scoreFactorPerf": "Суммарный perf {n}/100",
     "scoreFactorPrice": "Цена ≈€{eur}",
     "scoreFactorIqBlend": "Image Quality = разрешение + NETD + частота",
-    "scoreFactorGeneric": "Матрица {matrix}, NETD {netd} mK, {hz} Гц, D≈{d} м"
+    "scoreFactorGeneric": "Матрица {matrix}, NETD {netd} mK, {hz} Гц, D≈{d} м",
+    "scoreDistance": "Дистанция оценки",
+    "scoreMeters": "м",
+    "scoreTarget": "Цель (критический размер)",
+    "scoreTotal": "Total Score на этой дистанции",
+    "scoreAtDistance": "на {d} м",
+    "scoreDistanceHint": "Двигайте ползунок — баллы пересчитываются по Johnson px на цели",
+    "scoreDistanceWhyJohnson": "Пиксели на цели ≈ {px} px (Johnson 2/8/13) на {d} м",
+    "scoreDistanceWhyNetd": "NETD {netd} mK",
+    "scoreDistanceWhyMatrix": "Разрешение {matrix}",
+    "scoreGapBetterMedian": "На {d} м эта модель лучше медианы каталога на {pct}%",
+    "scoreGapWorseMedian": "На {d} м эта модель слабее медианы каталога на {pct}%",
+    "scoreGapBetterPeer": "На {d} м лучше «{name}» на {pct}%",
+    "scoreGapWorsePeer": "На {d} м слабее «{name}» на {pct}%",
+    "scoreCrossover": "До ~{m} м разница с «{name}» незначительна; дальше преимущество заметнее",
+    "scoreDistanceDisclaimer": "Балл на дистанции считается из пикселей на цели (критерий Джонсона) + NETD + разрешение. Ориентировочная оценка, не лабораторный тест."
   },
   "cart": {
     "title": "Корзина",

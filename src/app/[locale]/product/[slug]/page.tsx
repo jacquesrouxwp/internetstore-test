@@ -30,7 +30,10 @@ import {
   isThermalProduct,
   percentile,
   scoreProduct,
+  specsFromProduct,
 } from "@/lib/thermal/thermal-score";
+import { sensorFromSpecs } from "@/lib/thermal/thermal-score-distance";
+import type { CatalogPeer } from "@/lib/thermal/thermal-score-distance";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -92,9 +95,10 @@ export default async function ProductPage({ params }: Props) {
     ? await listThermalCompareOptions(loc, product.id)
     : [];
 
-  // Deterministic Thermal Performance Score (+ catalog percentile)
+  // Deterministic Thermal Performance Score (+ catalog peers for distance gap)
   let scoreBreakdown: ReturnType<typeof scoreProduct> | null = null;
   let scorePercentile: number | null = null;
+  let scorePeers: CatalogPeer[] = [];
   if (isThermalProduct(product) || showThermalSim) {
     scoreBreakdown = scoreProduct(product);
     try {
@@ -102,15 +106,27 @@ export default async function ProductPage({ params }: Props) {
         limit: 100,
         sort: "rating",
       });
-      const allPerf = catalogPerformanceScores(catalogProducts || []);
+      const thermals = (catalogProducts || []).filter(isThermalProduct);
+      const allPerf = catalogPerformanceScores(thermals);
       if (allPerf.length) {
         scorePercentile = percentile(
           scoreBreakdown.scores.thermalPerformance,
           allPerf
         );
       }
+      scorePeers = thermals.map((p) => {
+        const s = specsFromProduct(p);
+        return {
+          id: p.id,
+          name: productName(p, loc),
+          specs: s,
+          sensor: sensorFromSpecs(s),
+          priceEur: s.priceEur,
+        };
+      });
     } catch {
       scorePercentile = null;
+      scorePeers = [];
     }
   }
 
@@ -268,6 +284,10 @@ export default async function ProductPage({ params }: Props) {
           <ThermalScorePanel
             breakdown={scoreBreakdown}
             percentilePerf={scorePercentile}
+            catalogPeers={scorePeers}
+            productId={product.id}
+            productName={name}
+            locale={loc}
           />
         </div>
       )}

@@ -116,7 +116,22 @@
     "scoreFactorPerf": "Сумарний perf {n}/100",
     "scoreFactorPrice": "Ціна ≈€{eur}",
     "scoreFactorIqBlend": "Image Quality = роздільність + NETD + частота",
-    "scoreFactorGeneric": "Матриця {matrix}, NETD {netd} mK, {hz} Гц, D≈{d} м"
+    "scoreFactorGeneric": "Матриця {matrix}, NETD {netd} mK, {hz} Гц, D≈{d} м",
+    "scoreDistance": "Дистанція оцінки",
+    "scoreMeters": "м",
+    "scoreTarget": "Ціль (критичний розмір)",
+    "scoreTotal": "Total Score на цій дистанції",
+    "scoreAtDistance": "на {d} м",
+    "scoreDistanceHint": "Пересуньте повзунок — бали перераховуються за Johnson px на цілі",
+    "scoreDistanceWhyJohnson": "Пікселі на цілі ≈ {px} px (Johnson 2/8/13) на {d} м",
+    "scoreDistanceWhyNetd": "NETD {netd} mK",
+    "scoreDistanceWhyMatrix": "Роздільність {matrix}",
+    "scoreGapBetterMedian": "На {d} м ця модель краща за медіану каталогу на {pct}%",
+    "scoreGapWorseMedian": "На {d} м ця модель слабша за медіану каталогу на {pct}%",
+    "scoreGapBetterPeer": "На {d} м краща за «{name}» на {pct}%",
+    "scoreGapWorsePeer": "На {d} м слабша за «{name}» на {pct}%",
+    "scoreCrossover": "До ~{m} м різниця з «{name}» несуттєва; далі перевага помітніша",
+    "scoreDistanceDisclaimer": "Бал на дистанції рахується з пікселів на цілі (критерій Джонсона) + NETD + роздільність. Орієнтовна оцінка, не лабораторний тест."
   },
   "cart": {
     "title": "Кошик",
