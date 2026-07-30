@@ -11,6 +11,13 @@ const nextConfig = {
       { protocol: "https", hostname: "**.prom.ua" },
     ],
   },
+  // R3F / three ESM packages
+  transpilePackages: ["three", "@react-three/fiber", "@react-three/drei"],
+  webpack: (config) => {
+    // Silence pure-annotation warnings from three examples
+    config.externals = config.externals || [];
+    return config;
+  },
 };
 
 export default withNextIntl(nextConfig);

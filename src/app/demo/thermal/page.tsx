@@ -1,12 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { ThermalSimulator } from "@/components/product/ThermalSimulator";
+import dynamic from "next/dynamic";
 import type { ThermalMatrix, ThermalSimParams } from "@/lib/thermal/parse-product-thermal";
 import {
   defaultDetectionRangeM,
   defaultNetdMk,
 } from "@/lib/thermal/parse-product-thermal";
+
+const ThermalSimulator3D = dynamic(
+  () =>
+    import("@/components/product/ThermalSimulator3D").then(
+      (m) => m.ThermalSimulator3D
+    ),
+  { ssr: false, loading: () => <p className="text-white/60">Loading 3D…</p> }
+);
 
 /**
  * Standalone preview harness for the thermal simulator.
@@ -42,7 +50,7 @@ export default function ThermalDemoPage() {
             </button>
           ))}
         </div>
-        <ThermalSimulator
+        <ThermalSimulator3D
           locale="ru"
           params={params}
           allowMatrixPick
