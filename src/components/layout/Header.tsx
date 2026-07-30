@@ -178,6 +178,14 @@ export function Header({ categories }: { categories: Category[] }) {
               ))}
               <li>
                 <Link
+                  href="/simulator"
+                  className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold text-[var(--accent)] transition hover:bg-white/[0.06]"
+                >
+                  {t("simulator")}
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/blog"
                   className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold text-secondary transition hover:bg-white/[0.06] hover:text-primary"
                 >
@@ -246,6 +254,15 @@ export function Header({ categories }: { categories: Category[] }) {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link
+                  href="/simulator"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--accent)] hover:bg-white/[0.06]"
+                >
+                  {t("simulator")}
+                </Link>
+              </li>
               <li>
                 <Link
                   href="/blog"
