@@ -155,9 +155,12 @@ function makeThermalDeerMaterial(
 function DeerModel({
   distanceM,
   visible,
+  scaleBoost = 1,
 }: {
   distanceM: number;
   visible: boolean;
+  /** Detect-floor boost when FOV projects &lt;2 grain px but still in band */
+  scaleBoost?: number;
 }) {
   const group = useRef<THREE.Group>(null);
   // Draco decoder (CDN) — GLB still uses KHR_draco_mesh_compression
@@ -193,7 +196,7 @@ function DeerModel({
     // Side profile toward camera
     root.rotation.y = Math.PI * 0.5;
 
-    return { root };
+    return { root, baseScale: s };
   }, [scene]);
 
   useEffect(() => {
@@ -201,10 +204,16 @@ function DeerModel({
     group.current.visible = visible;
     // Real meters on −Z. Camera at z=0 → deer at −d (perspective size ∝ 1/d)
     group.current.position.set(0, 0, -Math.max(1, distanceM));
-  }, [distanceM, visible]);
+    group.current.scale.setScalar(Math.max(0.01, scaleBoost));
+  }, [distanceM, visible, scaleBoost]);
 
   return (
-    <group ref={group} position={[0, 0, -Math.max(1, distanceM)]} visible={visible}>
+    <group
+      ref={group}
+      position={[0, 0, -Math.max(1, distanceM)]}
+      scale={Math.max(0.01, scaleBoost)}
+      visible={visible}
+    >
       <primitive object={prepared.root} />
     </group>
   );
@@ -516,6 +525,7 @@ function SceneContent({
   matrix,
   deerVisible,
   fovDeg,
+  fovRad,
   onFrame,
 }: {
   distanceM: number;
@@ -528,10 +538,25 @@ function SceneContent({
   matrix: ThermalMatrix;
   deerVisible: boolean;
   fovDeg: number;
+  fovRad: number;
   onFrame: (c: HTMLCanvasElement) => void;
 }) {
   const grainW = matrixPixelWidth(matrix);
   const grainH = matrixPixelHeight(matrix);
+
+  // Detect floor: if still in band but FOV projects &lt;2 grain on critical, boost scale
+  const passPx = (2 * rangeD) / Math.max(1, distanceM);
+  const frac = angularFrameHeightFrac(
+    DEER_VISUAL_HEIGHT_M,
+    distanceM,
+    fovRad
+  );
+  const critGrain =
+    frac * grainH * (DEER_CRITICAL_SIZE_M / DEER_VISUAL_HEIGHT_M);
+  let scaleBoost = 1;
+  if (passPx >= 2 && critGrain < 2 && critGrain > 0) {
+    scaleBoost = Math.min(8, 2.5 / critGrain);
+  }
 
   return (
     <>
@@ -543,7 +568,11 @@ function SceneContent({
       <ColdGround />
       <Suspense fallback={null}>
         <ForestBackdrop maxRangeM={maxRangeM} palette={palette} />
-        <DeerModel distanceM={distanceM} visible={deerVisible} />
+        <DeerModel
+          distanceM={distanceM}
+          visible={deerVisible}
+          scaleBoost={scaleBoost}
+        />
       </Suspense>
       <PostCapture
         grainW={grainW}
@@ -755,6 +784,7 @@ export function ThermalSimulator3D({
                 matrix={simParams.matrix}
                 deerVisible={showDeer}
                 fovDeg={fovDeg}
+                fovRad={fovRad}
                 onFrame={onFrame}
               />
             </Canvas>
