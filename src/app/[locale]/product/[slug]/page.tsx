@@ -2,6 +2,7 @@ import {
   getProductBySlug,
   getRelatedProducts,
   getProductsByFlag,
+  getCatalog,
 } from "@/lib/catalog";
 import { Link } from "@/i18n/routing";
 import {
@@ -14,6 +15,7 @@ import { formatPrice } from "@/lib/utils";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
+import { ThermalScorePanel } from "@/components/product/ThermalScorePanel";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
@@ -23,6 +25,12 @@ import { buildSpecRows } from "@/lib/product-specs";
 import { ThermalSimulator } from "@/components/product/ThermalSimulator";
 import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
 import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
+import {
+  catalogPerformanceScores,
+  isThermalProduct,
+  percentile,
+  scoreProduct,
+} from "@/lib/thermal/thermal-score";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -83,6 +91,28 @@ export default async function ProductPage({ params }: Props) {
   const thermalCompareOptions = showThermalSim
     ? await listThermalCompareOptions(loc, product.id)
     : [];
+
+  // Deterministic Thermal Performance Score (+ catalog percentile)
+  let scoreBreakdown: ReturnType<typeof scoreProduct> | null = null;
+  let scorePercentile: number | null = null;
+  if (isThermalProduct(product) || showThermalSim) {
+    scoreBreakdown = scoreProduct(product);
+    try {
+      const { products: catalogProducts } = await getCatalog({
+        limit: 100,
+        sort: "rating",
+      });
+      const allPerf = catalogPerformanceScores(catalogProducts || []);
+      if (allPerf.length) {
+        scorePercentile = percentile(
+          scoreBreakdown.scores.thermalPerformance,
+          allPerf
+        );
+      }
+    } catch {
+      scorePercentile = null;
+    }
+  }
 
   return (
     <div className="container-shop py-6 sm:py-10">
@@ -232,6 +262,15 @@ export default async function ProductPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {scoreBreakdown && (
+        <div className="mt-10">
+          <ThermalScorePanel
+            breakdown={scoreBreakdown}
+            percentilePerf={scorePercentile}
+          />
+        </div>
+      )}
 
       <div className="mt-14 grid gap-8 lg:grid-cols-2">
         <section className="product-panel">

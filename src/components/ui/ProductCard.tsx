@@ -9,6 +9,11 @@ import { formatPrice, cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-store";
 import { useState } from "react";
 import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
+import { ThermalScoreBadge } from "@/components/product/ThermalScorePanel";
+import {
+  isThermalProduct,
+  scoreProduct,
+} from "@/lib/thermal/thermal-score";
 
 /**
  * Desktop-only hover: only devices with real hover + fine pointer
@@ -41,6 +46,9 @@ export function ProductCard({
   const sale = salePercent(product.price, product.oldPrice);
   const name = productName(product, locale);
   const short = productShort(product, locale);
+  const thermalScore = isThermalProduct(product)
+    ? scoreProduct(product).scores.thermalPerformance
+    : null;
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -139,16 +147,21 @@ export function ProductCard({
           </p>
         )}
 
-        <div className="mt-2 flex items-center gap-1 text-xs text-secondary">
-          <Star
-            className="h-3.5 w-3.5 fill-[var(--rating)] text-[var(--rating)]"
-          />
-          <span className="font-medium text-primary">
-            {product.rating.toFixed(1)}
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-secondary">
+          <span className="inline-flex items-center gap-1">
+            <Star
+              className="h-3.5 w-3.5 fill-[var(--rating)] text-[var(--rating)]"
+            />
+            <span className="font-medium text-primary">
+              {product.rating.toFixed(1)}
+            </span>
+            <span className="text-muted-ui">
+              ({product.reviewsCount} {t("reviews")})
+            </span>
           </span>
-          <span className="text-muted-ui">
-            ({product.reviewsCount} {t("reviews")})
-          </span>
+          {thermalScore != null && (
+            <ThermalScoreBadge score={thermalScore} />
+          )}
         </div>
       </div>
 
