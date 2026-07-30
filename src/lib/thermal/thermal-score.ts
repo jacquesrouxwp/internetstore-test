@@ -16,7 +16,6 @@ import {
   type ScoreAnchors,
 } from "./score-config";
 import {
-  defaultDetectionRangeM,
   defaultNetdMk,
   parseMatrix,
   parseNetd,
