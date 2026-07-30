@@ -20,7 +20,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Star, Check, Package, ScanEye } from "lucide-react";
 import { buildSpecRows } from "@/lib/product-specs";
-import { ThermalSimulator3DLazy } from "@/components/product/ThermalSimulator3DLazy";
+import { ThermalSimulator } from "@/components/product/ThermalSimulator";
 import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
 import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
 
@@ -269,7 +269,7 @@ export default async function ProductPage({ params }: Props) {
       {/* Thermal vision simulator — driven by product matrix / range / NETD */}
       {showThermalSim && (
         <div id="thermal-simulator" className="mt-10 scroll-mt-24">
-          <ThermalSimulator3DLazy
+          <ThermalSimulator
             locale={loc}
             currentProductId={product.id}
             deviceType={product.deviceType}
