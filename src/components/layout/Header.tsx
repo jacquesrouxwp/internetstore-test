@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   Phone,
   X,
+  ScanEye,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { useEffect, useState } from "react";
@@ -126,6 +127,14 @@ export function Header({ categories }: { categories: Category[] }) {
           </form>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/simulator"
+              className="inline-flex items-center gap-1.5 rounded-[10px] border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-2.5 py-2 text-xs font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] sm:px-3 sm:text-sm"
+              title={t("simulator")}
+            >
+              <ScanEye className="h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
+              <span className="hidden sm:inline">{t("simulator")}</span>
+            </Link>
             <Link
               href="/cart"
               className="relative inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium text-primary transition"

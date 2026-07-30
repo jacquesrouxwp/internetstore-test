@@ -71,6 +71,14 @@ export async function Footer() {
                 ПНБ
               </Link>
             </li>
+            <li>
+              <Link
+                href="/simulator"
+                className="font-semibold text-[var(--accent)] hover:opacity-90"
+              >
+                {tn("simulator")}
+              </Link>
+            </li>
           </ul>
         </div>
 
