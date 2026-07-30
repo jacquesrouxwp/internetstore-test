@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test src/lib/thermal/parse-product-thermal.test.ts src/lib/thermal/zoom.test.ts src/lib/thermal/sandbox-physics.test.ts",
+    "test": "tsx --test src/lib/thermal/parse-product-thermal.test.ts src/lib/thermal/zoom.test.ts src/lib/thermal/sandbox-physics.test.ts src/lib/thermal/targets.test.ts",
     "db:check": "node scripts/seed-supabase.mjs"
   },
   "dependencies": {

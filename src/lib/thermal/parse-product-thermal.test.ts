@@ -136,14 +136,10 @@ describe("johnsonDeerHeightFrac — visual sensor px ≈ Johnson px", () => {
     assert.ok(Math.abs(sensorH - 13) < 0.25, `got ${sensorH}`);
   });
 
-  it("fog shrinks visual size with effective px", () => {
+  it("fog does NOT change visual size (only status/noise)", () => {
     const clear = johnsonDeerHeightFrac(400, 1600, 640, false, 360);
     const foggy = johnsonDeerHeightFrac(400, 1600, 640, true, 360);
-    assert.ok(foggy < clear);
-    assert.ok(
-      Math.abs(foggy / clear - 0.6) < 0.05,
-      `ratio ${foggy / clear}`
-    );
+    assert.equal(foggy, clear);
   });
 });
 

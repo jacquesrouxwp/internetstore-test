@@ -28,6 +28,12 @@ import {
   inspectDigiZoom,
   nextDigiZoom,
 } from "@/lib/thermal/zoom";
+import {
+  THERMAL_TARGETS,
+  detectionRangeForTarget,
+  getThermalTarget,
+  type ThermalTargetId,
+} from "@/lib/thermal/targets";
 import { cn } from "@/lib/utils";
 import type { DeviceType } from "@/types";
 
@@ -550,8 +556,11 @@ export function ThermalSimulator({
   const [digiZoom, setDigiZoom] = useState(1);
   const [weather, setWeather] = useState<Weather>("clear");
   const [palette, setPalette] = useState<Palette>("whitehot");
+  const [targetId, setTargetId] = useState<ThermalTargetId>("deer");
   const [matrix, setMatrix] = useState<ThermalMatrix>(params.matrix);
   const [compareOn, setCompareOn] = useState(false);
+
+  const activeTarget = useMemo(() => getThermalTarget(targetId), [targetId]);
   /** Single peer to compare with (exactly 2 windows total when set). */
   const [compareOptionId, setCompareOptionId] = useState<string>("preset:256");
   const [catalog, setCatalog] = useState<ThermalCompareOption[]>(
@@ -600,10 +609,19 @@ export function ThermalSimulator({
     return list;
   }, [currentParams, compareOn, compareParams, isRu]);
 
+  /** Passport D is usually human; scale by target critical size */
+  const panelDetectionD = useCallback(
+    (passportD: number) =>
+      detectionRangeForTarget(passportD, activeTarget.criticalSizeM),
+    [activeTarget.criticalSizeM]
+  );
+
   const sliderMax = useMemo(() => {
-    const ds = activePanels.map((p) => p.params.detectionRangeM);
-    return Math.max(300, ...ds, currentParams.detectionRangeM);
-  }, [activePanels, currentParams.detectionRangeM]);
+    const ds = activePanels.map((p) =>
+      panelDetectionD(p.params.detectionRangeM)
+    );
+    return Math.max(300, ...ds, panelDetectionD(currentParams.detectionRangeM));
+  }, [activePanels, currentParams.detectionRangeM, panelDetectionD]);
 
   useEffect(() => {
     setMatrix(params.matrix);
@@ -634,10 +652,9 @@ export function ThermalSimulator({
 
   const canvasMap = useRef<Map<PanelKey, HTMLCanvasElement>>(new Map());
   const forestImg = useRef<HTMLImageElement | null>(null);
-  const deerImg = useRef<HTMLImageElement | null>(null);
-  const deerSprite = useRef<DeerSprite | null>(null);
+  const subjectImg = useRef<HTMLImageElement | null>(null);
+  const subjectSprite = useRef<DeerSprite | null>(null);
   const composeRef = useRef<HTMLCanvasElement | null>(null);
-  /** Deer (+ contact) drawn here, palette-mapped as HOT, then composited */
   const subjectLayerRef = useRef<HTMLCanvasElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -647,8 +664,8 @@ export function ThermalSimulator({
     const done = () => {
       n += 1;
       if (n >= 2 && !cancelled) {
-        deerSprite.current = deerImg.current
-          ? buildDeerSprite(deerImg.current)
+        subjectSprite.current = subjectImg.current
+          ? buildDeerSprite(subjectImg.current)
           : null;
         setReady(true);
       }
@@ -662,13 +679,13 @@ export function ThermalSimulator({
       ref.current = img;
     };
     setReady(false);
-    deerSprite.current = null;
+    subjectSprite.current = null;
     load(scene.forest, forestImg);
-    load(scene.deer, deerImg);
+    load(activeTarget.subjectSrc, subjectImg);
     return () => {
       cancelled = true;
     };
-  }, [scene]);
+  }, [scene.forest, activeTarget.subjectSrc]);
 
   const renderPanel = useCallback(
     (
@@ -712,10 +729,12 @@ export function ThermalSimulator({
         cctx.putImageData(forestData, 0, 0);
       }
 
-      // ---- 2) Subject layer (contact + deer) → full hot palette ----
-      const sprite = deerSprite.current;
+      // ---- 2) Subject layer (same ground anchor for all targets) → HOT palette ----
+      const sprite = subjectSprite.current;
       let focusX = 0.5;
       let focusY = 0.75;
+      // D scaled by target size (fox much closer D than deer)
+      const rangeD = panelDetectionD(panelParams.detectionRangeM);
       if (sprite) {
         if (!subjectLayerRef.current) {
           subjectLayerRef.current = document.createElement("canvas");
@@ -727,12 +746,12 @@ export function ThermalSimulator({
         if (sctx) {
           sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
           const sink = Math.max(1, Math.round(LOGIC_H * 0.005));
-          // Size tied to Johnson px on THIS panel's matrix+D (badge ↔ picture)
+          // Size: clear-weather Johnson only (fog must not move/resize)
           const hFrac = johnsonDeerHeightFrac(
             distance,
-            panelParams.detectionRangeM,
+            rangeD,
             panelParams.matrix,
-            weather === "fog",
+            false,
             LOGIC_H
           );
           const rect = deerScreenRect(
@@ -744,15 +763,11 @@ export function ThermalSimulator({
             sink,
             hFrac
           );
-          const trans = atmosphericTransmission(
-            distance,
-            panelParams.detectionRangeM,
-            weather === "fog"
-          );
+          // Alpha from range only — never from fog (fog = noise/contrast only)
+          const trans = atmosphericTransmission(distance, rangeD, false);
           focusX = rect.cx / LOGIC_W;
           focusY = rect.cy / LOGIC_H;
 
-          // Cool ground contact (stays dark; drawn on cold forest after composite)
           drawGroundContact(
             cctx,
             rect.cx,
@@ -761,7 +776,7 @@ export function ThermalSimulator({
             Math.max(0.35, trans)
           );
 
-          sctx.globalAlpha = 0.4 + 0.6 * trans;
+          sctx.globalAlpha = 0.45 + 0.55 * trans;
           sctx.imageSmoothingEnabled = rect.h > 8;
           sctx.drawImage(
             sprite.canvas,
@@ -780,7 +795,6 @@ export function ThermalSimulator({
           applyThermalPalette(subData.data, palette, "hot", true);
           sctx.putImageData(subData, 0, 0);
 
-          // ---- 3) Composite hot subject over cold forest ----
           cctx.drawImage(sub, 0, 0);
         }
       }
@@ -788,13 +802,14 @@ export function ThermalSimulator({
       // ---- 4) Unified NETD noise (does not re-run full LUT) ----
       const seed = hashSeed(
         scene.id,
+        activeTarget.id,
         panelParams.matrix,
         panelParams.netdMk,
         distance,
         weather,
         palette,
         panelSeedExtra,
-        "v11-layer-cold-forest"
+        "v12-multi-target"
       );
       const rand = mulberry32(seed);
       const imageData = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
@@ -804,7 +819,7 @@ export function ThermalSimulator({
         panelParams.netdMk,
         fog,
         distance,
-        panelParams.detectionRangeM
+        rangeD
       );
       const contrast = netdContrast(panelParams.netdMk, fog);
       // Mild contrast + noise only — palette already baked per layer
@@ -916,7 +931,17 @@ export function ThermalSimulator({
         ctx.stroke();
       }
     },
-    [scene, distance, digiZoom, weather, palette, viewForm, withScopeReticle]
+    [
+      scene,
+      distance,
+      digiZoom,
+      weather,
+      palette,
+      viewForm,
+      withScopeReticle,
+      activeTarget.id,
+      panelDetectionD,
+    ]
   );
 
   useEffect(() => {
@@ -928,32 +953,38 @@ export function ThermalSimulator({
         panel.key
       );
     }
-  }, [ready, activePanels, renderPanel, distance, digiZoom, weather, palette]);
+  }, [
+    ready,
+    activePanels,
+    renderPanel,
+    distance,
+    digiZoom,
+    weather,
+    palette,
+    targetId,
+  ]);
 
   const panelStatus = (p: ThermalSimParams) => {
     const fog = weather === "fog";
+    const rangeD = panelDetectionD(p.detectionRangeM);
     const status = computeDetectStatus({
       distanceM: distance,
-      maxRangeM: p.detectionRangeM,
+      maxRangeM: rangeD,
       fog,
     });
-    const px = effectivePixelsOnTarget(
-      distance,
-      p.detectionRangeM,
-      fog
-    );
-    const bands = johnsonBandDistancesM(p.detectionRangeM);
+    const px = effectivePixelsOnTarget(distance, rangeD, fog);
+    const bands = johnsonBandDistancesM(rangeD);
     const pixH = matrixPixelHeight(p.matrix);
-    // Expected height on sensor after pixelation (should ≈ px)
+    // Visual size: clear-weather Johnson (stable under fog)
     const visualSensorPx =
       johnsonDeerHeightFrac(
         distance,
-        p.detectionRangeM,
+        rangeD,
         p.matrix,
-        fog,
+        false,
         LOGIC_H
       ) * pixH;
-    return { status, px, bands, visualSensorPx, pixH };
+    return { status, px, bands, visualSensorPx, pixH, rangeD };
   };
 
   const setCanvasRef = (key: PanelKey) => (el: HTMLCanvasElement | null) => {
@@ -1169,13 +1200,49 @@ export function ThermalSimulator({
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <fieldset className="sm:col-span-2 lg:col-span-3">
+          <legend className="mb-1.5 text-xs font-medium text-muted-ui">
+            {isRu ? "Цель" : "Ціль"}{" "}
+            <span className="font-normal text-faint">
+              (
+              {isRu
+                ? `крит. размер ${activeTarget.criticalSizeM} м · D_выявл. ≈ ${panelDetectionD(currentParams.detectionRangeM)} м`
+                : `крит. розмір ${activeTarget.criticalSizeM} м · D_виявл. ≈ ${panelDetectionD(currentParams.detectionRangeM)} м`}
+              )
+            </span>
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {THERMAL_TARGETS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTargetId(t.id)}
+                className={cn(
+                  "rounded-lg border px-3 py-2 text-sm font-medium transition",
+                  targetId === t.id
+                    ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+                    : "border-white/10 text-secondary hover:border-white/20"
+                )}
+              >
+                {isRu ? t.labelRu : t.labelUk}
+                <span className="ml-1.5 text-[10px] text-faint">
+                  {t.criticalSizeM} м
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[10px] text-faint">
+            {isRu
+              ? "Лиса (0.3 м) «съедается» дальностью первой — наглядно, зачем нужна лучшая матрица. Туман/палитра не двигают цель."
+              : "Лисиця (0.3 м) «з'їдається» дальністю першою — наочно, навіщо краща матриця. Туман/палітра не рухають ціль."}
+          </p>
+        </fieldset>
+
         <div className="sm:col-span-2 lg:col-span-3">
           <label className="block">
             <span className="mb-1.5 flex justify-between text-xs font-medium text-muted-ui">
               <span>
-                {isRu
-                  ? "Дистанция до оленя (общая)"
-                  : "Дистанція до оленя (спільна)"}
+                {isRu ? "Дистанция до цели (общая)" : "Дистанція до цілі (спільна)"}
               </span>
               <span className="tabular-nums text-primary">{distance} м</span>
             </span>
@@ -1193,8 +1260,8 @@ export function ThermalSimulator({
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `Размер цели на матрице = критерий Джонсона: px = 2×(D/дистанция). При dist=D ровно 2 px (граница обнаружения). Картинка калибрована: высота оленя на сенсоре ≈ эти px.`
-                : `Розмір цілі на матриці = критерій Джонсона: px = 2×(D/дистанція). При dist=D рівно 2 px (межа виявлення). Картинка калібрована: висота оленя на сенсорі ≈ ці px.`}
+                ? `px = 2×(D_цели/дистанция); D_цели = D_паспорта × (размер/0.75). Туман меняет только шум/статус, не размер и не позицию.`
+                : `px = 2×(D_цілі/дистанція); D_цілі = D_паспорта × (розмір/0.75). Туман змінює лише шум/статус, не розмір і не позицію.`}
             </span>
           </label>
         </div>

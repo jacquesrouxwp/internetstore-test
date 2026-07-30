@@ -13,7 +13,7 @@ export type SandboxMatrix =
 
 export type PixelPitchUm = 17 | 12 | 10 | 8;
 
-export type TargetKind = "human" | "deer" | "boar";
+export type TargetKind = "human" | "deer" | "boar" | "fox";
 
 export type SandboxInputs = {
   matrixW: SandboxMatrix;
@@ -49,6 +49,14 @@ export const TARGET_SIZE_M: Record<TargetKind, number> = {
   human: 0.75,
   deer: 1.0,
   boar: 0.7,
+  fox: 0.3,
+};
+
+export const TARGET_SUBJECT_SRC: Record<TargetKind, string> = {
+  deer: "/thermal/deer_subject_whitehot.jpg",
+  boar: "/thermal/subject_boar_whitehot.jpg",
+  fox: "/thermal/subject_fox_whitehot.jpg",
+  human: "/thermal/subject_human_whitehot.jpg",
 };
 
 export const INPUT_LIMITS = {
@@ -178,6 +186,11 @@ export type SandboxComputed = {
   fovDeg: number;
   ifovMrad: number;
   dri: DriRanges;
+  /**
+   * Clear-weather Johnson px (geometry / size). Fog must NOT shrink the sprite.
+   */
+  pixelsOnTargetClear: number;
+  /** Effective px after fog×0.6 — for status badge and HUD readout. */
   pixelsOnTarget: number;
   status: DetectStatus;
   /** Hint when config is exotic / marketing-fantasy */
@@ -234,13 +247,13 @@ export function computeSandbox(inputs: SandboxInputs): SandboxComputed {
   const fovDeg = fovHorizontalDeg(i.matrixW, i.pitchUm, i.focalMm);
   const ifov = ifovMrad(i.pitchUm, i.focalMm);
   const dri = computeDri(size, i.focalMm, i.pitchUm, i.kCalib);
-  const px = pixelsOnTargetOptics(
+  const pxClear = pixelsOnTargetOptics(
     size,
     i.focalMm,
     i.pitchUm,
     i.distanceM
   );
-  const status = statusFromPixels(px, i.fog);
+  const status = statusFromPixels(pxClear, i.fog);
 
   const atypicalReasons: string[] = [];
   if (i.matrixW >= 1280 && i.pitchUm <= 8 && i.focalMm >= 75) {
@@ -258,7 +271,9 @@ export function computeSandbox(inputs: SandboxInputs): SandboxComputed {
     fovDeg,
     ifovMrad: ifov,
     dri,
-    pixelsOnTarget: i.fog ? px * 0.6 : px,
+    // Geometry always clear-weather; fog only demotes status / noise
+    pixelsOnTargetClear: pxClear,
+    pixelsOnTarget: i.fog ? pxClear * 0.6 : pxClear,
     status,
     atypical: atypicalReasons.length > 0 && dri.detectM > 3500,
     atypicalReasons,

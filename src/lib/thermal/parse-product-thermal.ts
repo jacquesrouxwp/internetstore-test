@@ -248,20 +248,22 @@ export function johnsonBandDistancesM(detectionRangeM: number): {
 
 /**
  * Deer height as fraction of logic frame height so that AFTER matrix
- * downscale the target height ≈ effective Johnson pixels.
+ * downscale the target height ≈ Johnson pixels (clear weather).
  *
+ * Fog must NOT change size/position — only status (effectivePixels) and noise.
  *   frac * logicH * (pixH/logicH) = px  →  frac = px / pixH
  */
 export function johnsonDeerHeightFrac(
   distanceM: number,
   detectionRangeM: number,
   matrix: ThermalMatrix,
-  fog = false,
+  /** @deprecated ignored for size — fog only affects status/noise elsewhere */
+  _fog = false,
   logicH = 360
 ): number {
   const pixH = matrixPixelHeight(matrix);
-  const px = effectivePixelsOnTarget(distanceM, detectionRangeM, fog);
-  // At least ~1 logic pixel worth; at most 82% frame (antlers fit)
+  // Always clear-weather px for geometry (anchor + scale stable under fog)
+  const px = effectivePixelsOnTarget(distanceM, detectionRangeM, false);
   const frac = px / Math.max(1, pixH);
   const minFrac = 1.2 / logicH;
   return Math.max(minFrac, Math.min(0.82, frac));

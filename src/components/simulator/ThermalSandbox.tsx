@@ -16,6 +16,7 @@ import {
   MATRIX_PRESETS,
   PITCH_OPTIONS,
   TARGET_SIZE_M,
+  TARGET_SUBJECT_SRC,
   calibrationRs75DetectM,
   clampSandboxInputs,
   computeSandbox,
@@ -311,12 +312,14 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       img.src = src;
       ref.current = img;
     };
+    setReady(false);
+    deerSprite.current = null;
     load("/thermal/forest_whitehot.jpg", forestImg);
-    load("/thermal/deer_subject_whitehot.jpg", deerImg);
+    load(TARGET_SUBJECT_SRC[inputs.target], deerImg);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [inputs.target]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -360,8 +363,9 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       const sctx = sub.getContext("2d", { willReadFrequently: true });
       if (sctx) {
         sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
+        // Size from clear-weather Johnson only — fog must not move/resize target
         const hFrac = sandboxTargetHeightFrac(
-          computed.pixelsOnTarget,
+          computed.pixelsOnTargetClear,
           inputs.matrixW,
           LOGIC_H
         );
@@ -374,13 +378,28 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
         focusX = cx / LOGIC_W;
         focusY = (y + h * 0.45) / LOGIC_H;
 
+        // Alpha from range only (fog = noise/contrast/status, not geometry)
         const t =
           1 -
           0.78 *
             Math.min(1, Math.max(0, (inputs.distanceM - 50) / Math.max(1, detM - 50)));
-        const trans = fog ? t * 0.65 : t;
+        const trans = Math.max(0.25, t);
 
-        sctx.globalAlpha = 0.4 + 0.6 * Math.max(0.25, trans);
+        // Cool ground contact (same idea as PDP) — before hot subject
+        {
+          const rx = Math.max(3, w * 0.55);
+          const ry = Math.max(2, w * 0.14);
+          const shadow = cctx.createRadialGradient(cx, feetY, 0, cx, feetY, rx);
+          shadow.addColorStop(0, `rgba(4, 6, 10, ${0.75 * trans})`);
+          shadow.addColorStop(0.5, `rgba(8, 10, 14, ${0.32 * trans})`);
+          shadow.addColorStop(1, "rgba(0,0,0,0)");
+          cctx.fillStyle = shadow;
+          cctx.beginPath();
+          cctx.ellipse(cx, feetY + 1, rx, ry, 0, 0, Math.PI * 2);
+          cctx.fill();
+        }
+
+        sctx.globalAlpha = 0.4 + 0.6 * trans;
         sctx.imageSmoothingEnabled = h > 8;
         sctx.drawImage(
           sprite.canvas,
@@ -770,14 +789,17 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
               patch({ target: e.target.value as TargetKind })
             }
           >
-            <option value="human">
-              {isRu ? "Человек" : "Людина"} (~{TARGET_SIZE_M.human} м)
-            </option>
             <option value="deer">
               {isRu ? "Олень" : "Олень"} (~{TARGET_SIZE_M.deer} м)
             </option>
             <option value="boar">
               {isRu ? "Кабан" : "Кабан"} (~{TARGET_SIZE_M.boar} м)
+            </option>
+            <option value="fox">
+              {isRu ? "Лисица" : "Лисиця"} (~{TARGET_SIZE_M.fox} м)
+            </option>
+            <option value="human">
+              {isRu ? "Человек" : "Людина"} (~{TARGET_SIZE_M.human} м)
             </option>
           </select>
         </label>

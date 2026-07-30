@@ -105,6 +105,57 @@ describe("computeSandbox live", () => {
     assert.ok(c.ifovMrad > 0);
     assert.ok(c.dri.detectM > c.dri.recognizeM);
     assert.ok(c.pixelsOnTarget > 0);
+    assert.equal(c.pixelsOnTargetClear, c.pixelsOnTarget);
+  });
+
+  it("fog demotes effective px/status but NOT clear geometry px", () => {
+    const base = {
+      matrixW: 640 as const,
+      matrixH: 512,
+      pitchUm: 12 as const,
+      netdMk: 25,
+      focalMm: 35,
+      target: "deer" as const,
+      distanceM: 200,
+      kCalib: 1.66,
+    };
+    const clear = computeSandbox({ ...base, fog: false });
+    const foggy = computeSandbox({ ...base, fog: true });
+    assert.equal(foggy.pixelsOnTargetClear, clear.pixelsOnTargetClear);
+    assert.ok(foggy.pixelsOnTarget < clear.pixelsOnTarget);
+    assert.ok(
+      Math.abs(foggy.pixelsOnTarget - clear.pixelsOnTargetClear * 0.6) < 1e-9
+    );
+  });
+
+  it("fox has much shorter D_detect than deer (same optics)", () => {
+    const deer = computeSandbox({
+      matrixW: 640,
+      matrixH: 512,
+      pitchUm: 12,
+      netdMk: 25,
+      focalMm: 35,
+      target: "deer",
+      distanceM: 200,
+      fog: false,
+      kCalib: 1.66,
+    });
+    const fox = computeSandbox({
+      matrixW: 640,
+      matrixH: 512,
+      pitchUm: 12,
+      netdMk: 25,
+      focalMm: 35,
+      target: "fox",
+      distanceM: 200,
+      fog: false,
+      kCalib: 1.66,
+    });
+    // 0.3 / 1.0 = 0.3 ratio of critical size
+    assert.ok(
+      Math.abs(fox.dri.detectM / deer.dri.detectM - 0.3) < 0.02,
+      `fox/deer D ratio ${fox.dri.detectM / deer.dri.detectM}`
+    );
   });
 
   it("flags atypical ultra-long configs", () => {
