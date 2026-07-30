@@ -142,6 +142,49 @@ function ironLut(v: number): [number, number, number] {
   return [255, Math.round(190 + k * 65), Math.round(20 + k * 200)];
 }
 
+/**
+ * Vegetation is cold in real thermals. Remap forest luminance into the cold
+ * band so canopy highlights never hit hot iron/white tones.
+ * Subject (deer) uses full [0..1] → full LUT.
+ */
+const FOREST_LUMA_SCALE = 0.32;
+const FOREST_LUMA_MAX = 0.38;
+
+function lumaOf(r: number, g: number, b: number): number {
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+/** Apply palette to ImageData. mode "cold" = forest; "hot" = animal (full range). */
+function applyThermalPalette(
+  data: Uint8ClampedArray,
+  palette: Palette,
+  mode: "cold" | "hot",
+  /** Only touch pixels with alpha > threshold (deer layer). */
+  respectAlpha = false
+) {
+  for (let i = 0; i < data.length; i += 4) {
+    if (respectAlpha && data[i + 3] < 8) continue;
+    let L = lumaOf(data[i], data[i + 1], data[i + 2]) / 255;
+    if (mode === "cold") {
+      L = Math.min(FOREST_LUMA_MAX, L * FOREST_LUMA_SCALE);
+    }
+    // mild subject stretch keeps body heat readable
+    if (mode === "hot") {
+      L = Math.pow(Math.max(0, Math.min(1, L)), 0.92);
+    }
+    if (palette === "whitehot") {
+      const y = Math.round(L * 255);
+      data[i] = data[i + 1] = data[i + 2] = y;
+    } else {
+      const [rr, gg, bb] = ironLut(L);
+      data[i] = rr;
+      data[i + 1] = gg;
+      data[i + 2] = bb;
+    }
+    if (!respectAlpha) data[i + 3] = 255;
+  }
+}
+
 /** Cover forest, biased to show ground litter (bottom of source). */
 function drawForestCover(
   ctx: CanvasRenderingContext2D,
@@ -180,13 +223,13 @@ function drawGroundContact(
   ctx.ellipse(cx, feetY + 1, rx, ry, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  const warm = ctx.createRadialGradient(cx, feetY, 0, cx, feetY, rx * 0.5);
-  warm.addColorStop(0, `rgba(210, 215, 220, ${0.32 * trans})`);
-  warm.addColorStop(0.6, `rgba(120, 125, 130, ${0.1 * trans})`);
-  warm.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = warm;
+  // Cool contact only — no warm bloom (ground stays cold)
+  const cool = ctx.createRadialGradient(cx, feetY, 0, cx, feetY, rx * 0.45);
+  cool.addColorStop(0, `rgba(12, 14, 22, ${0.4 * trans})`);
+  cool.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = cool;
   ctx.beginPath();
-  ctx.ellipse(cx, feetY, rx * 0.5, ry * 0.7, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, feetY, rx * 0.45, ry * 0.65, 0, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -400,6 +443,8 @@ export function ThermalSimulator({
   const deerImg = useRef<HTMLImageElement | null>(null);
   const deerSprite = useRef<DeerSprite | null>(null);
   const composeRef = useRef<HTMLCanvasElement | null>(null);
+  /** Deer (+ contact) drawn here, palette-mapped as HOT, then composited */
+  const subjectLayerRef = useRef<HTMLCanvasElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -455,7 +500,11 @@ export function ThermalSimulator({
       const cctx = compose.getContext("2d", { willReadFrequently: true });
       if (!cctx) return;
 
-      // ---- Forest: fixed FOV ----
+      // ── Layered thermal palette (BEFORE pixelation) ──
+      // Forest → cold band only; deer → full hot range. One shared luma→LUT
+      // would paint canopy highlights as "heat" (physically wrong).
+
+      // ---- 1) Forest background → cold palette ----
       cctx.fillStyle = "#0a0b10";
       cctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
       cctx.imageSmoothingEnabled = true;
@@ -463,50 +512,77 @@ export function ThermalSimulator({
       if (forest && forest.complete && forest.naturalWidth > 0) {
         drawForestCover(cctx, forest, LOGIC_W, LOGIC_H);
       }
+      {
+        const forestData = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
+        applyThermalPalette(forestData.data, palette, "cold", false);
+        cctx.putImageData(forestData, 0, 0);
+      }
 
-      // ---- Deer: size ∝ 1/d, feet on ground plane ----
+      // ---- 2) Subject layer (contact + deer) → full hot palette ----
       const sprite = deerSprite.current;
       let focusX = 0.5;
       let focusY = 0.75;
       if (sprite) {
-        const sink = Math.max(1, Math.round(LOGIC_H * 0.005));
-        const rect = deerScreenRect(
-          distance,
-          LOGIC_W,
-          LOGIC_H,
-          sprite.aspect,
-          DIST_MIN_M,
-          sink
-        );
-        const trans = atmosphericTransmission(
-          distance,
-          panelParams.detectionRangeM,
-          weather === "fog"
-        );
-        focusX = rect.cx / LOGIC_W;
-        focusY = rect.cy / LOGIC_H;
+        if (!subjectLayerRef.current) {
+          subjectLayerRef.current = document.createElement("canvas");
+        }
+        const sub = subjectLayerRef.current;
+        sub.width = LOGIC_W;
+        sub.height = LOGIC_H;
+        const sctx = sub.getContext("2d", { willReadFrequently: true });
+        if (sctx) {
+          sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
+          const sink = Math.max(1, Math.round(LOGIC_H * 0.005));
+          const rect = deerScreenRect(
+            distance,
+            LOGIC_W,
+            LOGIC_H,
+            sprite.aspect,
+            DIST_MIN_M,
+            sink
+          );
+          const trans = atmosphericTransmission(
+            distance,
+            panelParams.detectionRangeM,
+            weather === "fog"
+          );
+          focusX = rect.cx / LOGIC_W;
+          focusY = rect.cy / LOGIC_H;
 
-        // Contact under hooves first
-        drawGroundContact(cctx, rect.cx, rect.feetY, rect.w, Math.max(0.35, trans));
+          // Cool ground contact (stays dark; drawn on cold forest after composite)
+          drawGroundContact(
+            cctx,
+            rect.cx,
+            rect.feetY,
+            rect.w,
+            Math.max(0.35, trans)
+          );
 
-        // Draw deer (fades at range into atmosphere)
-        cctx.globalAlpha = 0.35 + 0.65 * trans;
-        cctx.imageSmoothingEnabled = rect.h > 8;
-        cctx.drawImage(
-          sprite.canvas,
-          sprite.cx,
-          sprite.cy,
-          sprite.cw,
-          sprite.ch,
-          rect.x,
-          rect.y,
-          Math.max(1, rect.w),
-          Math.max(1, rect.h)
-        );
-        cctx.globalAlpha = 1;
+          sctx.globalAlpha = 0.4 + 0.6 * trans;
+          sctx.imageSmoothingEnabled = rect.h > 8;
+          sctx.drawImage(
+            sprite.canvas,
+            sprite.cx,
+            sprite.cy,
+            sprite.cw,
+            sprite.ch,
+            rect.x,
+            rect.y,
+            Math.max(1, rect.w),
+            Math.max(1, rect.h)
+          );
+          sctx.globalAlpha = 1;
+
+          const subData = sctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
+          applyThermalPalette(subData.data, palette, "hot", true);
+          sctx.putImageData(subData, 0, 0);
+
+          // ---- 3) Composite hot subject over cold forest ----
+          cctx.drawImage(sub, 0, 0);
+        }
       }
 
-      // ---- Sensor FX ----
+      // ---- 4) Unified NETD noise (does not re-run full LUT) ----
       const seed = hashSeed(
         scene.id,
         panelParams.matrix,
@@ -515,7 +591,7 @@ export function ThermalSimulator({
         weather,
         palette,
         panelSeedExtra,
-        "v10-perspective"
+        "v11-layer-cold-forest"
       );
       const rand = mulberry32(seed);
       const imageData = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
@@ -528,23 +604,37 @@ export function ThermalSimulator({
         panelParams.detectionRangeM
       );
       const contrast = netdContrast(panelParams.netdMk, fog);
-      const fogLift = fog ? 22 : 0;
+      // Mild contrast + noise only — palette already baked per layer
+      const fogLift = fog ? 8 : 0;
 
       for (let i = 0; i < d.length; i += 4) {
-        const r = d[i];
-        const g = d[i + 1];
-        const b = d[i + 2];
-        let y = 0.299 * r + 0.587 * g + 0.114 * b;
-        y = (y - 128) * contrast + 128 + fogLift;
-        y += (rand() - 0.5) * noiseAmp;
-        y = Math.max(0, Math.min(255, y));
+        let y = lumaOf(d[i], d[i + 1], d[i + 2]);
+        // Soft NETD grain around existing tone (keep hue for iron)
+        const n = (rand() - 0.5) * noiseAmp * 0.85;
         if (palette === "whitehot") {
+          y = (y - 128) * (0.92 + 0.08 * contrast) + 128 + fogLift + n;
+          y = Math.max(0, Math.min(255, y));
           d[i] = d[i + 1] = d[i + 2] = y;
         } else {
-          const [rr, gg, bb] = ironLut(y / 255);
-          d[i] = rr;
-          d[i + 1] = gg;
-          d[i + 2] = bb;
+          // Perturb luminance slightly then re-apply local iron from NEW luma
+          // but clamp: if pixel was cold (low R+G, high-ish B or dark), stay cold
+          const wasCold =
+            d[i] + d[i + 1] < 120 && d[i + 2] <= 160 && y < 100;
+          y = y + n + fogLift * 0.5;
+          y = Math.max(0, Math.min(255, y));
+          if (wasCold) {
+            // Keep forest in cold iron tones only
+            const Lcold = Math.min(FOREST_LUMA_MAX, (y / 255) * 0.9);
+            const [rr, gg, bb] = ironLut(Lcold);
+            d[i] = rr;
+            d[i + 1] = gg;
+            d[i + 2] = bb;
+          } else {
+            // Subject: small noise around existing RGB
+            d[i] = Math.max(0, Math.min(255, d[i] + n * 0.6));
+            d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n * 0.5));
+            d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n * 0.4));
+          }
         }
         d[i + 3] = 255;
       }
