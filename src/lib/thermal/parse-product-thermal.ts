@@ -257,10 +257,14 @@ export function johnsonDeerHeightFrac(
   distanceM: number,
   detectionRangeM: number,
   matrix: ThermalMatrix,
-  /** @deprecated ignored for size — fog only affects status/noise elsewhere */
-  _fog = false,
+  /**
+   * Kept for call-site compatibility. Fog must NOT change size/position —
+   * only status (effectivePixels) and noise elsewhere.
+   */
+  fog = false,
   logicH = 360
 ): number {
+  void fog;
   const pixH = matrixPixelHeight(matrix);
   // Always clear-weather px for geometry (anchor + scale stable under fog)
   const px = effectivePixelsOnTarget(distanceM, detectionRangeM, false);
