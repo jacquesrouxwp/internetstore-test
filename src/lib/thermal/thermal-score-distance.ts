@@ -203,16 +203,22 @@ export type ScoreBreakdown = {
   performance: number;
   range: number;
   image: number;
+  /**
+   * Kept for API/tests only — NOT shown in HUD and NOT mixed into Total.
+   * “Value” insight lives in the distance gap % + crossover strip instead.
+   */
   value: number;
   total: number;
 };
 
-/** Weights for the composite Total Score (documented, sum = 1). */
+/**
+ * Weights for Total Score — pure productivity (sum = 1).
+ * No price / Value-for-Money term.
+ */
 export const SCORE_WEIGHTS = {
-  performance: 0.4,
-  range: 0.2,
-  image: 0.2,
-  value: 0.2,
+  performance: 0.5,
+  range: 0.25,
+  image: 0.25,
 } as const;
 
 export function scoreModelAtDistance(
@@ -224,12 +230,12 @@ export function scoreModelAtDistance(
   const performance = performanceAtDistance(model, distanceM, target, fog);
   const range = detectionScore(model, distanceM, target, fog);
   const image = imageQualityScore(model, distanceM, fog);
+  // Still computed for callers/tests — never enters Total or HUD
   const value = valueAtDistance(model, distanceM, target, fog);
   const total =
     SCORE_WEIGHTS.performance * performance +
     SCORE_WEIGHTS.range * range +
-    SCORE_WEIGHTS.image * image +
-    SCORE_WEIGHTS.value * value;
+    SCORE_WEIGHTS.image * image;
   return {
     performance: Math.round(performance),
     range: Math.round(range),

@@ -95,20 +95,19 @@ const STATUS_COLOR: Record<DetectStatus, string> = {
   none: "text-zinc-400 border-zinc-500/30 bg-zinc-500/10",
 };
 
-/** Short HUD metric labels (localized) + English name for the hover tooltip. */
+/** Short HUD metric labels (localized) + English name for the hover tooltip.
+ *  Only 3 productivity scores + Total — no Value for Money (price-free). */
 const HUD_METRICS = {
   ru: {
     performance: ["Различимость", "Thermal Performance"],
     range: ["Дальность", "Detection Range"],
     image: ["Чёткость", "Image Quality"],
-    value: ["Цена/кач.", "Value for Money"],
     total: ["Итог", "Total Score"],
   },
   uk: {
     performance: ["Розрізнення", "Thermal Performance"],
     range: ["Дальність", "Detection Range"],
     image: ["Чіткість", "Image Quality"],
-    value: ["Ціна/як.", "Value for Money"],
     total: ["Разом", "Total Score"],
   },
 } as const;
@@ -284,11 +283,11 @@ function ScoreHud({
   isRu: boolean;
 }) {
   const L = isRu ? HUD_METRICS.ru : HUD_METRICS.uk;
+  // 3 productivity scores only — Value is not shown (gap% + crossover handle “worth it?”)
   const rows = [
     ["performance", scores.performance],
     ["range", scores.range],
     ["image", scores.image],
-    ["value", scores.value],
   ] as const;
   return (
     <div

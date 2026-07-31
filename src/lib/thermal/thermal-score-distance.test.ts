@@ -133,30 +133,45 @@ describe("target selector rescales pixels for both models", () => {
   });
 });
 
-describe("scoreModelAtDistance — the four corner scores + total", () => {
+describe("scoreModelAtDistance — 3 productivity scores + total (no Value in Total)", () => {
   it("returns integer scores in 0..100", () => {
     const s = scoreModelAtDistance(B, 300, "deer");
-    for (const k of ["performance", "range", "image", "value", "total"] as const) {
+    for (const k of ["performance", "range", "image", "total"] as const) {
       assert.ok(Number.isInteger(s[k]));
       assert.ok(s[k] >= 0 && s[k] <= 100, `${k}=${s[k]} out of range`);
     }
   });
 
-  it("value-for-money favours the cheaper model at short range", () => {
-    // Same near-perfect picture, a quarter of the price → 256 wins on value.
-    const a = scoreModelAtDistance(A, 100, "deer");
-    const b = scoreModelAtDistance(B, 100, "deer");
-    assert.ok(a.value > b.value);
+  it("Total is independent of price (Value does not enter aggregate)", () => {
+    const cheap = scoreModelAtDistance(A, 400, "deer");
+    const expensive = scoreModelAtDistance(
+      { ...A, priceUah: (A.priceUah || 28000) * 10 },
+      400,
+      "deer"
+    );
+    assert.equal(
+      cheap.total,
+      expensive.total,
+      `total must ignore price: ${cheap.total} vs ${expensive.total}`
+    );
+    assert.equal(cheap.performance, expensive.performance);
+    assert.equal(cheap.range, expensive.range);
+    assert.equal(cheap.image, expensive.image);
+    // value field may still differ (API only) but is not in Total
+    assert.ok(cheap.value >= expensive.value);
   });
 
-  it("premium model wins overall total at long range", () => {
+  it("premium model wins overall total at long range (productivity)", () => {
     const a = scoreModelAtDistance(A, 800, "deer");
     const b = scoreModelAtDistance(B, 800, "deer");
     assert.ok(b.total > a.total);
   });
 
-  it("no price → value score is 0 (unknown, not fabricated)", () => {
-    const noPrice = { ...A, priceUah: null };
-    assert.equal(scoreModelAtDistance(noPrice, 100, "deer").value, 0);
+  it("Total = 0.5·perf + 0.25·range + 0.25·image (rounded)", () => {
+    const s = scoreModelAtDistance(B, 500, "deer");
+    const expected = Math.round(
+      0.5 * s.performance + 0.25 * s.range + 0.25 * s.image
+    );
+    assert.equal(s.total, expected);
   });
 });
