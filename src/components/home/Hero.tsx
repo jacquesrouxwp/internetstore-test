@@ -44,7 +44,7 @@ export async function Hero() {
                 <span className="truncate">{t("heroSandbox")}</span>
               </NextLink>
               <a
-                href="tel:+380501112233"
+                href="tel:+380637897699"
                 className="btn-hero btn-hero-secondary shrink-0 !min-h-[2.6rem] !px-6 !text-sm"
               >
                 <span className="truncate">{t("heroSecondary")}</span>

@@ -32,22 +32,10 @@ export default async function ContactsPage({
             <Phone className="mt-0.5 h-5 w-5 shrink-0 text-accent" strokeWidth={1.75} />
             <div className="space-y-1.5 text-[0.9375rem] leading-relaxed">
               <a
-                href="tel:+380686928675"
+                href="tel:+380637897699"
                 className="block font-medium text-primary hover:text-accent"
               >
-                +38 068 692-86-75
-              </a>
-              <a
-                href="tel:+380507598893"
-                className="block font-medium text-primary hover:text-accent"
-              >
-                +38 050 759-88-93
-              </a>
-              <a
-                href="tel:+380501112233"
-                className="block font-medium text-primary hover:text-accent"
-              >
-                +38 050 111-22-33
+                +38 063 789-76-99
               </a>
             </div>
           </div>

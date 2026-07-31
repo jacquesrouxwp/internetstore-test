@@ -13,12 +13,12 @@ export async function Footer() {
   let phones: string[] = [];
   let address = tp("address");
   let tg =
-    process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/pro_optics_ua";
+    process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/+380637897699";
   let viber =
     process.env.NEXT_PUBLIC_VIBER_URL ||
-    "viber://chat?number=%2B380501112233";
+    "viber://chat?number=%2B380637897699";
   let wa =
-    process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://wa.me/380501112233";
+    process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://wa.me/380637897699";
   let legalLine = "";
   try {
     const s = await getAllPublicSettings();
@@ -118,7 +118,7 @@ export async function Footer() {
             <li>{address}</li>
             {(phones.length
               ? phones
-              : ["+38 068 692-86-75"]
+              : ["+38 063 789-76-99"]
             ).map((ph) => (
               <li key={ph}>
                 <a

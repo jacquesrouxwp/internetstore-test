@@ -58,19 +58,19 @@ export type SecuritySettings = {
 
 const DEFAULTS: Record<string, unknown> = {
   site: {
-    phones: ["+38 068 692-86-75"],
+    phones: ["+38 063 789-76-99"],
     email: "info@pro-optics.ua",
     address: "Київ, Україна",
     hours: "Пн–Пт: 9:00–18:00 · Сб: 12:00–15:00",
     siteName: "Pro-Optics",
   } satisfies SiteSettings,
   social: {
-    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/pro_optics_ua",
+    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/+380637897699",
     viber:
       process.env.NEXT_PUBLIC_VIBER_URL ||
-      "viber://chat?number=%2B380501112233",
+      "viber://chat?number=%2B380637897699",
     whatsapp:
-      process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://wa.me/380501112233",
+      process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://wa.me/380637897699",
   } satisfies SocialSettings,
   legal: {
     entityName: "",

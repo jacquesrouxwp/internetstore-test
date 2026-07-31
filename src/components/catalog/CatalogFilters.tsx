@@ -259,7 +259,7 @@ export function CatalogFilters({
         <p className="mt-1 text-xs leading-relaxed text-secondary">
           Підберемо тепловізор під ваші завдання
         </p>
-        <a href="tel:+380501112233" className="btn-secondary mt-4 w-full text-sm">
+        <a href="tel:+380637897699" className="btn-secondary mt-4 w-full text-sm">
           Подзвонити
         </a>
       </div>

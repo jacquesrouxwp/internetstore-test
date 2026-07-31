@@ -53,11 +53,11 @@ export function Header({ categories }: { categories: Category[] }) {
         <div className="container-shop flex flex-wrap items-center gap-x-6 gap-y-2 py-2">
           <span className="text-muted-ui">{t("workNote")}</span>
           <a
-            href="tel:+380501112233"
+            href="tel:+380637897699"
             className="inline-flex items-center gap-1.5 font-semibold text-primary hover:opacity-90"
           >
             <Phone className="h-3.5 w-3.5" />
-            +38 050 111-22-33
+            +38 063 789-76-99
           </a>
           <span className="hidden text-muted-ui sm:inline">{t("hours")}</span>
           <div className="ml-auto flex items-center gap-4">
