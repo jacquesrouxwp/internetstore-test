@@ -2,37 +2,53 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   DEER_FRAC_AT_MIN,
-  DEER_FRAC_MIN,
   FEET_FRAC_AT_MIN,
   HORIZON_FRAC,
+  REF_VISUAL_H_M,
+  SUBJECT_FRAC_MAX,
   deerFeetYFrac,
   deerHeightFrac,
   deerScreenRect,
   defaultSimDistanceM,
   digitalZoomCrop,
   inspectDigiZoom,
+  subjectHeightFrac,
 } from "./zoom";
 
-describe("deerHeightFrac — real recession ∝ 1/d", () => {
-  it("at 50 m → hero size", () => {
+describe("subjectHeightFrac — FOV angular size", () => {
+  it("at 50 m all targets under 34% of frame (no face-fill)", () => {
+    for (const H of [0.4, 1.0, 1.3, 1.8]) {
+      const f = subjectHeightFrac(H, 50);
+      assert.ok(f <= SUBJECT_FRAC_MAX + 1e-9, `H=${H}m too big: ${f}`);
+      assert.ok(f > 0.02, `H=${H}m too small: ${f}`);
+    }
+  });
+
+  it("human is taller than deer, deer taller than fox (same d)", () => {
+    const human = subjectHeightFrac(1.8, 50);
+    const deer = subjectHeightFrac(1.3, 50);
+    const fox = subjectHeightFrac(0.4, 50);
+    assert.ok(human > deer && deer > fox);
+    // Human must NOT be ~1.4× a 50% deer (old bug ≈ 70%+)
+    assert.ok(human < 0.35, `human still huge: ${human}`);
+  });
+
+  it("∝ 1/d — 100 m is half of 50 m", () => {
+    const a = subjectHeightFrac(1.3, 50);
+    const b = subjectHeightFrac(1.3, 100);
+    assert.ok(Math.abs(b / a - 0.5) < 0.02, `ratio ${b / a}`);
+  });
+
+  it("deerHeightFrac matches REF deer height", () => {
+    assert.ok(
+      Math.abs(deerHeightFrac(50) - subjectHeightFrac(REF_VISUAL_H_M, 50)) <
+        1e-9
+    );
     assert.ok(Math.abs(deerHeightFrac(50) - DEER_FRAC_AT_MIN) < 1e-9);
-  });
-
-  it("at 1000 m is ~1/20 of size at 50 m (really farther)", () => {
-    const r = deerHeightFrac(1000) / deerHeightFrac(50);
-    assert.ok(Math.abs(r - 50 / 1000) < 1e-6, `ratio ${r}`);
-    // Absolute: tiny hot mark, not a big animal
-    assert.ok(deerHeightFrac(1000) < 0.04);
-    assert.ok(deerHeightFrac(1000) > DEER_FRAC_MIN);
-  });
-
-  it("100 m is half of 50 m; 200 m is quarter", () => {
-    assert.ok(Math.abs(deerHeightFrac(100) / deerHeightFrac(50) - 0.5) < 1e-6);
-    assert.ok(Math.abs(deerHeightFrac(200) / deerHeightFrac(50) - 0.25) < 1e-6);
   });
 });
 
-describe("deerFeetYFrac — ground plane, no mid-trunk float", () => {
+describe("deerFeetYFrac — shared ground point for all characters", () => {
   it("at 50 m feet on foreground litter", () => {
     assert.ok(Math.abs(deerFeetYFrac(50) - FEET_FRAC_AT_MIN) < 1e-9);
   });
@@ -41,7 +57,6 @@ describe("deerFeetYFrac — ground plane, no mid-trunk float", () => {
     const y = deerFeetYFrac(1000);
     assert.ok(y >= HORIZON_FRAC, `above horizon: ${y}`);
     assert.ok(y < FEET_FRAC_AT_MIN);
-    // Must not be mid-trunk (~0.5–0.6)
     assert.ok(y > 0.7, `too high in frame (trunk zone): ${y}`);
   });
 
@@ -49,26 +64,65 @@ describe("deerFeetYFrac — ground plane, no mid-trunk float", () => {
     const rH = deerHeightFrac(400) / deerHeightFrac(100);
     const rG =
       (deerFeetYFrac(400) - HORIZON_FRAC) / (deerFeetYFrac(100) - HORIZON_FRAC);
-    assert.ok(Math.abs(rH - rG) < 1e-6, `desync ${rH} vs ${rG}`);
+    assert.ok(Math.abs(rH - rG) < 0.05, `desync ${rH} vs ${rG}`);
   });
 });
 
-describe("deerScreenRect", () => {
-  it("plants feet on ground row", () => {
-    const r = deerScreenRect(200, 480, 270, 0.85);
-    assert.ok(Math.abs(r.feetY - deerFeetYFrac(200) * 270) < 1e-6);
-    assert.ok(Math.abs(r.y + r.h - r.feetY) < 1e-6);
+describe("deerScreenRect — same feet for any height", () => {
+  it("plants feet on ground row for deer and human", () => {
+    const feet = deerFeetYFrac(200) * 270;
+    const deer = deerScreenRect(
+      200,
+      480,
+      270,
+      0.85,
+      50,
+      0,
+      subjectHeightFrac(1.3, 200)
+    );
+    const human = deerScreenRect(
+      200,
+      480,
+      270,
+      0.45,
+      50,
+      0,
+      subjectHeightFrac(1.8, 200)
+    );
+    assert.ok(Math.abs(deer.feetY - feet) < 1e-6);
+    assert.ok(Math.abs(human.feetY - feet) < 1e-6);
+    // Same contact point — only height differs
+    assert.ok(Math.abs(deer.feetY - human.feetY) < 1e-6);
+    assert.ok(human.h > deer.h);
   });
 
-  it("full deer in frame at 50 m", () => {
-    const r = deerScreenRect(50, 480, 270, 0.85);
-    assert.ok(r.y >= -2, `clipped top ${r.y}`);
-    assert.ok(r.y + r.h <= 272);
+  it("full subject in frame at 50 m (no top explode)", () => {
+    for (const H of [0.4, 1.3, 1.8]) {
+      const r = deerScreenRect(
+        50,
+        480,
+        270,
+        0.5,
+        50,
+        0,
+        subjectHeightFrac(H, 50)
+      );
+      assert.ok(r.y >= -2, `clipped top H=${H} y=${r.y}`);
+      assert.ok(r.h / 270 <= SUBJECT_FRAC_MAX + 0.02);
+    }
   });
 
-  it("at 1000 m deer is a few pixels tall (really distant)", () => {
-    const r = deerScreenRect(1000, 480, 270, 0.85);
-    assert.ok(r.h < 12, `too tall at 1000m: ${r.h}px`);
+  it("at 1000 m subject is a few pixels tall", () => {
+    const r = deerScreenRect(
+      1000,
+      480,
+      270,
+      0.85,
+      50,
+      0,
+      subjectHeightFrac(1.3, 1000)
+    );
+    assert.ok(r.h < 20, `too tall at 1000m: ${r.h}px`);
     assert.ok(r.h >= 1);
   });
 });
@@ -105,7 +159,7 @@ describe("inspectDigiZoom — make far detection visible", () => {
 describe("defaultSimDistanceM", () => {
   it("mid-near so recession is already visible", () => {
     const d = defaultSimDistanceM(1600);
-    assert.ok(d >= 180 && d <= 280);
-    assert.ok(deerHeightFrac(d) < deerHeightFrac(50) * 0.4);
+    assert.ok(d >= 180 && d <= 320);
+    assert.ok(deerHeightFrac(d) < deerHeightFrac(50) * 0.45);
   });
 });

@@ -14,11 +14,11 @@ import {
 } from "@/lib/thermal/parse-product-thermal";
 import {
   atmosphericTransmission,
-  deerHeightFrac,
   deerScreenRect,
   defaultSimDistanceM,
   digitalZoomCrop,
   DIST_MIN_M,
+  subjectHeightFrac,
 } from "@/lib/thermal/zoom";
 import {
   crossoverM,
@@ -55,9 +55,6 @@ const SUBJECT_SRC: Record<ThermalTarget, string> = {
   fox: "/thermal/subject_fox_whitehot.jpg",
   human: "/thermal/subject_human_whitehot.jpg",
 };
-
-/** Reference visual height for deerHeightFrac calibration (m). */
-const DEER_VISUAL_H_M = 1.3;
 
 const LOGIC_W = 480;
 const LOGIC_H = 270;
@@ -360,8 +357,6 @@ export function ThermalSimulator({
   const [palette, setPalette] = useState<Palette>("whitehot");
   const [target, setTarget] = useState<ThermalTarget>("deer");
   const activeTarget = useMemo(() => getThermalTarget(target), [target]);
-  /** Visual size vs deer (1.3 m) — fox smaller, human taller. */
-  const targetHeightScale = activeTarget.visualHeightM / DEER_VISUAL_H_M;
   const [catalog, setCatalog] = useState<ThermalCompareOption[]>(
     compareOptionsProp || []
   );
@@ -533,16 +528,15 @@ export function ThermalSimulator({
         drawCover(cctx, forest, LOGIC_W, LOGIC_H);
       }
 
-      // ---- Layer 2: subject on ground plane (size ∝ 1/d × target height) ----
+      // ---- Layer 2: subject on ground plane (FOV size, shared feet row) ----
       const sprite = subjectSprite.current;
       let focusXFrac = 0.5;
       let focusYFrac = 0.5;
       if (sprite) {
-        // Scale geometric deer height by visual height of this target
-        const baseFrac = deerHeightFrac(distance);
-        const heightFrac = Math.max(
-          0.004,
-          Math.min(0.9, baseFrac * targetHeightScale)
+        // Real angular size: (H / d) / FOV — human ≠ face-fill at 50 m
+        const heightFrac = subjectHeightFrac(
+          activeTarget.visualHeightM,
+          distance
         );
         const rect = deerScreenRect(
           distance,
@@ -695,7 +689,7 @@ export function ThermalSimulator({
         ctx.fillText(`×${zoom}`, 12, 52);
       }
     },
-    [distance, zoom, weather, palette, target, fog, targetHeightScale]
+    [distance, zoom, weather, palette, target, fog, activeTarget.visualHeightM]
   );
 
   useEffect(() => {
@@ -1059,8 +1053,16 @@ export function ThermalSimulator({
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `Угловой размер цели ∝ 1/дистанция: на ${DIST_MIN_M} м цель крупная, к ${sliderMax} м уходит к горизонту и тонет в шуме.`
-                : `Кутовий розмір цілі ∝ 1/дистанція: на ${DIST_MIN_M} м ціль велика, до ${sliderMax} м іде до горизонту й тоне в шумі.`}
+                ? `Размер = (высота тела / дистанция) / FOV ≈11°: на ${DIST_MIN_M} м все стоят в одной точке (ноги на земле), человек ~${Math.round(
+                    subjectHeightFrac(1.8, DIST_MIN_M) * 100
+                  )}% кадра, олень ~${Math.round(
+                    subjectHeightFrac(1.3, DIST_MIN_M) * 100
+                  )}%, лиса меньше. К ${sliderMax} м уходят к горизонту.`
+                : `Розмір = (висота тіла / дистанція) / FOV ≈11°: на ${DIST_MIN_M} м усі в одній точці (ноги на землі), людина ~${Math.round(
+                    subjectHeightFrac(1.8, DIST_MIN_M) * 100
+                  )}% кадру, олень ~${Math.round(
+                    subjectHeightFrac(1.3, DIST_MIN_M) * 100
+                  )}%, лисиця менша. До ${sliderMax} м ідуть до горизонту.`}
             </span>
           </label>
         </div>
