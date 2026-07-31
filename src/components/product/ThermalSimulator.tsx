@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   computeDetectStatus,
   matrixClassPreset,
@@ -272,6 +279,234 @@ function optionToParams(o: ThermalCompareOption): ThermalSimParams {
 /** A contrasting class for the default B panel, so the compare starts useful. */
 function contrastPresetId(a: ThermalMatrix): string {
   return a >= 640 ? "preset:256" : "preset:640";
+}
+
+/** Normalize for fuzzy search: lower-case, collapse spaces / punctuation. */
+function searchNorm(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[×х]/gi, "x")
+    .replace(/[^a-zа-яёіїєґ0-9.\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function matchesSearch(label: string, query: string): boolean {
+  const q = searchNorm(query);
+  if (!q) return true;
+  const hay = searchNorm(label);
+  // All tokens must appear (order-independent): "hik 640" → hikmicro 640
+  return q.split(" ").every((tok) => hay.includes(tok));
+}
+
+/**
+ * Searchable model picker for A/B compare — type name/matrix/D instead of
+ * scrolling a long &lt;select&gt;.
+ */
+function ModelSearchSelect({
+  label,
+  valueId,
+  options,
+  onChange,
+  isRu,
+}: {
+  label: string;
+  valueId: string;
+  options: ModelChoice[];
+  onChange: (id: string) => void;
+  isRu: boolean;
+}) {
+  const selected = options.find((o) => o.id === valueId) || options[0];
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [hi, setHi] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  const filtered = useMemo(() => {
+    const list = options.filter((o) => matchesSearch(o.label, query));
+    return list.length ? list : options.slice(0, 0); // empty → show empty state
+  }, [options, query]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  // Keep highlight in range when filter changes
+  useEffect(() => {
+    setHi(0);
+  }, [query, open]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    if (!open || !listRef.current) return;
+    const el = listRef.current.children[hi] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: "nearest" });
+  }, [hi, open]);
+
+  const pick = (id: string) => {
+    onChange(id);
+    setOpen(false);
+    setQuery("");
+  };
+
+  const onKeyDown = (e: ReactKeyboardEvent) => {
+    if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
+      e.preventDefault();
+      setOpen(true);
+      return;
+    }
+    if (!open) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      setQuery("");
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHi((i) => Math.min(filtered.length - 1, i + 1));
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHi((i) => Math.max(0, i - 1));
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const item = filtered[hi];
+      if (item) pick(item.id);
+    }
+  };
+
+  return (
+    <div ref={rootRef} className="relative block text-xs text-muted-ui">
+      <span className="mb-1 block font-medium">{label}</span>
+      <div
+        className={cn(
+          "flex items-center gap-1.5 rounded-lg border bg-[#12141a] px-2.5 py-2 transition",
+          open
+            ? "border-[var(--accent)] ring-1 ring-[var(--accent)]/40"
+            : "border-white/15 hover:border-white/25"
+        )}
+      >
+        <span className="shrink-0 text-faint" aria-hidden>
+          ⌕
+        </span>
+        <input
+          ref={inputRef}
+          type="search"
+          autoComplete="off"
+          spellCheck={false}
+          className="min-w-0 flex-1 bg-transparent text-sm text-primary outline-none placeholder:text-faint"
+          placeholder={
+            open
+              ? isRu
+                ? "Имя, матрица, D…"
+                : "Назва, матриця, D…"
+              : selected?.label || (isRu ? "Выберите модель" : "Оберіть модель")
+          }
+          value={open ? query : selected?.label || ""}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (!open) setOpen(true);
+          }}
+          onFocus={() => {
+            setOpen(true);
+            setQuery("");
+            // select-all next tick so typing replaces
+            requestAnimationFrame(() => inputRef.current?.select());
+          }}
+          onKeyDown={onKeyDown}
+          aria-expanded={open}
+          aria-autocomplete="list"
+          aria-controls={`model-list-${label}`}
+          role="combobox"
+        />
+        {open && query && (
+          <button
+            type="button"
+            className="shrink-0 text-[11px] text-faint hover:text-primary"
+            onClick={() => setQuery("")}
+            aria-label={isRu ? "Очистить" : "Очистити"}
+          >
+            ×
+          </button>
+        )}
+        <button
+          type="button"
+          className="shrink-0 text-faint hover:text-primary"
+          onClick={() => {
+            setOpen((v) => !v);
+            if (!open) {
+              setQuery("");
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }
+          }}
+          aria-label={open ? "Close" : "Open"}
+          tabIndex={-1}
+        >
+          {open ? "▴" : "▾"}
+        </button>
+      </div>
+
+      {open && (
+        <ul
+          ref={listRef}
+          id={`model-list-${label}`}
+          role="listbox"
+          className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-white/15 bg-[#0e1016] py-1 shadow-xl"
+        >
+          {filtered.length === 0 ? (
+            <li className="px-3 py-2.5 text-sm text-faint">
+              {isRu ? "Ничего не найдено" : "Нічого не знайдено"}
+            </li>
+          ) : (
+            filtered.map((o, idx) => {
+              const active = o.id === valueId;
+              const highlighted = idx === hi;
+              return (
+                <li key={o.id} role="option" aria-selected={active}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition",
+                      highlighted && "bg-white/10",
+                      active && "text-[var(--accent)]",
+                      !highlighted && !active && "text-primary hover:bg-white/5"
+                    )}
+                    onMouseEnter={() => setHi(idx)}
+                    onClick={() => pick(o.id)}
+                  >
+                    <span className="min-w-0 flex-1 leading-snug">{o.label}</span>
+                    {active && (
+                      <span className="shrink-0 text-[10px] text-faint">✓</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      )}
+      <p className="mt-1 text-[10px] text-faint">
+        {isRu
+          ? "Начните вводить название или 640 / 256 / D=…"
+          : "Почніть вводити назву або 640 / 256 / D=…"}
+      </p>
+    </div>
+  );
 }
 
 /** Small glass HUD in the corner of a panel: 4 scores + Total. */
@@ -812,34 +1047,22 @@ export function ThermalSimulator({
         </p>
       </div>
 
-      {/* Model pickers */}
+      {/* Model pickers — searchable (type name / matrix / D) */}
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        {(
-          [
-            ["a", selA, setSelA, isRu ? "Модель A (слева)" : "Модель A (зліва)"],
-            [
-              "b",
-              selB,
-              setSelB,
-              isRu ? "Модель B (справа)" : "Модель B (справа)",
-            ],
-          ] as const
-        ).map(([key, val, setVal, lab]) => (
-          <label key={key} className="block text-xs text-muted-ui">
-            {lab}
-            <select
-              className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
-              value={val}
-              onChange={(e) => setVal(e.target.value)}
-            >
-              {options.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
+        <ModelSearchSelect
+          label={isRu ? "Модель A (слева)" : "Модель A (зліва)"}
+          valueId={selA}
+          options={options}
+          onChange={setSelA}
+          isRu={isRu}
+        />
+        <ModelSearchSelect
+          label={isRu ? "Модель B (справа)" : "Модель B (справа)"}
+          valueId={selB}
+          options={options}
+          onChange={setSelB}
+          isRu={isRu}
+        />
       </div>
 
       {/* Panels: A left, B right; stack on mobile */}
