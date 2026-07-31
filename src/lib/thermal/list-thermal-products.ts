@@ -29,6 +29,7 @@ function productToOption(
     resolution: p.resolution,
     detectionRangeM: p.detectionRangeM,
     specs: p.specs,
+    price: p.price,
   });
 }
 

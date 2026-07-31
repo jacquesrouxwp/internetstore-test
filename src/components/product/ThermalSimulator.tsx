@@ -2,17 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  computeDetectStatusVisual,
-  effectivePixelsOnTarget,
-  johnsonBandDistancesM,
-  renderTargetHeightFrac,
-  renderedCriticalGrainPx,
-  resolveFovVerticalRad,
-  targetSubjectVisibility,
-  JOHNSON_PX,
-  matrixPixelHeight,
+  computeDetectStatus,
+  matrixClassPreset,
   matrixPixelWidth,
-  matrixVertPixels,
   netdContrast,
   netdNoiseAmp,
   type DetectStatus,
@@ -24,45 +16,40 @@ import {
   atmosphericTransmission,
   deerScreenRect,
   defaultSimDistanceM,
-  DIGI_ZOOM_STEPS,
   digitalZoomCrop,
   DIST_MIN_M,
-  inspectDigiZoom,
-  nextDigiZoom,
 } from "@/lib/thermal/zoom";
 import {
+  crossoverM,
+  gapPct,
+  performanceAtDistance,
+  pxOnTarget,
+  scoreModelAtDistance,
+  TARGET_FACTOR,
+  TARGET_LABEL_RU,
+  TARGET_LABEL_UK,
   THERMAL_TARGETS,
-  detectionRangeForTarget,
-  getThermalTarget,
-  type ThermalTargetId,
-} from "@/lib/thermal/targets";
-import { cn } from "@/lib/utils";
-import type { DeviceType } from "@/types";
-import type { Specs } from "@/lib/thermal/thermal-score";
-import {
-  sensorFromSpecs,
-  type CatalogPeer,
+  type ScoreBreakdown,
+  type ThermalTarget,
 } from "@/lib/thermal/thermal-score-distance";
-import { ThermalScoreHud } from "@/components/product/ThermalScoreHud";
-import { ThermalCompareInsight } from "@/components/product/ThermalCompareInsight";
-
-/** Synthetic id for “this product” in dual A/B dropdowns */
-const SELF_MODEL_ID = "__self__";
+import { cn } from "@/lib/utils";
 
 type Palette = "whitehot" | "ironhot";
 type Weather = "clear" | "fog";
 
 /**
- * Two-layer perspective:
- *  - Forest: fixed FOV (instrument field of view does not change)
- *  - Deer: real sprite, height ∝ 1/d, feet on ground plane ∝ 1/d
- * Frame: 4:3 (real thermal sensors). Ocular devices get round FOV + optional reticle.
+ * Two-layer thermal scene: a fixed-FOV forest background with a deer sprite
+ * composited on the ground plane. The deer's apparent height and its feet row
+ * both follow 1/distance, so it recedes toward the horizon honestly — no
+ * baked-in scale, no floating cutout.
  */
 export type ThermalScene = {
   id: string;
   labelUk: string;
   labelRu: string;
+  /** Full-frame forest background (fixed field of view). */
   forest: string;
+  /** Isolated deer on black — luminance-keyed into an alpha sprite. */
   deer: string;
 };
 
@@ -76,49 +63,24 @@ const SCENES: ThermalScene[] = [
   },
 ];
 
-/** 4:3 — matches 384×288 / 640×512 class sensors */
 const LOGIC_W = 480;
-const LOGIC_H = 360;
+const LOGIC_H = 270;
+/** Working resolution of the trimmed deer sprite. */
 const SPRITE_S = 512;
+/** Digital-zoom presets (magnification of the sensor image). */
+const ZOOM_STEPS = [1, 2, 4] as const;
 
-/** Dual-panel keys: model A (left) and model B (right). */
+/** The two compared panels. A = left (default: this product), B = right. */
 type PanelKey = "a" | "b";
-
-/** Ocular = round FOV; screen = rectangular 4:3 display. */
-export type ThermalViewForm = "ocular" | "screen";
-
-export function thermalViewFormFromDevice(
-  deviceType?: DeviceType | string | null
-): ThermalViewForm {
-  // Scope / binocular / clip-on / classic monocular → look through an eyepiece
-  if (
-    deviceType === "scope" ||
-    deviceType === "binocular" ||
-    deviceType === "clipon"
-  ) {
-    return "ocular";
-  }
-  // Default mono → many modern units are screen monoculars (rect 4:3)
-  // Opt-in ocular mono via "ocular" string if needed later
-  if (deviceType === "ocular" || deviceType === "eyepiece") return "ocular";
-  return "screen";
-}
 
 type Props = {
   params: ThermalSimParams;
   locale?: string;
+  /** Catalog thermal products for dropdown (from SSR or empty → client fetch) */
   compareOptions?: ThermalCompareOption[];
   currentProductId?: string;
-  allowMatrixPick?: boolean;
   sceneId?: string;
   className?: string;
-  /** Product form factor — drives round vs rect frame + reticle */
-  deviceType?: DeviceType | string | null;
-  /** Score HUD: specs for live distance scoring (same product) */
-  scoreSpecs?: Specs | null;
-  scoreCatalogPeers?: CatalogPeer[];
-  scoreProductName?: string;
-  scorePercentile?: number | null;
 };
 
 const STATUS_UK: Record<DetectStatus, string> = {
@@ -134,26 +96,37 @@ const STATUS_RU: Record<DetectStatus, string> = {
   none: "Не видно",
 };
 
-/** Short meaning under the badge */
-const STATUS_HINT_UK: Record<DetectStatus, string> = {
-  identify: "видно деталі (≥13 px на цілі)",
-  recognize: "зрозуміло, що тварина (≥8 px)",
-  detect: "видно, що щось є (≥2 px)",
-  none: "менше 2 px — ціль зливається з шумом",
-};
-const STATUS_HINT_RU: Record<DetectStatus, string> = {
-  identify: "видны детали (≥13 px на цели)",
-  recognize: "понятно, что животное (≥8 px)",
-  detect: "видно, что что-то есть (≥2 px)",
-  none: "меньше 2 px — цель тонет в шуме",
-};
-
 const STATUS_COLOR: Record<DetectStatus, string> = {
   identify: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
   recognize: "text-sky-300 border-sky-500/40 bg-sky-500/10",
   detect: "text-amber-300 border-amber-500/40 bg-amber-500/10",
   none: "text-zinc-400 border-zinc-500/30 bg-zinc-500/10",
 };
+
+/** Short HUD metric labels (localized) + English name for the hover tooltip. */
+const HUD_METRICS = {
+  ru: {
+    performance: ["Различимость", "Thermal Performance"],
+    range: ["Дальность", "Detection Range"],
+    image: ["Чёткость", "Image Quality"],
+    value: ["Цена/кач.", "Value for Money"],
+    total: ["Итог", "Total Score"],
+  },
+  uk: {
+    performance: ["Розрізнення", "Thermal Performance"],
+    range: ["Дальність", "Detection Range"],
+    image: ["Чіткість", "Image Quality"],
+    value: ["Ціна/як.", "Value for Money"],
+    total: ["Разом", "Total Score"],
+  },
+} as const;
+
+function scoreColor(v: number): string {
+  if (v >= 75) return "#34d399"; // emerald
+  if (v >= 50) return "#38bdf8"; // sky
+  if (v >= 30) return "#fbbf24"; // amber
+  return "#a1a1aa"; // zinc
+}
 
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -206,51 +179,8 @@ function ironLut(v: number): [number, number, number] {
   return [255, Math.round(190 + k * 65), Math.round(20 + k * 200)];
 }
 
-/**
- * Vegetation is cold in real thermals. Remap forest luminance into the cold
- * band so canopy highlights never hit hot iron/white tones.
- * Subject (deer) uses full [0..1] → full LUT.
- */
-const FOREST_LUMA_SCALE = 0.32;
-const FOREST_LUMA_MAX = 0.38;
-
-function lumaOf(r: number, g: number, b: number): number {
-  return 0.299 * r + 0.587 * g + 0.114 * b;
-}
-
-/** Apply palette to ImageData. mode "cold" = forest; "hot" = animal (full range). */
-function applyThermalPalette(
-  data: Uint8ClampedArray,
-  palette: Palette,
-  mode: "cold" | "hot",
-  /** Only touch pixels with alpha > threshold (deer layer). */
-  respectAlpha = false
-) {
-  for (let i = 0; i < data.length; i += 4) {
-    if (respectAlpha && data[i + 3] < 8) continue;
-    let L = lumaOf(data[i], data[i + 1], data[i + 2]) / 255;
-    if (mode === "cold") {
-      L = Math.min(FOREST_LUMA_MAX, L * FOREST_LUMA_SCALE);
-    }
-    // mild subject stretch keeps body heat readable
-    if (mode === "hot") {
-      L = Math.pow(Math.max(0, Math.min(1, L)), 0.92);
-    }
-    if (palette === "whitehot") {
-      const y = Math.round(L * 255);
-      data[i] = data[i + 1] = data[i + 2] = y;
-    } else {
-      const [rr, gg, bb] = ironLut(L);
-      data[i] = rr;
-      data[i + 1] = gg;
-      data[i + 2] = bb;
-    }
-    if (!respectAlpha) data[i + 3] = 255;
-  }
-}
-
-/** Cover forest, biased to show ground litter (bottom of source). */
-function drawForestCover(
+/** object-fit:cover an image into a (dw, dh) target. */
+function drawCover(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   dw: number,
@@ -263,192 +193,13 @@ function drawForestCover(
   const sw = dw / scale;
   const sh = dh / scale;
   const sx = (iw - sw) / 2;
-  const syMax = Math.max(0, ih - sh);
-  const sy = Math.min(syMax, syMax * 0.78);
+  const sy = (ih - sh) / 2;
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
-}
-
-/**
- * Black corners + circular FOV (eyepiece). Soft falloff at rim.
- * Scope reticle: mild mil-dot style cross.
- */
-function applyDeviceFrame(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  form: ThermalViewForm,
-  withScopeReticle: boolean
-) {
-  const cx = w / 2;
-  const cy = h / 2;
-
-  if (form === "ocular") {
-    const r = Math.min(w, h) * 0.48;
-    // Even-odd: full rect minus circle → black outside FOV
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, w, h);
-    ctx.arc(cx, cy, r, 0, Math.PI * 2, true);
-    ctx.fillStyle = "#000000";
-    ctx.fill("evenodd");
-
-    // Soft edge inside the circle
-    const edge = ctx.createRadialGradient(cx, cy, r * 0.72, cx, cy, r);
-    edge.addColorStop(0, "rgba(0,0,0,0)");
-    edge.addColorStop(0.65, "rgba(0,0,0,0)");
-    edge.addColorStop(1, "rgba(0,0,0,0.88)");
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = edge;
-    ctx.fill();
-
-    // Thin bright ring (lens rim)
-    ctx.beginPath();
-    ctx.arc(cx, cy, r - 0.5, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(180,185,195,0.22)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.restore();
-
-    if (withScopeReticle) {
-      drawScopeReticle(ctx, cx, cy, r * 0.78);
-    }
-  } else {
-    // Screen mono: rectangular 4:3 with mild edge vignette only
-    const grd = ctx.createRadialGradient(
-      cx,
-      cy,
-      h * 0.32,
-      cx,
-      cy,
-      h * 0.72
-    );
-    grd.addColorStop(0, "rgba(0,0,0,0)");
-    grd.addColorStop(1, "rgba(0,0,0,0.38)");
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, w, h);
-    // Bezel
-    ctx.strokeStyle = "rgba(40,44,52,0.9)";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(1.5, 1.5, w - 3, h - 3);
-  }
-}
-
-function drawScopeReticle(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  arm: number
-) {
-  ctx.save();
-  ctx.strokeStyle = "rgba(225, 50, 50, 0.55)";
-  ctx.lineWidth = 1;
-  // Cross
-  ctx.beginPath();
-  ctx.moveTo(cx - arm, cy);
-  ctx.lineTo(cx + arm, cy);
-  ctx.moveTo(cx, cy - arm);
-  ctx.lineTo(cx, cy + arm);
-  ctx.stroke();
-  // Center gap
-  ctx.strokeStyle = "rgba(0,0,0,0.5)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(cx - 5, cy);
-  ctx.lineTo(cx + 5, cy);
-  ctx.moveTo(cx, cy - 5);
-  ctx.lineTo(cx, cy + 5);
-  ctx.stroke();
-  // Mild mil ticks
-  ctx.strokeStyle = "rgba(225, 50, 50, 0.4)";
-  ctx.lineWidth = 1;
-  const step = arm / 5;
-  for (let i = 1; i <= 4; i++) {
-    const t = step * i;
-    const tick = 4;
-    ctx.beginPath();
-    ctx.moveTo(cx + t, cy - tick);
-    ctx.lineTo(cx + t, cy + tick);
-    ctx.moveTo(cx - t, cy - tick);
-    ctx.lineTo(cx - t, cy + tick);
-    ctx.moveTo(cx - tick, cy + t);
-    ctx.lineTo(cx + tick, cy + t);
-    ctx.moveTo(cx - tick, cy - t);
-    ctx.lineTo(cx + tick, cy - t);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-/** HUD along frame edge — inside circle for ocular, top-left for screen. */
-function drawDeviceHud(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  form: ThermalViewForm,
-  lines: { text: string; color: string }[]
-) {
-  ctx.save();
-  ctx.font = "600 11px Manrope, system-ui, sans-serif";
-  if (form === "ocular") {
-    const r = Math.min(w, h) * 0.48;
-    const cx = w / 2;
-    const cy = h / 2;
-    // Arc of text near bottom-left inside circle
-    let y = cy + r * 0.42;
-    const x = cx - r * 0.62;
-    for (const line of lines) {
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.fillText(line.text, x + 1, y + 1);
-      ctx.fillStyle = line.color;
-      ctx.fillText(line.text, x, y);
-      y += 14;
-    }
-  } else {
-    let y = 18;
-    const x = 12;
-    for (const line of lines) {
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
-      ctx.fillText(line.text, x + 1, y + 1);
-      ctx.fillStyle = line.color;
-      ctx.fillText(line.text, x, y);
-      y += 15;
-    }
-  }
-  ctx.restore();
-}
-
-function drawGroundContact(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  feetY: number,
-  deerW: number,
-  trans: number
-) {
-  const rx = Math.max(3, deerW * 0.55);
-  const ry = Math.max(2, deerW * 0.14);
-
-  const shadow = ctx.createRadialGradient(cx, feetY, 0, cx, feetY, rx);
-  shadow.addColorStop(0, `rgba(4, 6, 10, ${0.75 * trans})`);
-  shadow.addColorStop(0.5, `rgba(8, 10, 14, ${0.32 * trans})`);
-  shadow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = shadow;
-  ctx.beginPath();
-  ctx.ellipse(cx, feetY + 1, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Cool contact only — no warm bloom (ground stays cold)
-  const cool = ctx.createRadialGradient(cx, feetY, 0, cx, feetY, rx * 0.45);
-  cool.addColorStop(0, `rgba(12, 14, 22, ${0.4 * trans})`);
-  cool.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = cool;
-  ctx.beginPath();
-  ctx.ellipse(cx, feetY, rx * 0.45, ry * 0.65, 0, 0, Math.PI * 2);
-  ctx.fill();
 }
 
 type DeerSprite = {
   canvas: HTMLCanvasElement;
+  /** Content bounding box inside the sprite canvas (trimmed to the animal). */
   cx: number;
   cy: number;
   cw: number;
@@ -456,7 +207,11 @@ type DeerSprite = {
   aspect: number;
 };
 
-/** Luma-key deer on black; crop to solid body; feet = bottom of content. */
+/**
+ * Luminance-key the isolated-deer JPEG into an RGBA sprite:
+ * alpha = smoothstep over luminance (black background → transparent), and the
+ * grayscale hot value is kept so the shared FX palette applies uniformly.
+ */
 function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
   const c = document.createElement("canvas");
   c.width = SPRITE_S;
@@ -469,23 +224,22 @@ function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
 
   const id = ctx.getImageData(0, 0, SPRITE_S, SPRITE_S);
   const d = id.data;
-  const lo = 18;
-  const hi = 70;
+  const lo = 22;
+  const hi = 74;
   let minX = SPRITE_S;
   let maxX = 0;
   let minY = SPRITE_S;
   let maxY = 0;
-
   for (let y = 0; y < SPRITE_S; y++) {
     for (let x = 0; x < SPRITE_S; x++) {
       const i = (y * SPRITE_S + x) * 4;
       const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
       let t = (l - lo) / (hi - lo);
       t = t < 0 ? 0 : t > 1 ? 1 : t;
-      const a = t * t * (3 - 2 * t);
+      const a = t * t * (3 - 2 * t); // smoothstep
       d[i] = d[i + 1] = d[i + 2] = l;
       d[i + 3] = Math.round(a * 255);
-      if (a > 0.45) {
+      if (a > 0.5) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -494,31 +248,21 @@ function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
     }
   }
   ctx.putImageData(id, 0, 0);
+
   if (maxX <= minX || maxY <= minY) return null;
-
-  // Bottom = hooves (lowest solid row)
-  let feetY = maxY;
-  for (let y = maxY; y >= minY; y--) {
-    let solid = 0;
-    for (let x = minX; x <= maxX; x++) {
-      if (d[(y * SPRITE_S + x) * 4 + 3] > 150) solid++;
-    }
-    if (solid >= 2) {
-      feetY = y;
-      break;
-    }
-  }
-
   const cw = maxX - minX + 1;
-  const ch = feetY - minY + 1;
-  return {
-    canvas: c,
-    cx: minX,
-    cy: minY,
-    cw,
-    ch,
-    aspect: cw / Math.max(1, ch),
-  };
+  const ch = maxY - minY + 1;
+  return { canvas: c, cx: minX, cy: minY, cw, ch, aspect: cw / ch };
+}
+
+type ModelChoice = {
+  id: string;
+  label: string;
+  params: ThermalSimParams;
+};
+
+function matrixHeight(m: ThermalMatrix): number {
+  return m === 640 ? 512 : m === 384 ? 288 : 192;
 }
 
 function optionToParams(o: ThermalCompareOption): ThermalSimParams {
@@ -530,40 +274,78 @@ function optionToParams(o: ThermalCompareOption): ThermalSimParams {
     label: o.name,
     focalMm: o.focalMm ?? null,
     pitchUm: o.pitchUm ?? null,
+    priceUah: o.priceUah,
   };
 }
 
-/** Build Specs for scoring HUD from a catalog compare option (+ peer price if known). */
-function optionToSpecs(
-  o: ThermalCompareOption,
-  peers: CatalogPeer[] = []
-): Specs {
-  const peer = peers.find((p) => p.id === o.id);
-  if (peer) return peer.specs;
-  return {
-    hPixels: o.matrix,
-    vPixels: matrixVertPixels(o.matrix),
-    pixelPitchUm: o.pitchUm ?? 12,
-    netdMk: o.netdMk,
-    refreshHz: o.refreshRateHz ?? 50,
-    detectionRangeM: o.detectionRangeM,
-    priceEur: 1000,
-  };
+/** A contrasting class for the default B panel, so the compare starts useful. */
+function contrastPresetId(a: ThermalMatrix): string {
+  return a >= 640 ? "preset:256" : "preset:640";
 }
 
-function simParamsToSpecs(
-  p: ThermalSimParams,
-  priceEur = 1000
-): Specs {
-  return {
-    hPixels: p.matrix,
-    vPixels: matrixVertPixels(p.matrix),
-    pixelPitchUm: p.pitchUm ?? 12,
-    netdMk: p.netdMk,
-    refreshHz: p.refreshRateHz ?? 50,
-    detectionRangeM: p.detectionRangeM,
-    priceEur,
-  };
+/** Small glass HUD in the corner of a panel: 4 scores + Total. */
+function ScoreHud({
+  scores,
+  isRu,
+}: {
+  scores: ScoreBreakdown;
+  isRu: boolean;
+}) {
+  const L = isRu ? HUD_METRICS.ru : HUD_METRICS.uk;
+  const rows = [
+    ["performance", scores.performance],
+    ["range", scores.range],
+    ["image", scores.image],
+    ["value", scores.value],
+  ] as const;
+  return (
+    <div
+      className="pointer-events-none absolute right-2 top-2 w-[132px] rounded-lg border border-white/15 px-2.5 py-2 text-white shadow-lg sm:w-[150px]"
+      style={{
+        background: "rgba(10,12,16,0.35)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+      }}
+    >
+      <div className="flex flex-col gap-1.5">
+        {rows.map(([key, val]) => (
+          <div key={key} title={L[key][1]}>
+            <div className="flex items-baseline justify-between">
+              <span className="text-[9px] uppercase tracking-wide text-white/60">
+                {L[key][0]}
+              </span>
+              <span className="text-[10px] font-semibold tabular-nums">
+                {val}
+              </span>
+            </div>
+            <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${val}%`, background: scoreColor(val) }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div
+        className="mt-2 flex items-center justify-between border-t border-white/10 pt-1.5"
+        title={L.total[1]}
+      >
+        <span className="text-[9px] uppercase tracking-wide text-white/60">
+          {L.total[0]}
+        </span>
+        <span
+          className="text-base font-bold leading-none tabular-nums"
+          style={{ color: scoreColor(scores.total) }}
+        >
+          {scores.total}
+          <span className="ml-0.5 text-[9px] font-normal text-white/50">
+            /100
+          </span>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export function ThermalSimulator({
@@ -571,175 +353,100 @@ export function ThermalSimulator({
   locale = "uk",
   compareOptions: compareOptionsProp,
   currentProductId,
-  allowMatrixPick = false,
   sceneId = "deer",
   className,
-  deviceType = "mono",
-  scoreSpecs = null,
-  scoreCatalogPeers = [],
-  scoreProductName,
-  scorePercentile = null,
 }: Props) {
   const isRu = locale === "ru";
   const scene = SCENES.find((s) => s.id === sceneId) || SCENES[0];
-  const viewForm = thermalViewFormFromDevice(deviceType);
-  const withScopeReticle = deviceType === "scope" || deviceType === "clipon";
 
   const [distance, setDistance] = useState(() =>
     defaultSimDistanceM(params.detectionRangeM || 1200)
   );
-  const [digiZoom, setDigiZoom] = useState(1);
+  const [zoom, setZoom] = useState<number>(1);
   const [weather, setWeather] = useState<Weather>("clear");
   const [palette, setPalette] = useState<Palette>("whitehot");
-  const [targetId, setTargetId] = useState<ThermalTargetId>("deer");
-  const [matrix, setMatrix] = useState<ThermalMatrix>(params.matrix);
-  /** Dual A/B compare — always two real catalog models when on (no fixed 256 baseline). */
-  const [compareOn, setCompareOn] = useState(false);
-  const [modelAId, setModelAId] = useState<string>(SELF_MODEL_ID);
-  const [modelBId, setModelBId] = useState<string>("");
-
-  const activeTarget = useMemo(() => getThermalTarget(targetId), [targetId]);
+  const [target, setTarget] = useState<ThermalTarget>("deer");
   const [catalog, setCatalog] = useState<ThermalCompareOption[]>(
     compareOptionsProp || []
   );
+  const [selA, setSelA] = useState<string>("current");
+  const [selB, setSelB] = useState<string>(() =>
+    contrastPresetId(params.matrix)
+  );
+  const [showMath, setShowMath] = useState(false);
   const [ready, setReady] = useState(false);
 
   const currentParams: ThermalSimParams = useMemo(
-    () => ({
-      ...params,
-      matrix: allowMatrixPick ? matrix : params.matrix,
-      label:
-        scoreProductName ||
-        params.label ||
-        (isRu ? "Этот прибор" : "Цей прилад"),
-      focalMm: params.focalMm ?? null,
-      pitchUm: params.pitchUm ?? null,
-    }),
-    [params, matrix, allowMatrixPick, isRu, scoreProductName]
+    () => ({ ...params }),
+    [params]
   );
 
-  const selfSpecs: Specs = useMemo(() => {
-    if (scoreSpecs) return scoreSpecs;
-    const peer = scoreCatalogPeers.find((p) => p.id === currentProductId);
-    return simParamsToSpecs(currentParams, peer?.priceEur ?? 1000);
-  }, [scoreSpecs, scoreCatalogPeers, currentProductId, currentParams]);
+  const fog = weather === "fog";
 
-  /** Resolve dropdown id → sim params + score specs for a panel. */
-  const resolveModel = useCallback(
-    (
-      id: string
-    ): {
-      params: ThermalSimParams;
-      specs: Specs;
-      modelName: string;
-      productId?: string;
-    } => {
-      if (id === SELF_MODEL_ID || (currentProductId && id === currentProductId)) {
-        return {
-          params: currentParams,
-          specs: selfSpecs,
-          modelName: currentParams.label,
-          productId: currentProductId,
-        };
-      }
-      const opt = catalog.find((c) => c.id === id);
-      if (!opt) {
-        return {
-          params: currentParams,
-          specs: selfSpecs,
-          modelName: currentParams.label,
-          productId: currentProductId,
-        };
-      }
-      return {
-        params: optionToParams(opt),
-        specs: optionToSpecs(opt, scoreCatalogPeers),
-        modelName: opt.name,
-        productId: opt.id,
-      };
-    },
-    [
-      catalog,
-      currentParams,
-      selfSpecs,
-      currentProductId,
-      scoreCatalogPeers,
-    ]
-  );
-
-  // Default B = first catalog model (real product, never a matrix class preset)
-  useEffect(() => {
-    if (!catalog.length) return;
-    if (!modelBId || !catalog.some((c) => c.id === modelBId)) {
-      const first =
-        catalog.find((c) => c.id !== currentProductId) || catalog[0];
-      if (first) setModelBId(first.id);
-    }
-  }, [catalog, modelBId, currentProductId]);
-
-  const modelA = useMemo(
-    () => resolveModel(modelAId),
-    [resolveModel, modelAId]
-  );
-  const modelB = useMemo(
-    () => resolveModel(modelBId || SELF_MODEL_ID),
-    [resolveModel, modelBId]
-  );
-
-  /** Always 1 panel, or exactly 2 (A + B) when compare is on. */
-  const activePanels = useMemo(() => {
-    const list: {
-      key: PanelKey;
-      params: ThermalSimParams;
-      specs: Specs;
-      modelName: string;
-      badge: string;
-      productId?: string;
-    }[] = [
+  // Build the shared option list: this product + class presets + catalog.
+  const options = useMemo<ModelChoice[]>(() => {
+    const list: ModelChoice[] = [
       {
-        key: "a",
-        params: modelA.params,
-        specs: modelA.specs,
-        modelName: modelA.modelName,
-        badge: isRu ? "Модель A" : "Модель A",
-        productId: modelA.productId,
+        id: "current",
+        label: `${currentParams.label} · ${isRu ? "этот прибор" : "цей прилад"}`,
+        params: currentParams,
       },
     ];
-    if (compareOn && modelBId) {
+    ([256, 384, 640] as ThermalMatrix[]).forEach((m) => {
+      const preset = matrixClassPreset(m);
       list.push({
-        key: "b",
-        params: modelB.params,
-        specs: modelB.specs,
-        modelName: modelB.modelName,
-        badge: isRu ? "Модель B" : "Модель B",
-        productId: modelB.productId,
+        id: `preset:${m}`,
+        label: `${m}×${matrixHeight(m)} · D=${preset.detectionRangeM} · ${
+          isRu ? "типовой" : "типовий"
+        }`,
+        params: {
+          ...preset,
+          label: `${m}×${matrixHeight(m)} ${isRu ? "(типовой)" : "(типовий)"}`,
+        },
       });
-    }
+    });
+    catalog
+      .filter((c) => c.id !== currentProductId)
+      .forEach((o) => {
+        list.push({
+          id: o.id,
+          label: `${o.name} · ${o.matrix} · D=${o.detectionRangeM}`,
+          params: optionToParams(o),
+        });
+      });
     return list;
-  }, [modelA, modelB, compareOn, modelBId, isRu]);
+  }, [currentParams, catalog, currentProductId, isRu]);
 
-  /** Passport D is usually human; scale by target critical size */
-  const panelDetectionD = useCallback(
-    (passportD: number) =>
-      detectionRangeForTarget(passportD, activeTarget.criticalSizeM),
-    [activeTarget.criticalSizeM]
+  const findChoice = useCallback(
+    (id: string, fallbackIdx: number): ModelChoice =>
+      options.find((o) => o.id === id) || options[fallbackIdx] || options[0],
+    [options]
+  );
+
+  const modelA = findChoice(selA, 0);
+  const modelB = findChoice(selB, 1);
+
+  const panels = useMemo(
+    () => [
+      { key: "a" as PanelKey, choice: modelA },
+      { key: "b" as PanelKey, choice: modelB },
+    ],
+    [modelA, modelB]
   );
 
   const sliderMax = useMemo(() => {
-    const ds = activePanels.map((p) =>
-      panelDetectionD(p.params.detectionRangeM)
+    return Math.max(
+      300,
+      modelA.params.detectionRangeM,
+      modelB.params.detectionRangeM
     );
-    return Math.max(300, ...ds, panelDetectionD(currentParams.detectionRangeM));
-  }, [activePanels, currentParams.detectionRangeM, panelDetectionD]);
-
-  useEffect(() => {
-    setMatrix(params.matrix);
-  }, [params.matrix]);
+  }, [modelA.params.detectionRangeM, modelB.params.detectionRangeM]);
 
   useEffect(() => {
     setDistance((d) => Math.min(d, sliderMax));
   }, [sliderMax]);
 
+  // Catalog: SSR prop or client fetch
   useEffect(() => {
     if (compareOptionsProp?.length) {
       setCatalog(compareOptionsProp);
@@ -761,20 +468,20 @@ export function ThermalSimulator({
 
   const canvasMap = useRef<Map<PanelKey, HTMLCanvasElement>>(new Map());
   const forestImg = useRef<HTMLImageElement | null>(null);
-  const subjectImg = useRef<HTMLImageElement | null>(null);
-  const subjectSprite = useRef<DeerSprite | null>(null);
+  const deerImg = useRef<HTMLImageElement | null>(null);
+  const deerSprite = useRef<DeerSprite | null>(null);
   const composeRef = useRef<HTMLCanvasElement | null>(null);
-  const subjectLayerRef = useRef<HTMLCanvasElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Load forest + deer, then build the keyed deer sprite once.
   useEffect(() => {
     let cancelled = false;
     let n = 0;
     const done = () => {
       n += 1;
       if (n >= 2 && !cancelled) {
-        subjectSprite.current = subjectImg.current
-          ? buildDeerSprite(subjectImg.current)
+        deerSprite.current = deerImg.current
+          ? buildDeerSprite(deerImg.current)
           : null;
         setReady(true);
       }
@@ -788,13 +495,13 @@ export function ThermalSimulator({
       ref.current = img;
     };
     setReady(false);
-    subjectSprite.current = null;
+    deerSprite.current = null;
     load(scene.forest, forestImg);
-    load(activeTarget.subjectSrc, subjectImg);
+    load(scene.deer, deerImg);
     return () => {
       cancelled = true;
     };
-  }, [scene.forest, activeTarget.subjectSrc]);
+  }, [scene]);
 
   const renderPanel = useCallback(
     (
@@ -820,172 +527,112 @@ export function ThermalSimulator({
       const cctx = compose.getContext("2d", { willReadFrequently: true });
       if (!cctx) return;
 
-      // ── Layered thermal palette (BEFORE pixelation) ──
-      // Forest → cold band only; deer → full hot range. One shared luma→LUT
-      // would paint canopy highlights as "heat" (physically wrong).
-
-      // ---- 1) Forest background → cold palette ----
+      // ---- Layer 1: fixed-FOV forest background ----
       cctx.fillStyle = "#0a0b10";
       cctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
       cctx.imageSmoothingEnabled = true;
       const forest = forestImg.current;
       if (forest && forest.complete && forest.naturalWidth > 0) {
-        drawForestCover(cctx, forest, LOGIC_W, LOGIC_H);
-      }
-      {
-        const forestData = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
-        applyThermalPalette(forestData.data, palette, "cold", false);
-        cctx.putImageData(forestData, 0, 0);
+        drawCover(cctx, forest, LOGIC_W, LOGIC_H);
       }
 
-      // ---- 2) Subject layer (same ground anchor for all targets) → HOT palette ----
-      const sprite = subjectSprite.current;
-      let focusX = 0.5;
-      let focusY = 0.75;
-      // D scaled by target size (fox much closer D than deer)
-      const rangeD = panelDetectionD(panelParams.detectionRangeM);
+      // ---- Layer 2: deer sprite on the ground plane (apparent size ∝ 1/d) ----
+      const sprite = deerSprite.current;
+      let focusXFrac = 0.5;
+      let focusYFrac = 0.5;
       if (sprite) {
-        if (!subjectLayerRef.current) {
-          subjectLayerRef.current = document.createElement("canvas");
-        }
-        const sub = subjectLayerRef.current;
-        sub.width = LOGIC_W;
-        sub.height = LOGIC_H;
-        const sctx = sub.getContext("2d", { willReadFrequently: true });
-        if (sctx) {
-          sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
-          const sink = Math.max(1, Math.round(LOGIC_H * 0.005));
-          const fog = weather === "fog";
-          // FOV + detect floor inside band; 0 past D → no yellow ghost pixels
-          const hFrac = renderTargetHeightFrac(
-            activeTarget.visualHeightM,
-            activeTarget.criticalSizeM,
-            distance,
-            rangeD,
-            panelParams,
-            fog
-          );
-          const vis = targetSubjectVisibility(distance, rangeD, fog);
+        const rect = deerScreenRect(distance, LOGIC_W, LOGIC_H, sprite.aspect);
+        const trans = atmosphericTransmission(
+          distance,
+          panelParams.detectionRangeM,
+          fog
+        );
+        focusXFrac = rect.cx / LOGIC_W;
+        focusYFrac = rect.cy / LOGIC_H;
 
-          // Past detect: skip subject entirely (status none ⇔ no hot mark)
-          if (hFrac > 0 && vis > 0.02) {
-            const rect = deerScreenRect(
-              distance,
-              LOGIC_W,
-              LOGIC_H,
-              sprite.aspect,
-              DIST_MIN_M,
-              sink,
-              hFrac
-            );
-            // Alpha from range; multiplied by vis so fade past D melts into noise
-            const trans =
-              atmosphericTransmission(distance, rangeD, false) * vis;
-            focusX = rect.cx / LOGIC_W;
-            focusY = rect.cy / LOGIC_H;
+        // Warm ground contact bloom so the deer is planted, not pasted.
+        const feetY = rect.y + rect.h;
+        const bloomR = Math.max(4, rect.w * 0.62);
+        cctx.save();
+        cctx.translate(rect.cx, feetY);
+        cctx.scale(1, 0.24);
+        const bloom = cctx.createRadialGradient(0, 0, 0, 0, 0, bloomR);
+        bloom.addColorStop(0, `rgba(255,238,205,${0.3 * trans})`);
+        bloom.addColorStop(1, "rgba(255,238,205,0)");
+        cctx.fillStyle = bloom;
+        cctx.beginPath();
+        cctx.arc(0, 0, bloomR, 0, Math.PI * 2);
+        cctx.fill();
+        cctx.restore();
 
-            if (vis > 0.15) {
-              drawGroundContact(
-                cctx,
-                rect.cx,
-                rect.feetY,
-                rect.w,
-                Math.max(0.2, trans)
-              );
-            }
-
-            // Do NOT force min 1px when vanishing — use real rect size
-            const dw = Math.max(0.5, rect.w);
-            const dh = Math.max(0.5, rect.h);
-            sctx.globalAlpha = Math.max(0.05, 0.4 + 0.55 * trans) * vis;
-            sctx.imageSmoothingEnabled = dh > 8;
-            sctx.drawImage(
-              sprite.canvas,
-              sprite.cx,
-              sprite.cy,
-              sprite.cw,
-              sprite.ch,
-              rect.x,
-              rect.y,
-              dw,
-              dh
-            );
-            sctx.globalAlpha = 1;
-
-            const subData = sctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
-            applyThermalPalette(subData.data, palette, "hot", true);
-            sctx.putImageData(subData, 0, 0);
-
-            cctx.drawImage(sub, 0, 0);
-          } else {
-            // Keep digi-zoom focus near ground center when target is gone
-            focusX = 0.5;
-            focusY = 0.78;
-          }
-        }
+        // Atmospheric wash: distant deer blends toward background temperature.
+        cctx.globalAlpha = 0.45 + 0.55 * trans;
+        cctx.imageSmoothingEnabled = true;
+        cctx.drawImage(
+          sprite.canvas,
+          sprite.cx,
+          sprite.cy,
+          sprite.cw,
+          sprite.ch,
+          rect.x,
+          rect.y,
+          rect.w,
+          rect.h
+        );
+        cctx.globalAlpha = 1;
       }
 
-      // ---- 4) Unified NETD noise (does not re-run full LUT) ----
+      // ---- Unified sensor FX: contrast, NETD noise, palette ----
       const seed = hashSeed(
         scene.id,
-        activeTarget.id,
         panelParams.matrix,
         panelParams.netdMk,
+        panelParams.detectionRangeM,
         distance,
         weather,
         palette,
+        target,
         panelSeedExtra,
-        "v12-multi-target"
+        "v8-abcompare"
       );
       const rand = mulberry32(seed);
+
       const imageData = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
       const d = imageData.data;
-      const fog = weather === "fog";
       const noiseAmp = netdNoiseAmp(
         panelParams.netdMk,
         fog,
         distance,
-        rangeD
+        panelParams.detectionRangeM
       );
       const contrast = netdContrast(panelParams.netdMk, fog);
-      // Mild contrast + noise only — palette already baked per layer
-      const fogLift = fog ? 8 : 0;
+      const fogLift = fog ? 22 : 0;
 
       for (let i = 0; i < d.length; i += 4) {
-        let y = lumaOf(d[i], d[i + 1], d[i + 2]);
-        // Soft NETD grain around existing tone (keep hue for iron)
-        const n = (rand() - 0.5) * noiseAmp * 0.85;
+        const r = d[i];
+        const g = d[i + 1];
+        const b = d[i + 2];
+        let y = 0.299 * r + 0.587 * g + 0.114 * b;
+        y = (y - 128) * contrast + 128 + fogLift;
+        y += (rand() - 0.5) * noiseAmp;
+        y = Math.max(0, Math.min(255, y));
+
         if (palette === "whitehot") {
-          y = (y - 128) * (0.92 + 0.08 * contrast) + 128 + fogLift + n;
-          y = Math.max(0, Math.min(255, y));
           d[i] = d[i + 1] = d[i + 2] = y;
         } else {
-          // Perturb luminance slightly then re-apply local iron from NEW luma
-          // but clamp: if pixel was cold (low R+G, high-ish B or dark), stay cold
-          const wasCold =
-            d[i] + d[i + 1] < 120 && d[i + 2] <= 160 && y < 100;
-          y = y + n + fogLift * 0.5;
-          y = Math.max(0, Math.min(255, y));
-          if (wasCold) {
-            // Keep forest in cold iron tones only
-            const Lcold = Math.min(FOREST_LUMA_MAX, (y / 255) * 0.9);
-            const [rr, gg, bb] = ironLut(Lcold);
-            d[i] = rr;
-            d[i + 1] = gg;
-            d[i + 2] = bb;
-          } else {
-            // Subject: small noise around existing RGB
-            d[i] = Math.max(0, Math.min(255, d[i] + n * 0.6));
-            d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n * 0.5));
-            d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n * 0.4));
-          }
+          const [rr, gg, bb] = ironLut(y / 255);
+          d[i] = rr;
+          d[i + 1] = gg;
+          d[i + 2] = bb;
         }
         d[i + 3] = 255;
       }
       cctx.putImageData(imageData, 0, 0);
 
+      // ---- Sensor pixelation (matrix resolution) ----
       const pixW = matrixPixelWidth(panelParams.matrix);
-      const pixH = Math.round(pixW * (LOGIC_H / LOGIC_W)); // 4:3
+      const pixH = Math.round(pixW * (LOGIC_H / LOGIC_W));
+
       if (!matrixRef.current) {
         matrixRef.current = document.createElement("canvas");
       }
@@ -997,178 +644,148 @@ export function ThermalSimulator({
       mctx.imageSmoothingEnabled = true;
       mctx.drawImage(compose, 0, 0, pixW, pixH);
 
+      // ---- Digital zoom: crop the sensor image + nearest-neighbor upscale ----
       const { sx, sy, sw, sh } = digitalZoomCrop(
         pixW,
         pixH,
-        digiZoom,
-        focusX,
-        focusY
+        zoom,
+        focusXFrac,
+        focusYFrac
       );
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
       ctx.drawImage(mCan, sx, sy, sw, sh, 0, 0, LOGIC_W, LOGIC_H);
 
-      // Device frame: ocular circle (+ reticle) or screen rect 4:3
-      applyDeviceFrame(ctx, LOGIC_W, LOGIC_H, viewForm, withScopeReticle);
+      // ---- Scope vignette ----
+      const grd = ctx.createRadialGradient(
+        LOGIC_W / 2,
+        LOGIC_H / 2,
+        LOGIC_H * 0.28,
+        LOGIC_W / 2,
+        LOGIC_H / 2,
+        LOGIC_H * 0.78
+      );
+      grd.addColorStop(0, "rgba(0,0,0,0)");
+      grd.addColorStop(1, "rgba(0,0,0,0.42)");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
 
-      const hudLines: { text: string; color: string }[] = [
-        {
-          text: `${panelParams.matrix}×${Math.round(panelParams.matrix * 0.75)}`,
-          color: "rgba(225,29,42,0.95)",
-        },
-        {
-          text: `${distance} m`,
-          color: "rgba(245,246,247,0.88)",
-        },
-        {
-          text: `D ${panelParams.detectionRangeM} · NETD ${panelParams.netdMk}`,
-          color: "rgba(245,246,247,0.75)",
-        },
-      ];
-      if (panelParams.refreshRateHz) {
-        hudLines.push({
-          text: `${panelParams.refreshRateHz} Hz`,
-          color: "rgba(245,246,247,0.7)",
-        });
-      }
-      if (digiZoom > 1) {
-        hudLines.push({
-          text: `DIGI ×${digiZoom}`,
-          color: "rgba(225,29,42,0.95)",
-        });
-      }
-      drawDeviceHud(ctx, LOGIC_W, LOGIC_H, viewForm, hudLines);
-
-      // Digi-zoom inspect: small cross (only if not full scope reticle already)
-      if (digiZoom > 1 && !withScopeReticle) {
-        const cx = LOGIC_W / 2;
-        const cy = LOGIC_H / 2;
-        ctx.strokeStyle = "rgba(225,29,42,0.7)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(cx - 12, cy);
-        ctx.lineTo(cx - 3, cy);
-        ctx.moveTo(cx + 3, cy);
-        ctx.lineTo(cx + 12, cy);
-        ctx.moveTo(cx, cy - 12);
-        ctx.lineTo(cx, cy - 3);
-        ctx.moveTo(cx, cy + 3);
-        ctx.lineTo(cx, cy + 12);
-        ctx.stroke();
+      // ---- On-canvas camera OSD (top-left; scores live in the glass HUD) ----
+      ctx.fillStyle = "rgba(225,29,42,0.95)";
+      ctx.font = "600 11px Manrope, system-ui, sans-serif";
+      ctx.fillText(
+        `${panelParams.matrix}×${matrixHeight(panelParams.matrix)}`,
+        12,
+        20
+      );
+      ctx.fillStyle = "rgba(245,246,247,0.8)";
+      ctx.fillText(`${distance} m`, 12, 36);
+      if (zoom > 1) {
+        ctx.fillStyle = "rgba(245,246,247,0.9)";
+        ctx.fillText(`×${zoom}`, 12, 52);
       }
     },
-    [
-      scene,
-      distance,
-      digiZoom,
-      weather,
-      palette,
-      viewForm,
-      withScopeReticle,
-      activeTarget.id,
-      activeTarget.visualHeightM,
-      activeTarget.criticalSizeM,
-      panelDetectionD,
-    ]
+    [scene, distance, zoom, weather, palette, target, fog]
   );
 
   useEffect(() => {
     if (!ready) return;
-    for (const panel of activePanels) {
-      renderPanel(
-        canvasMap.current.get(panel.key) || null,
-        panel.params,
-        panel.key
-      );
+    for (const panel of panels) {
+      const canvas = canvasMap.current.get(panel.key) || null;
+      renderPanel(canvas, panel.choice.params, panel.key);
     }
-  }, [
-    ready,
-    activePanels,
-    renderPanel,
-    distance,
-    digiZoom,
-    weather,
-    palette,
-    targetId,
-  ]);
-
-  const panelStatus = (p: ThermalSimParams) => {
-    const fog = weather === "fog";
-    const rangeD = panelDetectionD(p.detectionRangeM);
-    // Status from what is actually drawn (FOV + detect floor) — never "detect" on empty frame
-    const status = computeDetectStatusVisual({
-      visualHeightM: activeTarget.visualHeightM,
-      criticalSizeM: activeTarget.criticalSizeM,
-      distanceM: distance,
-      detectionRangeM: rangeD,
-      matrix: p.matrix,
-      focalMm: p.focalMm,
-      pitchUm: p.pitchUm,
-      fog,
-    });
-    const passportPx = effectivePixelsOnTarget(distance, rangeD, fog);
-    const px = renderedCriticalGrainPx(
-      activeTarget.visualHeightM,
-      activeTarget.criticalSizeM,
-      distance,
-      rangeD,
-      p,
-      fog
-    );
-    const bands = johnsonBandDistancesM(rangeD);
-    const pixH = matrixPixelHeight(p.matrix);
-    const hFrac = renderTargetHeightFrac(
-      activeTarget.visualHeightM,
-      activeTarget.criticalSizeM,
-      distance,
-      rangeD,
-      p,
-      fog
-    );
-    const visualSensorPx = hFrac * pixH;
-    const fovVertDeg =
-      (resolveFovVerticalRad({
-        matrix: p.matrix,
-        focalMm: p.focalMm,
-        pitchUm: p.pitchUm,
-      }) *
-        180) /
-      Math.PI;
-    return {
-      status,
-      px,
-      passportPx,
-      bands,
-      visualSensorPx,
-      pixH,
-      rangeD,
-      fovVertDeg,
-      hFrac,
-    };
-  };
+  }, [ready, panels, renderPanel]);
 
   const setCanvasRef = (key: PanelKey) => (el: HTMLCanvasElement | null) => {
     if (el) canvasMap.current.set(key, el);
     else canvasMap.current.delete(key);
   };
 
-  /** Full dropdown list: this product first, then catalog peers. */
-  const modelSelectOptions = useMemo(() => {
-    const opts: { id: string; label: string }[] = [
-      {
-        id: SELF_MODEL_ID,
-        label: `${currentParams.label} · ${currentParams.matrix} · D=${currentParams.detectionRangeM}`,
-      },
-    ];
-    for (const o of catalog) {
-      if (currentProductId && o.id === currentProductId) continue;
-      opts.push({
-        id: o.id,
-        label: `${o.name} · ${o.matrix} · D=${o.detectionRangeM} · NETD ${o.netdMk}`,
+  const panelStatus = (p: ThermalSimParams) => {
+    const status = computeDetectStatus({
+      distanceM: distance,
+      maxRangeM: p.detectionRangeM,
+      fog,
+      targetFactor: TARGET_FACTOR[target],
+    });
+    const px = pxOnTarget(distance, p.detectionRangeM, target, fog);
+    return { status, px };
+  };
+
+  // ---- Live comparison numbers (shared by the strip and the Math panel) ----
+  const perfA = performanceAtDistance(modelA.params, distance, target, fog);
+  const perfB = performanceAtDistance(modelB.params, distance, target, fog);
+  const gap = gapPct(perfA, perfB);
+  const gapRounded = Math.round(gap);
+  const leaderChoice = perfA >= perfB ? modelA : modelB;
+  const otherChoice = perfA >= perfB ? modelB : modelA;
+  const nearlyEqual = gap < 1;
+
+  // Long-range winner = larger passport D (drives the crossover sentence).
+  const longLeader =
+    modelB.params.detectionRangeM >= modelA.params.detectionRangeM
+      ? modelB
+      : modelA;
+  const sameRange =
+    modelA.params.detectionRangeM === modelB.params.detectionRangeM;
+  const cross = sameRange
+    ? null
+    : crossoverM(modelA.params, modelB.params, {
+        target,
+        fog,
+        gapThreshold: 8,
+        maxM: sliderMax,
       });
-    }
-    return opts;
-  }, [catalog, currentParams, currentProductId]);
+
+  const targetLabel = (isRu ? TARGET_LABEL_RU : TARGET_LABEL_UK)[target];
+
+  const pxA = pxOnTarget(distance, modelA.params.detectionRangeM, target, fog);
+  const pxB = pxOnTarget(distance, modelB.params.detectionRangeM, target, fog);
+  const hi = Math.max(perfA, perfB);
+  const lo = Math.min(perfA, perfB);
+
+  const headline = nearlyEqual
+    ? isRu
+      ? `На ${distance} м обе модели показывают цель практически одинаково (${gap.toFixed(
+          1
+        )}%).`
+      : `На ${distance} м обидві моделі показують ціль майже однаково (${gap.toFixed(
+          1
+        )}%).`
+    : isRu
+    ? `На ${distance} м «${leaderChoice.params.label}» показывает цель на ${gapRounded}% лучше, чем «${otherChoice.params.label}».`
+    : `На ${distance} м «${leaderChoice.params.label}» показує ціль на ${gapRounded}% краще за «${otherChoice.params.label}».`;
+
+  const crossoverText = sameRange
+    ? isRu
+      ? "У моделей одинаковая паспортная дальность — разрыв определяется чёткостью и ценой."
+      : "У моделей однакова паспортна дальність — розрив визначається чіткістю та ціною."
+    : cross == null
+    ? isRu
+      ? "Разрыв не превышает 8% на всей дистанции — модели взаимозаменяемы."
+      : "Розрив не перевищує 8% на всій дистанції — моделі взаємозамінні."
+    : cross <= DIST_MIN_M
+    ? isRu
+      ? `Модели расходятся уже с ${DIST_MIN_M} м — «${longLeader.params.label}» впереди почти всегда.`
+      : `Моделі розходяться вже з ${DIST_MIN_M} м — «${longLeader.params.label}» попереду майже завжди.`
+    : isRu
+    ? `До ~${cross} м разница несущественна (<8%) — можно брать дешевле. Дальше преимущество «${longLeader.params.label}» растёт.`
+    : `До ~${cross} м різниця несуттєва (<8%) — можна брати дешевше. Далі перевага «${longLeader.params.label}» зростає.`;
+
+  // Fill the difference bar toward the leader's side (A = left, B = right).
+  const barLeaderIsB = perfB > perfA;
+  const barFill = Math.min(50, (gap / 100) * 50 + (nearlyEqual ? 0 : 6));
+
+  const rowA = {
+    label: modelA.params.label,
+    matrix: modelA.params.matrix,
+    D: modelA.params.detectionRangeM,
+  };
+  const rowB = {
+    label: modelB.params.label,
+    matrix: modelB.params.matrix,
+    D: modelB.params.detectionRangeM,
+  };
 
   return (
     <section
@@ -1179,222 +796,93 @@ export function ThermalSimulator({
       style={{ background: "var(--surface)" }}
       aria-label={isRu ? "Симулятор тепловизора" : "Симулятор тепловізора"}
     >
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-lg font-bold tracking-tight text-primary sm:text-xl">
-            {isRu
-              ? "Как этот прибор видит в темноте"
-              : "Як цей прилад бачить у темряві"}
-          </h2>
-          <p className="mt-1 text-sm text-secondary">
-            {isRu
-              ? `Матрица ${currentParams.matrix}, NETD ≤${currentParams.netdMk} mK, D=${currentParams.detectionRangeM} м · ${scene.labelRu}`
-              : `Матриця ${currentParams.matrix}, NETD ≤${currentParams.netdMk} mK, D=${currentParams.detectionRangeM} м · ${scene.labelUk}`}
-          </p>
-          <p className="mt-0.5 text-[11px] text-faint">
-            {isRu
-              ? viewForm === "ocular"
-                ? "Кадр 4:3 · круглое поле (окуляр)" +
-                  (withScopeReticle ? " · прицельная сетка" : "")
-                : "Кадр 4:3 · прямоугольный экран монокуляра"
-              : viewForm === "ocular"
-                ? "Кадр 4:3 · кругле поле (окуляр)" +
-                  (withScopeReticle ? " · прицільна сітка" : "")
-                : "Кадр 4:3 · прямокутний екран монокуляра"}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setCompareOn((v) => !v)}
-          className={cn(
-            "rounded-lg border px-4 py-2 text-sm font-semibold transition",
-            compareOn
-              ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
-              : "border-white/15 text-secondary hover:border-white/30"
-          )}
-        >
-          {compareOn
-            ? isRu
-              ? "Закрыть сравнение"
-              : "Закрити порівняння"
-            : isRu
-              ? "Сравнить две модели"
-              : "Порівняти дві моделі"}
-        </button>
+      <div className="mb-4">
+        <h2 className="font-display text-lg font-bold tracking-tight text-primary sm:text-xl">
+          {isRu
+            ? "Сравнение двух приборов по дистанции"
+            : "Порівняння двох приладів за дистанцією"}
+        </h2>
+        <p className="mt-1 text-sm text-secondary">
+          {isRu
+            ? "Один ползунок дистанции — обе модели считаются по критерию Джонсона. Баллы в углу каждого экрана."
+            : "Один повзунок дистанції — обидві моделі рахуються за критерієм Джонсона. Бали в кутку кожного екрана."}
+        </p>
       </div>
 
-      {/* Dual A/B model pickers — only real catalog products, no matrix-class presets */}
-      {compareOn && (
-        <div className="mb-4 grid gap-3 sm:grid-cols-2">
-          <label className="block text-xs font-medium text-muted-ui">
-            {isRu ? "Модель A (слева)" : "Модель A (зліва)"}
+      {/* Model pickers */}
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        {(
+          [
+            ["a", selA, setSelA, isRu ? "Модель A (слева)" : "Модель A (зліва)"],
+            [
+              "b",
+              selB,
+              setSelB,
+              isRu ? "Модель B (справа)" : "Модель B (справа)",
+            ],
+          ] as const
+        ).map(([key, val, setVal, lab]) => (
+          <label key={key} className="block text-xs text-muted-ui">
+            {lab}
             <select
-              className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#12141a] px-3 py-2.5 text-sm text-primary"
-              value={modelAId}
-              onChange={(e) => setModelAId(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
+              value={val}
+              onChange={(e) => setVal(e.target.value)}
             >
-              {modelSelectOptions.map((o) => (
-                <option key={o.id} value={o.id} disabled={o.id === modelBId}>
+              {options.map((o) => (
+                <option key={o.id} value={o.id}>
                   {o.label}
                 </option>
               ))}
             </select>
           </label>
-          <label className="block text-xs font-medium text-muted-ui">
-            {isRu ? "Модель B (справа)" : "Модель B (справа)"}
-            <select
-              className="mt-1.5 w-full rounded-lg border border-white/15 bg-[#12141a] px-3 py-2.5 text-sm text-primary"
-              value={modelBId}
-              onChange={(e) => setModelBId(e.target.value)}
-            >
-              {modelSelectOptions.map((o) => (
-                <option key={o.id} value={o.id} disabled={o.id === modelAId}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {/* Live % gap + crossover + math — between dropdowns and panels */}
-      {compareOn && modelBId && (
-        <ThermalCompareInsight
-          className="mb-4"
-          modelA={{
-            name: modelA.modelName,
-            specs: modelA.specs,
-            sensor: sensorFromSpecs(modelA.specs),
-          }}
-          modelB={{
-            name: modelB.modelName,
-            specs: modelB.specs,
-            sensor: sensorFromSpecs(modelB.specs),
-          }}
-          distanceM={distance}
-          targetId={targetId}
-          locale={locale}
-        />
-      )}
-
-      <div
-        className={cn(
-          "grid gap-4",
-          activePanels.length === 1 && "grid-cols-1",
-          activePanels.length === 2 && "grid-cols-1 md:grid-cols-2"
-        )}
-      >
-        {activePanels.map((panel) => {
-          const {
-            status,
-            px,
-            passportPx,
-            bands,
-            visualSensorPx,
-            fovVertDeg,
-            hFrac,
-          } = panelStatus(panel.params);
+      {/* Panels: A left, B right; stack on mobile */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {panels.map((panel) => {
+          const p = panel.choice.params;
+          const { status, px } = panelStatus(p);
           const statusLabel = isRu ? STATUS_RU[status] : STATUS_UK[status];
-          const statusHint = isRu
-            ? STATUS_HINT_RU[status]
-            : STATUS_HINT_UK[status];
+          const scores = scoreModelAtDistance(p, distance, target, fog);
+          const isLeader =
+            !nearlyEqual && leaderChoice.id === panel.choice.id;
           return (
             <div key={panel.key}>
-              {/* Model name always above the thermal window */}
-              <div className="mb-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-ui">
-                  {panel.badge}
+              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-ui">
+                  <span className="mr-1 text-faint">
+                    {panel.key === "a" ? "A" : "B"}
+                  </span>
+                  {p.label}
+                  <span className="ml-2 normal-case text-faint">
+                    {p.matrix} · D={p.detectionRangeM} · NETD {p.netdMk}
+                  </span>
                 </p>
-                <h3 className="mt-0.5 text-sm font-bold leading-snug text-primary sm:text-base">
-                  {panel.modelName}
-                </h3>
-                <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-[11px] tabular-nums text-faint">
-                    {panel.params.matrix}×
-                    {Math.round(panel.params.matrix * 0.75)} · D=
-                    {panel.params.detectionRangeM} м · NETD{" "}
-                    {panel.params.netdMk} mK
-                    {panel.params.focalMm
-                      ? ` · f=${panel.params.focalMm} мм`
-                      : ""}
-                    {" · "}FOV↓ {fovVertDeg.toFixed(1)}°
+                <div className="text-right">
+                  <span
+                    className={cn(
+                      "inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                      STATUS_COLOR[status]
+                    )}
+                  >
+                    {statusLabel}
+                  </span>
+                  <p className="mt-0.5 text-[10px] tabular-nums text-faint">
+                    Johnson ≈ {px.toFixed(1)} px
                   </p>
-                  <div className="max-w-[14rem] text-right">
-                    <span
-                      className={cn(
-                        "inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                        STATUS_COLOR[status]
-                      )}
-                    >
-                      {statusLabel}
-                    </span>
-                    <p className="mt-0.5 text-[10px] leading-snug text-faint">
-                      {statusHint}
-                    </p>
-                    <p className="mt-0.5 text-[10px] tabular-nums text-faint">
-                      Johnson{" "}
-                      <strong className="text-secondary">{px.toFixed(1)} px</strong>
-                      {" · "}
-                      {isRu ? "тело" : "тіло"} ≈ {visualSensorPx.toFixed(1)} px
-                      {Math.abs(passportPx - px) > 0.4 && (
-                        <span className="text-faint/80">
-                          {" "}
-                          ({isRu ? "паспорт" : "паспорт"} {passportPx.toFixed(1)})
-                        </span>
-                      )}
-                    </p>
-                  </div>
                 </div>
-                {/* Distance bands for this device D */}
-                <p className="mt-1.5 text-[10px] leading-relaxed text-faint">
-                  {isRu ? (
-                    <>
-                      Пороги при D={panel.params.detectionRangeM} м:{" "}
-                      <span className="text-emerald-400/90">
-                        идентиф. ≤{bands.identifyMaxM} м
-                      </span>
-                      {" · "}
-                      <span className="text-sky-300/90">
-                        распозн. ≤{bands.recognizeMaxM} м
-                      </span>
-                      {" · "}
-                      <span className="text-amber-300/90">
-                        обнаруж. ≤{bands.detectMaxM} м
-                      </span>
-                      {" · "}
-                      <span className="text-zinc-400">
-                        дальше — не видно (&lt;{JOHNSON_PX.detect} px)
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      Пороги при D={panel.params.detectionRangeM} м:{" "}
-                      <span className="text-emerald-400/90">
-                        ідентиф. ≤{bands.identifyMaxM} м
-                      </span>
-                      {" · "}
-                      <span className="text-sky-300/90">
-                        розпізн. ≤{bands.recognizeMaxM} м
-                      </span>
-                      {" · "}
-                      <span className="text-amber-300/90">
-                        виявл. ≤{bands.detectMaxM} м
-                      </span>
-                      {" · "}
-                      <span className="text-zinc-400">
-                        далі — не видно (&lt;{JOHNSON_PX.detect} px)
-                      </span>
-                    </>
-                  )}
-                </p>
               </div>
               <div
-                className="relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
+                className="relative overflow-hidden rounded-xl border-2 bg-black"
                 style={{
-                  boxShadow:
-                    panel.key === "a"
-                      ? "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)"
-                      : "0 0 0 3px #12141a, 0 12px 40px rgba(0,0,0,0.45), inset 0 0 40px rgba(0,0,0,0.45)",
+                  borderColor: isLeader
+                    ? "rgba(52,211,153,0.55)"
+                    : "rgba(63,63,70,0.8)",
+                  boxShadow: isLeader
+                    ? "0 0 0 3px rgba(52,211,153,0.18), 0 12px 40px rgba(0,0,0,0.5)"
+                    : "0 0 0 3px #12141a, 0 10px 30px rgba(0,0,0,0.45)",
                 }}
               >
                 <canvas
@@ -1402,126 +890,148 @@ export function ThermalSimulator({
                   width={LOGIC_W}
                   height={LOGIC_H}
                   className="block h-auto w-full"
-                  style={{ aspectRatio: "4 / 3" }}
+                  style={{ aspectRatio: `${LOGIC_W} / ${LOGIC_H}` }}
                   role="img"
-                  aria-label={`${panel.modelName}: ${statusLabel}, ${distance} m`}
+                  aria-label={`${p.label}: ${statusLabel}, ${distance} m, total ${scores.total}/100`}
                 />
-
-                {/* Score HUD on EVERY panel — live 4 scores + Total at shared distance */}
-                <ThermalScoreHud
-                  specs={panel.specs}
-                  distanceM={distance}
-                  targetId={targetId}
-                  catalogPeers={compareOn ? [] : scoreCatalogPeers}
-                  productId={panel.productId}
-                  productName={panel.modelName}
-                  percentilePerf={
-                    panel.key === "a" && !compareOn ? scorePercentile : null
-                  }
-                  locale={locale}
-                  alwaysShowBreakdown
-                  hidePeerInsight={compareOn}
-                />
-
-                {/* On-screen digi-zoom: inspect far detection hot-mark */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
-                  <div className="pointer-events-auto flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setDigiZoom(nextDigiZoom(digiZoom, -1))}
-                      disabled={digiZoom <= 1}
-                      className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
-                      aria-label="−"
-                    >
-                      −
-                    </button>
-                    <span className="min-w-[2.5rem] text-center text-[11px] font-semibold tabular-nums text-white">
-                      ×{digiZoom}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setDigiZoom(nextDigiZoom(digiZoom, 1))}
-                      disabled={digiZoom >= 32}
-                      className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
-                      aria-label="+"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const z = inspectDigiZoom(distance, DIST_MIN_M, hFrac);
-                      setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);
-                    }}
-                    className="pointer-events-auto rounded-md border border-[var(--accent)]/80 bg-[rgba(225,29,42,0.85)] px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg"
-                  >
-                    {digiZoom > 1
-                      ? isRu
-                        ? "Сброс ×1"
-                        : "Скинути ×1"
-                      : isRu
-                        ? "Увеличить цель"
-                        : "Збільшити ціль"}
-                  </button>
-                </div>
+                <ScoreHud scores={scores} isRu={isRu} />
               </div>
-              {distance >= 600 && digiZoom === 1 && (
-                <p className="mt-1.5 text-[10px] leading-snug text-amber-200/80">
-                  {isRu
-                    ? "На большой дистанции цель — крошечная тёплая точка. Нажмите «Увеличить цель» (цифровой зум), чтобы увидеть, что выявление реально работает."
-                    : "На великій дистанції ціль — крихітна тепла точка. Натисніть «Збільшити ціль» (цифровий зум), щоб побачити, що виявлення реально працює."}
-                </p>
-              )}
             </div>
           );
         })}
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <fieldset className="sm:col-span-2 lg:col-span-3">
-          <legend className="mb-1.5 text-xs font-medium text-muted-ui">
-            {isRu ? "Цель" : "Ціль"}{" "}
-            <span className="font-normal text-faint">
-              (
-              {isRu
-                ? `высота ${activeTarget.visualHeightM} м · крит. ${activeTarget.criticalSizeM} м · D ≈ ${panelDetectionD(currentParams.detectionRangeM)} м`
-                : `висота ${activeTarget.visualHeightM} м · крит. ${activeTarget.criticalSizeM} м · D ≈ ${panelDetectionD(currentParams.detectionRangeM)} м`}
-              )
-            </span>
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {THERMAL_TARGETS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTargetId(t.id)}
-                className={cn(
-                  "rounded-lg border px-3 py-2 text-sm font-medium transition",
-                  targetId === t.id
-                    ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
-                    : "border-white/10 text-secondary hover:border-white/20"
-                )}
-              >
-                {isRu ? t.labelRu : t.labelUk}
-                <span className="ml-1.5 text-[10px] text-faint">
-                  {t.criticalSizeM} м
-                </span>
-              </button>
-            ))}
+      {/* Live percentage comparison + crossover insight */}
+      <div className="mt-4 rounded-xl border border-white/10 bg-black/25 p-4">
+        <p className="text-center text-sm font-semibold text-primary sm:text-base">
+          {headline}
+        </p>
+        {/* Difference indicator: A ← center → B */}
+        <div className="mx-auto mt-3 flex max-w-md items-center gap-2">
+          <span className="w-6 text-right text-[11px] font-semibold text-faint">
+            A
+          </span>
+          <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+            <div className="absolute left-1/2 top-0 h-full w-px bg-white/30" />
+            <div
+              className="absolute top-0 h-full rounded-full"
+              style={{
+                background: nearlyEqual ? "#a1a1aa" : "#34d399",
+                left: barLeaderIsB ? "50%" : `${50 - barFill}%`,
+                width: `${barFill}%`,
+              }}
+            />
           </div>
-          <p className="mt-1.5 text-[10px] text-faint">
-            {isRu
-              ? "Лиса (0.3 м) «съедается» дальностью первой — наглядно, зачем нужна лучшая матрица. Туман/палитра не двигают цель."
-              : "Лисиця (0.3 м) «з'їдається» дальністю першою — наочно, навіщо краща матриця. Туман/палітра не рухають ціль."}
-          </p>
-        </fieldset>
+          <span className="w-6 text-[11px] font-semibold text-faint">B</span>
+        </div>
+        <p className="mt-3 text-center text-xs leading-relaxed text-secondary">
+          {crossoverText}
+        </p>
 
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowMath((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-secondary transition hover:border-[var(--accent)] hover:text-primary"
+            aria-expanded={showMath}
+          >
+            <span aria-hidden>∑</span>
+            {isRu
+              ? showMath
+                ? "Скрыть математику"
+                : "Показать математику"
+              : showMath
+              ? "Сховати математику"
+              : "Показати математику"}
+          </button>
+        </div>
+
+        {showMath && (
+          <div className="mt-3 overflow-x-auto rounded-lg border border-white/10 bg-black/30 p-3">
+            <table className="w-full min-w-[420px] text-xs tabular-nums">
+              <thead>
+                <tr className="text-left text-faint">
+                  <th className="py-1 pr-3 font-medium">
+                    {isRu ? "Параметр" : "Параметр"}
+                  </th>
+                  <th className="py-1 pr-3 font-medium text-primary">
+                    A · {rowA.label}
+                  </th>
+                  <th className="py-1 font-medium text-primary">
+                    B · {rowB.label}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="text-secondary">
+                <tr>
+                  <td className="py-1 pr-3 text-muted-ui">
+                    {isRu ? "Матрица" : "Матриця"}
+                  </td>
+                  <td className="py-1 pr-3">
+                    {rowA.matrix}×{matrixHeight(rowA.matrix)}
+                  </td>
+                  <td className="py-1">
+                    {rowB.matrix}×{matrixHeight(rowB.matrix)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-1 pr-3 text-muted-ui">
+                    {isRu ? "Дальность D, м" : "Дальність D, м"}
+                  </td>
+                  <td className="py-1 pr-3">{rowA.D}</td>
+                  <td className="py-1">{rowB.D}</td>
+                </tr>
+                <tr>
+                  <td className="py-1 pr-3 text-muted-ui">
+                    {isRu ? "Цель" : "Ціль"}
+                  </td>
+                  <td className="py-1 pr-3" colSpan={2}>
+                    {targetLabel} · ×{TARGET_FACTOR[target].toFixed(2)}
+                    {fog ? (isRu ? " · туман ×0.6" : " · туман ×0.6") : ""} ·{" "}
+                    {distance} м
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-1 pr-3 text-muted-ui">
+                    px = 2·D/dist · {isRu ? "цель" : "ціль"}
+                  </td>
+                  <td className="py-1 pr-3">{pxA.toFixed(2)}</td>
+                  <td className="py-1">{pxB.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td className="py-1 pr-3 text-muted-ui">
+                    resolveScore (px)
+                  </td>
+                  <td className="py-1 pr-3">{perfA.toFixed(1)}</td>
+                  <td className="py-1">{perfB.toFixed(1)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="mt-2 border-t border-white/10 pt-2 text-[11px] leading-relaxed text-faint">
+              gap% = (max − min) / max × 100 = ({hi.toFixed(1)} −{" "}
+              {lo.toFixed(1)}) / {hi.toFixed(1)} × 100 ={" "}
+              <span className="font-semibold text-secondary">
+                {gap.toFixed(1)}%
+              </span>
+              {cross != null &&
+                !sameRange &&
+                (isRu
+                  ? ` · crossover (8%) ≈ ${cross} м`
+                  : ` · crossover (8%) ≈ ${cross} м`)}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Shared controls */}
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2 lg:col-span-3">
           <label className="block">
             <span className="mb-1.5 flex justify-between text-xs font-medium text-muted-ui">
               <span>
-                {isRu ? "Дистанция до цели (общая)" : "Дистанція до цілі (спільна)"}
+                {isRu
+                  ? "Дистанция до цели (общая для обеих панелей)"
+                  : "Дистанція до цілі (спільна для обох панелей)"}
               </span>
               <span className="tabular-nums text-primary">{distance} м</span>
             </span>
@@ -1539,27 +1049,48 @@ export function ThermalSimulator({
             />
             <span className="mt-1 block text-[11px] text-faint">
               {isRu
-                ? `Размер на экране = (высота/дистанция)/FOV_верт (оптика). Статус Johnson: px=2×(D/d). Туман — только шум/статус, не размер.`
-                : `Розмір на екрані = (висота/дистанція)/FOV_верт (оптика). Статус Johnson: px=2×(D/d). Туман — лише шум/статус, не розмір.`}
+                ? `Угловой размер цели ∝ 1/дистанция: на ${DIST_MIN_M} м цель крупная, к ${sliderMax} м уходит к горизонту и тонет в шуме.`
+                : `Кутовий розмір цілі ∝ 1/дистанція: на ${DIST_MIN_M} м ціль велика, до ${sliderMax} м іде до горизонту й тоне в шумі.`}
             </span>
           </label>
         </div>
 
         <fieldset>
           <legend className="mb-1.5 text-xs font-medium text-muted-ui">
-            {isRu
-              ? "Цифровой зум (на экране прибора)"
-              : "Цифровий зум (на екрані приладу)"}
+            {isRu ? "Цель (расчёт px)" : "Ціль (розрахунок px)"}
           </legend>
-          <div className="flex flex-wrap gap-2">
-            {DIGI_ZOOM_STEPS.map((z) => (
+          <div className="grid grid-cols-2 gap-2">
+            {THERMAL_TARGETS.map((tg) => (
+              <button
+                key={tg}
+                type="button"
+                onClick={() => setTarget(tg)}
+                className={cn(
+                  "rounded-lg border px-2 py-2 text-xs font-medium transition",
+                  target === tg
+                    ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+                    : "border-white/10 text-secondary hover:border-white/20"
+                )}
+              >
+                {(isRu ? TARGET_LABEL_RU : TARGET_LABEL_UK)[tg]}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="mb-1.5 text-xs font-medium text-muted-ui">
+            {isRu ? "Цифровой зум" : "Цифровий зум"}
+          </legend>
+          <div className="flex gap-2">
+            {ZOOM_STEPS.map((z) => (
               <button
                 key={z}
                 type="button"
-                onClick={() => setDigiZoom(z)}
+                onClick={() => setZoom(z)}
                 className={cn(
-                  "min-w-[3rem] flex-1 rounded-lg border px-2 py-2 text-sm font-medium transition",
-                  digiZoom === z
+                  "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                  zoom === z
                     ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
                     : "border-white/10 text-secondary hover:border-white/20"
                 )}
@@ -1568,11 +1099,6 @@ export function ThermalSimulator({
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-[10px] text-faint">
-            {isRu
-              ? `Цифровой зум (до ×32) только увеличивает блоки матрицы — новой детали нет. На D цель = тепловая точка; «Увеличить цель» делает её заметной.`
-              : `Цифровий зум (до ×32) лише збільшує блоки матриці — нової деталі немає. На D ціль = теплова точка; «Збільшити ціль» робить її помітною.`}
-          </p>
         </fieldset>
 
         <fieldset>
@@ -1603,11 +1129,11 @@ export function ThermalSimulator({
           </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset className="sm:col-span-2 lg:col-span-3">
           <legend className="mb-1.5 text-xs font-medium text-muted-ui">
             {isRu ? "Палитра" : "Палітра"}
           </legend>
-          <div className="flex gap-2">
+          <div className="flex max-w-xs gap-2">
             {(
               [
                 ["whitehot", "White-hot"],
@@ -1630,36 +1156,17 @@ export function ThermalSimulator({
             ))}
           </div>
         </fieldset>
-
-        {allowMatrixPick && (
-          <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
-            <label className="text-xs text-muted-ui">
-              {isRu ? "Матрица (демо)" : "Матриця (демо)"}
-              <select
-                className="ml-2 rounded-lg border border-white/15 bg-[#12141a] px-2 py-1.5 text-sm text-primary"
-                value={matrix}
-                onChange={(e) =>
-                  setMatrix(Number(e.target.value) as ThermalMatrix)
-                }
-              >
-                <option value={256}>256×192</option>
-                <option value={384}>384×288</option>
-                <option value={640}>640×512</option>
-              </select>
-            </label>
-          </div>
-        )}
       </div>
 
       <p className="mt-4 text-[11px] leading-relaxed text-faint">
         {isRu
-          ? `Размер: FOV×высота тела. Статус Johnson по пикселям на матрице (≥${JOHNSON_PX.identify}/${JOHNSON_PX.recognize}/${JOHNSON_PX.detect}). На паспортной D — видимая тепловая точка (не пустой кадр). Цифровой зум до ×32. Шум←NETD; зерно←матрица.`
-          : `Розмір: FOV×висота тіла. Статус Johnson за пікселями на матриці (≥${JOHNSON_PX.identify}/${JOHNSON_PX.recognize}/${JOHNSON_PX.detect}). На паспортній D — видима теплова точка (не порожній кадр). Цифровий зум до ×32. Шум←NETD; зерно←матриця.`}
+          ? "Критерий Джонсона: px = 2×(D/dist), масштабируется размером цели — выявление ≥2, распознавание ≥8, идентификация ≥13. resolveScore насыщается выше идентификации, поэтому вблизи разрыв мал, а вдали велик. Кадр 480×270, seeded noise — одинаково на всех устройствах."
+          : "Критерій Джонсона: px = 2×(D/dist), масштабується розміром цілі — виявлення ≥2, розпізнавання ≥8, ідентифікація ≥13. resolveScore насичується вище ідентифікації, тому зблизька розрив малий, а вдалині великий. Кадр 480×270, seeded noise — однаково на всіх пристроях."}
       </p>
       <p className="mt-2 border-t border-white/5 pt-2 text-[11px] leading-relaxed text-faint/90">
         {isRu
-          ? "D — паспортная дальность выявления (часто для человека); сцена — олень. Симуляция приблизительная."
-          : "D — паспортна дальність виявлення (часто для людини); сцена — олень. Симуляція приблизна."}
+          ? "D — паспортная дальность выявления (производители часто указывают для человека); сцена демонстрирует оленя, переключатель цели меняет только расчёт px. Симуляция приблизительная, не заменяет полевые испытания."
+          : "D — паспортна дальність виявлення (виробники часто вказують для людини); сцена демонструє оленя, перемикач цілі змінює лише розрахунок px. Симуляція приблизна, не замінює польові випробування."}
       </p>
 
       <style jsx>{`

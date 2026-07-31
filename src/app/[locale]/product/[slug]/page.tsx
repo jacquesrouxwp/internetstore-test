@@ -2,7 +2,6 @@ import {
   getProductBySlug,
   getRelatedProducts,
   getProductsByFlag,
-  getCatalog,
 } from "@/lib/catalog";
 import { Link } from "@/i18n/routing";
 import {
@@ -24,16 +23,6 @@ import { buildSpecRows } from "@/lib/product-specs";
 import { ThermalSimulator } from "@/components/product/ThermalSimulator";
 import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
 import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
-import {
-  catalogPerformanceScores,
-  isThermalProduct,
-  percentile,
-  scoreProduct,
-  specsFromProduct,
-} from "@/lib/thermal/thermal-score";
-import { sensorFromSpecs } from "@/lib/thermal/thermal-score-distance";
-import type { CatalogPeer } from "@/lib/thermal/thermal-score-distance";
-
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
 };
@@ -93,41 +82,6 @@ export default async function ProductPage({ params }: Props) {
   const thermalCompareOptions = showThermalSim
     ? await listThermalCompareOptions(loc, product.id)
     : [];
-
-  // Deterministic Thermal Performance Score (+ catalog peers for distance gap)
-  let scoreBreakdown: ReturnType<typeof scoreProduct> | null = null;
-  let scorePercentile: number | null = null;
-  let scorePeers: CatalogPeer[] = [];
-  if (isThermalProduct(product) || showThermalSim) {
-    scoreBreakdown = scoreProduct(product);
-    try {
-      const { products: catalogProducts } = await getCatalog({
-        limit: 100,
-        sort: "rating",
-      });
-      const thermals = (catalogProducts || []).filter(isThermalProduct);
-      const allPerf = catalogPerformanceScores(thermals);
-      if (allPerf.length) {
-        scorePercentile = percentile(
-          scoreBreakdown.scores.thermalPerformance,
-          allPerf
-        );
-      }
-      scorePeers = thermals.map((p) => {
-        const s = specsFromProduct(p);
-        return {
-          id: p.id,
-          name: productName(p, loc),
-          specs: s,
-          sensor: sensorFromSpecs(s),
-          priceEur: s.priceEur,
-        };
-      });
-    } catch {
-      scorePercentile = null;
-      scorePeers = [];
-    }
-  }
 
   return (
     <div className="container-shop py-6 sm:py-10">
@@ -317,18 +271,14 @@ export default async function ProductPage({ params }: Props) {
           <ThermalSimulator
             locale={loc}
             currentProductId={product.id}
-            deviceType={product.deviceType}
             compareOptions={thermalCompareOptions}
             params={parseProductThermal({
               resolution: product.resolution,
               detectionRangeM: product.detectionRangeM,
               specs: product.specs,
               name: name,
+              price: product.price,
             })}
-            scoreSpecs={scoreBreakdown?.specs ?? null}
-            scoreCatalogPeers={scorePeers}
-            scoreProductName={name}
-            scorePercentile={scorePercentile}
           />
         </div>
       )}

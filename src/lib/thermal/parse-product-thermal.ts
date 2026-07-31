@@ -15,6 +15,8 @@ export type ThermalProductInput = {
   specs?: Record<string, string> | null;
   /** Display label only — never used to parse matrix. */
   name?: string;
+  /** Retail price (UAH) — feeds Value-for-Money in A/B scores. */
+  price?: number | null;
 };
 
 export type ThermalSimParams = {
@@ -28,6 +30,8 @@ export type ThermalSimParams = {
   focalMm: number | null;
   /** Pixel pitch (µm); default 12 when only focal is known */
   pitchUm: number | null;
+  /** Retail price (UAH) for Value-for-Money; null when unknown. */
+  priceUah?: number | null;
 };
 
 export type ThermalCompareOption = {
@@ -40,6 +44,7 @@ export type ThermalCompareOption = {
   refreshRateHz: number | null;
   focalMm: number | null;
   pitchUm: number | null;
+  priceUah: number | null;
 };
 
 /** Typical vertical FOV when lens not in product card (~10–12°). */
@@ -55,6 +60,9 @@ export const JOHNSON_PX = {
   detect: 2,
 } as const;
 
+/** Alias used by A/B scoring layer (same 2 / 8 / 13). */
+export const JOHNSON = JOHNSON_PX;
+
 export function defaultDetectionRangeM(matrix: ThermalMatrix): number {
   if (matrix >= 640) return 2350;
   if (matrix >= 384) return 1600;
@@ -65,6 +73,16 @@ export function defaultNetdMk(matrix: ThermalMatrix): number {
   if (matrix >= 640) return 25;
   if (matrix >= 384) return 35;
   return 40;
+}
+
+/**
+ * Typical street price (UAH) by matrix class — Value-for-Money fallback for
+ * class presets / demos when product price is unknown.
+ */
+export function defaultPriceUah(matrix: ThermalMatrix): number {
+  if (matrix >= 640) return 120000;
+  if (matrix >= 384) return 60000;
+  return 28000;
 }
 
 /** Real sensor vertical pixel count for FOV (not offscreen grain height). */
@@ -85,6 +103,7 @@ export function matrixClassPreset(matrix: ThermalMatrix): ThermalSimParams {
     label: `${matrix}×${matrix === 640 ? 512 : matrix === 384 ? 288 : 192}`,
     focalMm,
     pitchUm: 12,
+    priceUah: defaultPriceUah(matrix),
   };
 }
 
@@ -508,6 +527,10 @@ export function parseProductThermal(p: ThermalProductInput): ThermalSimParams {
     label: p.name || "Thermal",
     focalMm: parseFocalMm(p.specs, p.name),
     pitchUm: parsePitchUm(p.specs),
+    priceUah:
+      p.price != null && Number.isFinite(p.price) && p.price > 0
+        ? Math.round(p.price)
+        : null,
   };
 }
 
@@ -525,6 +548,7 @@ export function toCompareOption(
     refreshRateHz: sim.refreshRateHz,
     focalMm: sim.focalMm,
     pitchUm: sim.pitchUm,
+    priceUah: sim.priceUah ?? null,
   };
 }
 
@@ -566,12 +590,14 @@ export function computeDetectStatus(opts: {
   matrix?: ThermalMatrix;
   netdMk?: number;
   fog?: boolean;
+  /** Relative target size (1 = passport ref); <1 smaller animal. */
+  targetFactor?: number;
 }): DetectStatus {
-  const px = effectivePixelsOnTarget(
-    opts.distanceM,
-    opts.maxRangeM,
-    opts.fog ?? false
-  );
+  let px = pixelsOnTarget(opts.distanceM, opts.maxRangeM);
+  if (opts.targetFactor != null && Number.isFinite(opts.targetFactor)) {
+    px *= opts.targetFactor;
+  }
+  if (opts.fog) px *= 0.6;
   if (px >= JOHNSON_PX.identify) return "identify";
   if (px >= JOHNSON_PX.recognize) return "recognize";
   if (px >= JOHNSON_PX.detect) return "detect";

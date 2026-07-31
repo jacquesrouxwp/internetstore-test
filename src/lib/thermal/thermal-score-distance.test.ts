@@ -1,142 +1,162 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { matrixClassPreset } from "./parse-product-thermal";
 import {
   crossoverM,
   gapPct,
-  performanceAtDistance,
-  pixelsOnTarget,
+  performanceGapAt,
+  pxOnTarget,
   resolveScore,
-  scoresAtDistance,
-  sensorFromSpecs,
-  type Sensor,
+  scoreModelAtDistance,
+  TARGET_FACTOR,
 } from "./thermal-score-distance";
-import type { Specs } from "./thermal-score";
 
-const budget256: Specs = {
-  hPixels: 256,
-  vPixels: 192,
-  pixelPitchUm: 12,
-  netdMk: 40,
-  refreshHz: 25,
-  detectionRangeM: 900,
-  priceEur: 450,
-};
+// Canonical presentation pair: budget 256 vs premium 640.
+const A = matrixClassPreset(256); // D=1050, NETD 40, ~28k UAH
+const B = matrixClassPreset(640); // D=2350, NETD 25, ~120k UAH
 
-const mid640: Specs = {
-  hPixels: 640,
-  vPixels: 512,
-  pixelPitchUm: 12,
-  netdMk: 25,
-  refreshHz: 50,
-  detectionRangeM: 2300,
-  priceEur: 1400,
-};
-
-const sensor256: Sensor = sensorFromSpecs(budget256);
-const sensor640: Sensor = sensorFromSpecs(mid640);
-
-describe("pixelsOnTarget / resolveScore", () => {
-  it("at d = D_human, human → 2 px", () => {
-    const D = 1200;
-    const s: Sensor = { detectionRangeHumanM: D, hPixels: 384, pixelPitchUm: 12 };
-    assert.ok(Math.abs(pixelsOnTarget(s, "human", D) - 2) < 1e-9);
-  });
-
-  it("resolveScore bands follow Johnson 2/8/13", () => {
-    assert.ok(resolveScore(2) >= 50 && resolveScore(2) <= 55);
-    assert.ok(resolveScore(8) >= 80);
-    assert.ok(resolveScore(13) >= 95);
+describe("resolveScore — Johnson-anchored & saturating", () => {
+  it("0 px → 0, saturates to 100 for large px", () => {
     assert.equal(resolveScore(0), 0);
-  });
-});
-
-describe("distance gap 256 vs 640", () => {
-  it("at 100 m gap is small (<5%) — both nearly saturated", () => {
-    const a = performanceAtDistance(mid640, sensor640, 100, "human");
-    const b = performanceAtDistance(budget256, sensor256, 100, "human");
-    const g = Math.abs(gapPct(a, b));
-    // Buyer insight: close range → no point overpaying
-    assert.ok(a >= 90 && b >= 90, `both should be high at 100m: a=${a} b=${b}`);
-    assert.ok(g < 5, `gap at 100m must be <5%, got ${g}% (a=${a} b=${b})`);
+    assert.equal(resolveScore(48), 100);
+    assert.equal(resolveScore(1000), 100);
   });
 
-  it("at 800 m 640 is clearly better (gap > 25%)", () => {
-    const a = performanceAtDistance(mid640, sensor640, 800, "human");
-    const b = performanceAtDistance(budget256, sensor256, 800, "human");
-    const g = gapPct(a, b);
-    assert.ok(a > b, `640 should beat 256 at 800m: ${a} vs ${b}`);
-    assert.ok(g > 25, `gap at 800m should be >25%, got ${g}% (a=${a} b=${b})`);
-  });
-
-  it("at 1000 m gap stays large (>25%)", () => {
-    const a = performanceAtDistance(mid640, sensor640, 1000, "human");
-    const b = performanceAtDistance(budget256, sensor256, 1000, "human");
-    const g = gapPct(a, b);
-    assert.ok(a > b);
-    assert.ok(g > 25, `gap at 1000m should be >25%, got ${g}%`);
-  });
-
-  it("crossover 256 vs 640 in reasonable range", () => {
-    const d = crossoverM(
-      { s: budget256, sensor: sensor256 },
-      { s: mid640, sensor: sensor640 },
-      8,
-      "human"
-    );
-    assert.ok(d >= 50 && d <= 2500, `crossover ${d}`);
-    // Advantage should appear well before max D of 640
-    assert.ok(d < mid640.detectionRangeM);
-    // At crossover distance, gap of better vs cheap ≈ threshold
-    const a = performanceAtDistance(mid640, sensor640, d, "human");
-    const b = performanceAtDistance(budget256, sensor256, d, "human");
-    assert.ok(gapPct(a, b) >= 8, `at crossover ${d}m gap should be ≥8%, got ${gapPct(a, b)}`);
-  });
-
-  it("A/B symmetry: gapPct(a,b) = −gapPct(b,a) within rounding", () => {
-    for (const d of [100, 400, 800, 1200]) {
-      const a = performanceAtDistance(mid640, sensor640, d, "human");
-      const b = performanceAtDistance(budget256, sensor256, d, "human");
-      const gab = gapPct(a, b);
-      const gba = gapPct(b, a);
-      // (a−b)/b vs (b−a)/a are not exact negatives, but signs flip
+  it("monotone non-decreasing", () => {
+    const xs = [0, 1, 2, 4, 6, 8, 10, 13, 18, 24, 34, 48, 80];
+    for (let i = 1; i < xs.length; i++) {
       assert.ok(
-        Math.sign(gab) === -Math.sign(gba) || (gab === 0 && gba === 0),
-        `sign symmetry at ${d}m: gap(a,b)=${gab} gap(b,a)=${gba}`
+        resolveScore(xs[i]) >= resolveScore(xs[i - 1]),
+        `resolveScore(${xs[i]}) should be ≥ resolveScore(${xs[i - 1]})`
       );
-      // Swapping labels must not change who wins
-      assert.equal(a > b, gapPct(a, b) > 0 || a === b);
     }
   });
 
-  it("performance is monotonic decreasing with distance (same model)", () => {
-    let prev = performanceAtDistance(mid640, sensor640, 50, "deer");
-    for (const d of [100, 200, 400, 800, 1600]) {
-      const p = performanceAtDistance(mid640, sensor640, d, "deer");
-      assert.ok(p <= prev + 1, `non-monotonic: ${d}m ${p} > prev ${prev}`);
-      prev = p;
-    }
+  it("near-range saturation is the source of small gaps (concave)", () => {
+    // Gain from 2→8 px must exceed gain from 18→24 px (curve flattens).
+    const near = resolveScore(8) - resolveScore(2);
+    const far = resolveScore(24) - resolveScore(18);
+    assert.ok(near > far);
   });
 });
 
-describe("scoresAtDistance", () => {
-  it("all four cards + total update with distance", () => {
-    const near = scoresAtDistance(mid640, sensor640, 100, "human");
-    const far = scoresAtDistance(mid640, sensor640, 2000, "human");
-    assert.ok(near.thermalPerformance >= far.thermalPerformance);
-    assert.ok(near.detectionRange >= far.detectionRange);
-    assert.ok(near.total === near.thermalPerformance);
-    assert.ok(near.pixelsOnTarget > far.pixelsOnTarget);
+describe("performance gap: small near, large far (the core insight)", () => {
+  it("gap@100 m < 5%", () => {
+    const { gap } = performanceGapAt(A, B, 100, "deer");
+    assert.ok(gap < 5, `expected <5%, got ${gap.toFixed(2)}%`);
   });
 
-  it("determinism", () => {
-    const a = scoresAtDistance(mid640, sensor640, 500, "deer");
-    const b = scoresAtDistance(mid640, sensor640, 500, "deer");
-    assert.deepEqual(a, b);
+  it("gap@800 m > 25%", () => {
+    const { gap } = performanceGapAt(A, B, 800, "deer");
+    assert.ok(gap > 25, `expected >25%, got ${gap.toFixed(2)}%`);
   });
 
-  it("fox collapses sooner than human at same d", () => {
-    const human = scoresAtDistance(mid640, sensor640, 600, "human");
-    const fox = scoresAtDistance(mid640, sensor640, 600, "fox");
-    assert.ok(fox.detectionRange <= human.detectionRange);
+  it("premium (640) leads at every sampled distance", () => {
+    for (const d of [100, 200, 400, 800, 1000]) {
+      assert.equal(performanceGapAt(A, B, d, "deer").leader, "b");
+    }
+  });
+
+  it("gap grows monotonically from near to far range", () => {
+    const g100 = performanceGapAt(A, B, 100, "deer").gap;
+    const g400 = performanceGapAt(A, B, 400, "deer").gap;
+    const g800 = performanceGapAt(A, B, 800, "deer").gap;
+    assert.ok(g100 < g400 && g400 < g800);
+  });
+});
+
+describe("gapPct — bounded & symmetric", () => {
+  it("is symmetric in A/B order", () => {
+    assert.equal(gapPct(40, 60), gapPct(60, 40));
+    assert.equal(
+      performanceGapAt(A, B, 800, "deer").gap,
+      performanceGapAt(B, A, 800, "deer").gap
+    );
+  });
+
+  it("0 for identical scores, 100 when one side is 0", () => {
+    assert.equal(gapPct(70, 70), 0);
+    assert.equal(gapPct(0, 50), 100);
+  });
+
+  it("(hi − lo) / hi × 100", () => {
+    assert.ok(Math.abs(gapPct(40, 60) - (20 / 60) * 100) < 1e-9);
+  });
+});
+
+describe("crossoverM — where the models stop being interchangeable", () => {
+  it("256 vs 640 crossover (8%) is a short, plausible range", () => {
+    const x = crossoverM(A, B, { target: "deer", gapThreshold: 8 });
+    assert.ok(x !== null, "expected a crossover distance");
+    assert.ok(
+      (x as number) > 50 && (x as number) < 300,
+      `crossover ${x} m should be in (50, 300)`
+    );
+  });
+
+  it("below crossover the gap is under threshold, above it is over", () => {
+    const x = crossoverM(A, B, { target: "deer", gapThreshold: 8 }) as number;
+    assert.ok(performanceGapAt(A, B, x - 20, "deer").gap < 8);
+    assert.ok(performanceGapAt(A, B, x, "deer").gap >= 8);
+  });
+
+  it("identical models never cross (null)", () => {
+    assert.equal(crossoverM(A, A, { target: "deer" }), null);
+  });
+
+  it("a larger target pushes the crossover farther out", () => {
+    const deer = crossoverM(A, B, { target: "deer" }) as number;
+    const fox = crossoverM(A, B, { target: "fox" }) as number;
+    // Fox = smaller target → fewer px → models diverge sooner (nearer).
+    assert.ok(fox < deer);
+  });
+});
+
+describe("target selector rescales pixels for both models", () => {
+  it("smaller target → fewer pixels on target", () => {
+    assert.ok(TARGET_FACTOR.fox < TARGET_FACTOR.deer);
+    const deerPx = pxOnTarget(400, A.detectionRangeM, "deer");
+    const foxPx = pxOnTarget(400, A.detectionRangeM, "fox");
+    assert.ok(foxPx < deerPx);
+    // Same ratio applies to model B — both scale identically.
+    const ratioB =
+      pxOnTarget(400, B.detectionRangeM, "fox") /
+      pxOnTarget(400, B.detectionRangeM, "deer");
+    assert.ok(Math.abs(ratioB - TARGET_FACTOR.fox / TARGET_FACTOR.deer) < 1e-9);
+  });
+
+  it("fog reduces pixels on target", () => {
+    assert.ok(
+      pxOnTarget(400, A.detectionRangeM, "deer", true) <
+        pxOnTarget(400, A.detectionRangeM, "deer", false)
+    );
+  });
+});
+
+describe("scoreModelAtDistance — the four corner scores + total", () => {
+  it("returns integer scores in 0..100", () => {
+    const s = scoreModelAtDistance(B, 300, "deer");
+    for (const k of ["performance", "range", "image", "value", "total"] as const) {
+      assert.ok(Number.isInteger(s[k]));
+      assert.ok(s[k] >= 0 && s[k] <= 100, `${k}=${s[k]} out of range`);
+    }
+  });
+
+  it("value-for-money favours the cheaper model at short range", () => {
+    // Same near-perfect picture, a quarter of the price → 256 wins on value.
+    const a = scoreModelAtDistance(A, 100, "deer");
+    const b = scoreModelAtDistance(B, 100, "deer");
+    assert.ok(a.value > b.value);
+  });
+
+  it("premium model wins overall total at long range", () => {
+    const a = scoreModelAtDistance(A, 800, "deer");
+    const b = scoreModelAtDistance(B, 800, "deer");
+    assert.ok(b.total > a.total);
+  });
+
+  it("no price → value score is 0 (unknown, not fabricated)", () => {
+    const noPrice = { ...A, priceUah: null };
+    assert.equal(scoreModelAtDistance(noPrice, 100, "deer").value, 0);
   });
 });
