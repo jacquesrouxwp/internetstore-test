@@ -8,7 +8,7 @@ import {
 import { slugify } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
     return NextResponse.json(
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
     return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });

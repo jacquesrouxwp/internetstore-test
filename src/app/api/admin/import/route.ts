@@ -34,7 +34,7 @@ function detectCategorySlug(name: string, catName: string): string {
  * Downloads <picture> URLs into Supabase Storage when configured.
  */
 export async function POST(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
 
   let xml = "";

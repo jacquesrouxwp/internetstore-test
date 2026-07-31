@@ -11,6 +11,16 @@ import { clientIp, rateLimit } from "@/lib/admin/rate-limit";
 import { getSecuritySettings } from "@/lib/store-settings";
 import { hasServiceSupabase } from "@/lib/supabase/service";
 
+function serverSecretError() {
+  return NextResponse.json(
+    {
+      error:
+        "Сервер не налаштований: задайте ADMIN_SESSION_SECRET (або ADMIN_PASSWORD).",
+    },
+    { status: 500 }
+  );
+}
+
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
   const rl = rateLimit(`admin-login:${ip}`, 5, 10 * 60 * 1000);
@@ -50,7 +60,7 @@ export async function POST(req: NextRequest) {
             mode: "db-hash",
             email,
           });
-          setAdminCookie(res);
+          if (!(await setAdminCookie(res))) return serverSecretError();
           return res;
         }
       }
@@ -89,7 +99,7 @@ export async function POST(req: NextRequest) {
           mode: "supabase",
           email: data.user.email,
         });
-        setAdminCookie(res);
+        if (!(await setAdminCookie(res))) return serverSecretError();
         res.cookies.set("sb-admin-access", data.session.access_token, {
           httpOnly: true,
           path: "/",
@@ -104,15 +114,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 3) Env credentials (bootstrap / recovery)
+  // 3) Env credentials (bootstrap / recovery) — disabled in prod without ADMIN_PASSWORD
   const demo = getDemoCredentials();
-  if (email === demo.email && password === demo.password) {
+  if (demo && email === demo.email && password === demo.password) {
     const res = NextResponse.json({
       ok: true,
       mode: "env",
       email: demo.email,
     });
-    setAdminCookie(res);
+    if (!(await setAdminCookie(res))) return serverSecretError();
     return res;
   }
 
@@ -135,7 +145,7 @@ export async function DELETE() {
 
 export async function GET(req: NextRequest) {
   const { hasAdminCookie } = await import("@/lib/admin/auth");
-  if (!hasAdminCookie(req)) {
+  if (!(await hasAdminCookie(req))) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
   return NextResponse.json({

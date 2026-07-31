@@ -8,16 +8,16 @@ import { seedSupabaseCatalog } from "@/lib/db/seed-supabase";
  * Also allows one-time bootstrap with header x-seed-secret = ADMIN_SESSION_SECRET or SEED_SECRET
  */
 export async function POST(req: NextRequest) {
+  // Bootstrap secret has NO guessable default: only an explicitly configured
+  // SEED_SECRET / ADMIN_SESSION_SECRET can authorize an unauthenticated seed.
   const seedSecret =
-    process.env.SEED_SECRET || process.env.ADMIN_SESSION_SECRET || "seed-once";
+    process.env.SEED_SECRET || process.env.ADMIN_SESSION_SECRET;
   const header = req.headers.get("x-seed-secret");
-  const adminDenied = requireAdminApi(req);
+  const bySecret = Boolean(seedSecret && header && header === seedSecret);
 
-  if (adminDenied && header !== seedSecret) {
-    // allow bootstrap with seed secret
-    if (!header || header !== seedSecret) {
-      return adminDenied;
-    }
+  const adminDenied = await requireAdminApi(req);
+  if (adminDenied && !bySecret) {
+    return adminDenied;
   }
 
   if (!hasServiceSupabase()) {

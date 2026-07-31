@@ -19,7 +19,7 @@ const ALLOWED_KEYS = new Set([
 ]);
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   try {
     if (!hasServiceSupabase()) {
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
     return NextResponse.json(

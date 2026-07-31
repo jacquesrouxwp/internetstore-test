@@ -8,7 +8,8 @@ function LoginForm() {
   const search = useSearchParams();
   const from = search.get("from") || "/admin/dashboard";
 
-  const [email, setEmail] = useState("admin@pro-optics.ua");
+  const isDev = process.env.NODE_ENV !== "production";
+  const [email, setEmail] = useState(isDev ? "admin@pro-optics.ua" : "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -96,14 +97,16 @@ function LoginForm() {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-[11px] leading-relaxed text-zinc-400">
-        Demo: admin@pro-optics.ua / admin123
-        <br />
-        Або ADMIN_EMAIL / ADMIN_PASSWORD у env.
-        <br />
-        З Supabase — лише користувачі з роллю{" "}
-        <code className="rounded bg-zinc-100 px-1">admin</code>.
-      </p>
+      {isDev && (
+        <p className="mt-6 text-center text-[11px] leading-relaxed text-zinc-400">
+          Demo (лише dev): admin@pro-optics.ua / admin123
+          <br />
+          Або ADMIN_EMAIL / ADMIN_PASSWORD у env.
+          <br />
+          З Supabase — лише користувачі з роллю{" "}
+          <code className="rounded bg-zinc-100 px-1">admin</code>.
+        </p>
+      )}
     </div>
   );
 }

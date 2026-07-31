@@ -8,7 +8,7 @@ import {
 } from "@/lib/price-compare/repo";
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const productId = req.nextUrl.searchParams.get("productId");
   if (!productId) {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
     return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) {

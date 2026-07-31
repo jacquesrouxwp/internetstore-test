@@ -39,7 +39,7 @@ async function runSync(body: {
 export async function POST(req: NextRequest) {
   const cron = isCronRequest(req);
   if (!cron) {
-    const denied = requireAdminApi(req);
+    const denied = await requireAdminApi(req);
     if (denied) return denied;
   }
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   if (!isCronRequest(req)) {
     // Allow admin cookie for manual GET test
-    const denied = requireAdminApi(req);
+    const denied = await requireAdminApi(req);
     if (denied) return denied;
   }
 

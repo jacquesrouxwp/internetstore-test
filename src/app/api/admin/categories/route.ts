@@ -15,7 +15,7 @@ import {
 } from "@/data/seed";
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   try {
     if (hasServiceSupabase()) {
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const body = await req.json();
   const nameUk = String(body.nameUk || "").trim();
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const body = await req.json();
   if (!body.id) {
@@ -142,7 +142,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) {

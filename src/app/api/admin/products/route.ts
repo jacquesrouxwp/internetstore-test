@@ -177,7 +177,7 @@ function buildProduct(
 }
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
 
   try {
@@ -241,7 +241,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const body = await req.json();
   if (!body.nameUk && !body.name_uk) {
@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const body = await req.json();
   const id = body.id as string;
@@ -321,7 +321,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) {
@@ -347,7 +347,7 @@ export async function DELETE(req: NextRequest) {
  * body: { action, ids?, id?, price?, stock?, published?, percent? }
  */
 export async function PATCH(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
     return NextResponse.json(

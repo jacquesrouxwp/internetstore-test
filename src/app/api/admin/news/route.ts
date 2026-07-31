@@ -11,7 +11,7 @@ import {
 } from "@/lib/blog/repo";
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
     return NextResponse.json(
@@ -80,7 +80,7 @@ function parseBody(body: Record<string, unknown>, existingSlug?: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
     return NextResponse.json(
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
     return NextResponse.json(
@@ -132,7 +132,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) {

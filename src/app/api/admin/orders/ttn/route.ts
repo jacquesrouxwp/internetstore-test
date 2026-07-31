@@ -14,7 +14,7 @@ import { notifyCustomerStatus } from "@/lib/notify-customer";
  * POST { orderId } — create Nova Poshta ТТН for order
  */
 export async function POST(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
 
   if (!hasServiceSupabase()) {

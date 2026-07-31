@@ -1,15 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import {
+  ADMIN_COOKIE,
+  ADMIN_COOKIE_MAX_AGE,
+  isAdminPublicPath,
+  signAdminSession,
+  verifyAdminSession,
+} from "./session";
 
-export const ADMIN_COOKIE = "optics_admin";
-export const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+// Re-export so existing imports from "@/lib/admin/auth" keep working.
+export { ADMIN_COOKIE, ADMIN_COOKIE_MAX_AGE, isAdminPublicPath };
 
-/** Demo credentials when Supabase is not configured */
-export function getDemoCredentials() {
-  return {
-    email: process.env.ADMIN_EMAIL || "admin@pro-optics.ua",
-    password: process.env.ADMIN_PASSWORD || "admin123",
-  };
+/**
+ * Demo credentials when Supabase is not configured. In production the weak
+ * default password is disabled — an ADMIN_PASSWORD must be set explicitly, or
+ * this returns null (env-credential login off).
+ */
+export function getDemoCredentials(): {
+  email: string;
+  password: string;
+} | null {
+  const email = process.env.ADMIN_EMAIL || "admin@pro-optics.ua";
+  const password = process.env.ADMIN_PASSWORD;
+  if (password) return { email, password };
+  if (process.env.NODE_ENV !== "production") {
+    return { email, password: "admin123" };
+  }
+  return null;
 }
 
 export function isSupabaseAuthConfigured() {
@@ -19,16 +36,12 @@ export function isSupabaseAuthConfigured() {
   );
 }
 
-/** Accept cookie session (demo) or secret match */
-export function hasAdminCookie(req?: NextRequest): boolean {
+/** True only for a valid, signed, unexpired session cookie. */
+export async function hasAdminCookie(req?: NextRequest): Promise<boolean> {
   const value = req
     ? req.cookies.get(ADMIN_COOKIE)?.value
     : cookies().get(ADMIN_COOKIE)?.value;
-  if (!value) return false;
-  if (value === "1") return true;
-  const secret = process.env.ADMIN_SESSION_SECRET;
-  if (secret && value === secret) return true;
-  return false;
+  return verifyAdminSession(value);
 }
 
 /**
@@ -61,15 +74,22 @@ export function isAdminUser(user: {
   return false;
 }
 
-export function setAdminCookie(res: NextResponse) {
-  const value = process.env.ADMIN_SESSION_SECRET || "1";
-  res.cookies.set(ADMIN_COOKIE, value, {
+/**
+ * Set the signed session cookie. Returns false when no server secret is
+ * available to sign (production misconfiguration) — the caller must surface an
+ * error instead of pretending the login succeeded.
+ */
+export async function setAdminCookie(res: NextResponse): Promise<boolean> {
+  const token = await signAdminSession();
+  if (!token) return false;
+  res.cookies.set(ADMIN_COOKIE, token, {
     httpOnly: true,
     path: "/",
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     maxAge: ADMIN_COOKIE_MAX_AGE,
   });
+  return true;
 }
 
 export function clearAdminCookie(res: NextResponse) {
@@ -82,16 +102,11 @@ export function clearAdminCookie(res: NextResponse) {
 
 /**
  * API route guard. Returns null if authorized, or a 401 JSON response.
- * Uses admin cookie (set after successful login with role check).
+ * Uses the signed admin session cookie.
  */
-export function requireAdminApi(req: NextRequest): NextResponse | null {
-  if (hasAdminCookie(req)) return null;
+export async function requireAdminApi(
+  req: NextRequest
+): Promise<NextResponse | null> {
+  if (await hasAdminCookie(req)) return null;
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-/** Paths under /admin that do not require auth */
-export function isAdminPublicPath(pathname: string): boolean {
-  if (pathname === "/admin" || pathname === "/admin/") return true;
-  if (pathname.startsWith("/admin/login")) return true;
-  return false;
 }

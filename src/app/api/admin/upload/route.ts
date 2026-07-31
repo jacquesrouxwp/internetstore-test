@@ -7,7 +7,7 @@ import { hasServiceSupabase } from "@/lib/supabase/service";
  * Upload product images to Supabase Storage (no data-URL fallback).
  */
 export async function POST(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
 
   if (!hasServiceSupabase()) {

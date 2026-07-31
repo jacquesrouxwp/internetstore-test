@@ -13,7 +13,7 @@ import { notifyCustomerStatus } from "@/lib/notify-customer";
 const ALLOWED: OrderStatus[] = [...ORDER_STATUS_ALL];
 
 export async function GET(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
 
   try {
@@ -113,7 +113,7 @@ function csv(s: string) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const denied = requireAdminApi(req);
+  const denied = await requireAdminApi(req);
   if (denied) return denied;
 
   if (!hasServiceSupabase()) {

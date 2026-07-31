@@ -11,7 +11,7 @@ import {
 } from "@/data/seed";
 
 export async function GET(req: NextRequest) {
-  if (!hasAdminCookie(req)) {
+  if (!(await hasAdminCookie(req))) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
 

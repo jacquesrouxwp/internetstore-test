@@ -1,22 +1,14 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { ADMIN_COOKIE } from "@/lib/admin/auth";
+import { ADMIN_COOKIE, verifyAdminSession } from "@/lib/admin/session";
 
 export const metadata: Metadata = {
   title: "Адмін-кабінет · Pro-Optics",
   robots: { index: false, follow: false },
 };
 
-function isAuthed() {
-  const value = cookies().get(ADMIN_COOKIE)?.value;
-  if (!value) return false;
-  if (value === "1") return true;
-  const secret = process.env.ADMIN_SESSION_SECRET;
-  return Boolean(secret && value === secret);
-}
-
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -24,8 +16,8 @@ export default function AdminLayout({
   // Login page renders without shell; protected pages get full nav
   // We always wrap with light admin root; shell only when authed
   // Client pages under /admin that need shell are nested; login is bare.
-  // Detect via cookie on server.
-  const authed = isAuthed();
+  // Detect via signed session cookie on server.
+  const authed = await verifyAdminSession(cookies().get(ADMIN_COOKIE)?.value);
 
   if (!authed) {
     return (
