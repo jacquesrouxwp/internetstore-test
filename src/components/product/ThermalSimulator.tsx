@@ -14,6 +14,7 @@ import {
 } from "@/lib/thermal/parse-product-thermal";
 import {
   atmosphericTransmission,
+  deerHeightFrac,
   deerScreenRect,
   defaultSimDistanceM,
   digitalZoomCrop,
@@ -32,40 +33,35 @@ import {
   type ScoreBreakdown,
   type ThermalTarget,
 } from "@/lib/thermal/thermal-score-distance";
+import {
+  getThermalTarget,
+  THERMAL_TARGETS as TARGET_DEFS,
+} from "@/lib/thermal/targets";
 import { cn } from "@/lib/utils";
 
 type Palette = "whitehot" | "ironhot";
 type Weather = "clear" | "fog";
 
+/** Fixed-FOV forest plate (does not change with target). */
+const FOREST_SRC = "/thermal/forest_whitehot.jpg";
+
 /**
- * Two-layer thermal scene: a fixed-FOV forest background with a deer sprite
- * composited on the ground plane. The deer's apparent height and its feet row
- * both follow 1/distance, so it recedes toward the horizon honestly — no
- * baked-in scale, no floating cutout.
+ * Subject sprites (luma-keyed on black). Shared with targets.ts paths so
+ * switching the target button changes both Johnson px and the picture.
  */
-export type ThermalScene = {
-  id: string;
-  labelUk: string;
-  labelRu: string;
-  /** Full-frame forest background (fixed field of view). */
-  forest: string;
-  /** Isolated deer on black — luminance-keyed into an alpha sprite. */
-  deer: string;
+const SUBJECT_SRC: Record<ThermalTarget, string> = {
+  deer: "/thermal/deer_subject_whitehot.jpg",
+  boar: "/thermal/subject_boar_whitehot.jpg",
+  fox: "/thermal/subject_fox_whitehot.jpg",
+  human: "/thermal/subject_human_whitehot.jpg",
 };
 
-const SCENES: ThermalScene[] = [
-  {
-    id: "deer",
-    labelUk: "Олень у лісі",
-    labelRu: "Олень в лесу",
-    forest: "/thermal/forest_whitehot.jpg",
-    deer: "/thermal/deer_subject_whitehot.jpg",
-  },
-];
+/** Reference visual height for deerHeightFrac calibration (m). */
+const DEER_VISUAL_H_M = 1.3;
 
 const LOGIC_W = 480;
 const LOGIC_H = 270;
-/** Working resolution of the trimmed deer sprite. */
+/** Working resolution of the trimmed subject sprite. */
 const SPRITE_S = 512;
 /** Digital-zoom presets (magnification of the sensor image). */
 const ZOOM_STEPS = [1, 2, 4] as const;
@@ -79,7 +75,6 @@ type Props = {
   /** Catalog thermal products for dropdown (from SSR or empty → client fetch) */
   compareOptions?: ThermalCompareOption[];
   currentProductId?: string;
-  sceneId?: string;
   className?: string;
 };
 
@@ -208,11 +203,11 @@ type DeerSprite = {
 };
 
 /**
- * Luminance-key the isolated-deer JPEG into an RGBA sprite:
+ * Luminance-key an isolated subject JPEG into an RGBA sprite:
  * alpha = smoothstep over luminance (black background → transparent), and the
  * grayscale hot value is kept so the shared FX palette applies uniformly.
  */
-function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
+function buildSubjectSprite(img: HTMLImageElement): DeerSprite | null {
   const c = document.createElement("canvas");
   c.width = SPRITE_S;
   c.height = SPRITE_S;
@@ -353,11 +348,9 @@ export function ThermalSimulator({
   locale = "uk",
   compareOptions: compareOptionsProp,
   currentProductId,
-  sceneId = "deer",
   className,
 }: Props) {
   const isRu = locale === "ru";
-  const scene = SCENES.find((s) => s.id === sceneId) || SCENES[0];
 
   const [distance, setDistance] = useState(() =>
     defaultSimDistanceM(params.detectionRangeM || 1200)
@@ -366,6 +359,9 @@ export function ThermalSimulator({
   const [weather, setWeather] = useState<Weather>("clear");
   const [palette, setPalette] = useState<Palette>("whitehot");
   const [target, setTarget] = useState<ThermalTarget>("deer");
+  const activeTarget = useMemo(() => getThermalTarget(target), [target]);
+  /** Visual size vs deer (1.3 m) — fox smaller, human taller. */
+  const targetHeightScale = activeTarget.visualHeightM / DEER_VISUAL_H_M;
   const [catalog, setCatalog] = useState<ThermalCompareOption[]>(
     compareOptionsProp || []
   );
@@ -468,20 +464,21 @@ export function ThermalSimulator({
 
   const canvasMap = useRef<Map<PanelKey, HTMLCanvasElement>>(new Map());
   const forestImg = useRef<HTMLImageElement | null>(null);
-  const deerImg = useRef<HTMLImageElement | null>(null);
-  const deerSprite = useRef<DeerSprite | null>(null);
+  const subjectImg = useRef<HTMLImageElement | null>(null);
+  const subjectSprite = useRef<DeerSprite | null>(null);
   const composeRef = useRef<HTMLCanvasElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Load forest + deer, then build the keyed deer sprite once.
+  // Load forest once + subject sprite for the selected target (deer/boar/fox/human).
   useEffect(() => {
     let cancelled = false;
     let n = 0;
+    const subjectSrc = SUBJECT_SRC[target] || activeTarget.subjectSrc;
     const done = () => {
       n += 1;
       if (n >= 2 && !cancelled) {
-        deerSprite.current = deerImg.current
-          ? buildDeerSprite(deerImg.current)
+        subjectSprite.current = subjectImg.current
+          ? buildSubjectSprite(subjectImg.current)
           : null;
         setReady(true);
       }
@@ -495,13 +492,13 @@ export function ThermalSimulator({
       ref.current = img;
     };
     setReady(false);
-    deerSprite.current = null;
-    load(scene.forest, forestImg);
-    load(scene.deer, deerImg);
+    subjectSprite.current = null;
+    load(FOREST_SRC, forestImg);
+    load(subjectSrc, subjectImg);
     return () => {
       cancelled = true;
     };
-  }, [scene]);
+  }, [target, activeTarget.subjectSrc]);
 
   const renderPanel = useCallback(
     (
@@ -536,12 +533,26 @@ export function ThermalSimulator({
         drawCover(cctx, forest, LOGIC_W, LOGIC_H);
       }
 
-      // ---- Layer 2: deer sprite on the ground plane (apparent size ∝ 1/d) ----
-      const sprite = deerSprite.current;
+      // ---- Layer 2: subject on ground plane (size ∝ 1/d × target height) ----
+      const sprite = subjectSprite.current;
       let focusXFrac = 0.5;
       let focusYFrac = 0.5;
       if (sprite) {
-        const rect = deerScreenRect(distance, LOGIC_W, LOGIC_H, sprite.aspect);
+        // Scale geometric deer height by visual height of this target
+        const baseFrac = deerHeightFrac(distance);
+        const heightFrac = Math.max(
+          0.004,
+          Math.min(0.9, baseFrac * targetHeightScale)
+        );
+        const rect = deerScreenRect(
+          distance,
+          LOGIC_W,
+          LOGIC_H,
+          sprite.aspect,
+          DIST_MIN_M,
+          0,
+          heightFrac
+        );
         const trans = atmosphericTransmission(
           distance,
           panelParams.detectionRangeM,
@@ -550,8 +561,8 @@ export function ThermalSimulator({
         focusXFrac = rect.cx / LOGIC_W;
         focusYFrac = rect.cy / LOGIC_H;
 
-        // Warm ground contact bloom so the deer is planted, not pasted.
-        const feetY = rect.y + rect.h;
+        // Warm ground contact bloom so the subject is planted, not pasted.
+        const feetY = rect.feetY ?? rect.y + rect.h;
         const bloomR = Math.max(4, rect.w * 0.62);
         cctx.save();
         cctx.translate(rect.cx, feetY);
@@ -565,7 +576,7 @@ export function ThermalSimulator({
         cctx.fill();
         cctx.restore();
 
-        // Atmospheric wash: distant deer blends toward background temperature.
+        // Atmospheric wash: distant target blends toward background temperature.
         cctx.globalAlpha = 0.45 + 0.55 * trans;
         cctx.imageSmoothingEnabled = true;
         cctx.drawImage(
@@ -584,16 +595,15 @@ export function ThermalSimulator({
 
       // ---- Unified sensor FX: contrast, NETD noise, palette ----
       const seed = hashSeed(
-        scene.id,
+        target,
         panelParams.matrix,
         panelParams.netdMk,
         panelParams.detectionRangeM,
         distance,
         weather,
         palette,
-        target,
         panelSeedExtra,
-        "v8-abcompare"
+        "v9-multitarget"
       );
       const rand = mulberry32(seed);
 
@@ -685,7 +695,7 @@ export function ThermalSimulator({
         ctx.fillText(`×${zoom}`, 12, 52);
       }
     },
-    [scene, distance, zoom, weather, palette, target, fog]
+    [distance, zoom, weather, palette, target, fog, targetHeightScale]
   );
 
   useEffect(() => {
@@ -1057,25 +1067,40 @@ export function ThermalSimulator({
 
         <fieldset>
           <legend className="mb-1.5 text-xs font-medium text-muted-ui">
-            {isRu ? "Цель (расчёт px)" : "Ціль (розрахунок px)"}
+            {isRu
+              ? "Цель (картинка + расчёт px)"
+              : "Ціль (картинка + розрахунок px)"}
           </legend>
-          <div className="grid grid-cols-2 gap-2">
-            {THERMAL_TARGETS.map((tg) => (
-              <button
-                key={tg}
-                type="button"
-                onClick={() => setTarget(tg)}
-                className={cn(
-                  "rounded-lg border px-2 py-2 text-xs font-medium transition",
-                  target === tg
-                    ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
-                    : "border-white/10 text-secondary hover:border-white/20"
-                )}
-              >
-                {(isRu ? TARGET_LABEL_RU : TARGET_LABEL_UK)[tg]}
-              </button>
-            ))}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {THERMAL_TARGETS.map((tg) => {
+              const def = TARGET_DEFS.find((d) => d.id === tg);
+              return (
+                <button
+                  key={tg}
+                  type="button"
+                  onClick={() => setTarget(tg)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition",
+                    target === tg
+                      ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+                      : "border-white/10 text-secondary hover:border-white/20"
+                  )}
+                >
+                  {(isRu ? TARGET_LABEL_RU : TARGET_LABEL_UK)[tg]}
+                  {def && (
+                    <span className="mt-0.5 block text-[10px] font-normal text-faint">
+                      {def.visualHeightM} м
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
+          <p className="mt-1.5 text-[10px] text-faint">
+            {isRu
+              ? "Лиса меньше и «съедается» дальностью первой; человек выше оленя. Баллы и px пересчитываются для обеих моделей."
+              : "Лисиця менша й «з'їдається» дальністю першою; людина вища за оленя. Бали й px перераховуються для обох моделей."}
+          </p>
         </fieldset>
 
         <fieldset>
@@ -1192,4 +1217,4 @@ export function ThermalSimulator({
   );
 }
 
-export { SCENES };
+export { SUBJECT_SRC, FOREST_SRC };
