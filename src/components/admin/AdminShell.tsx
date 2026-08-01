@@ -14,6 +14,7 @@ const NAV = [
   { href: "/admin/price-compare", label: "Ціни vs ринок", icon: "⇄" },
   { href: "/admin/news", label: "Блог / новини", icon: "✎" },
   { href: "/admin/import", label: "Імпорт Prom", icon: "↓" },
+  { href: "/admin/import/optics-pro", label: "Імпорт optics-pro", icon: "⇣" },
   { href: "/admin/settings", label: "Налаштування", icon: "⚙" },
 ];
 

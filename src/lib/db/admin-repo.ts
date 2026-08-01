@@ -131,6 +131,25 @@ export async function adminUpsertProduct(
   return mapDbProduct(data as Record<string, unknown>);
 }
 
+/** Dedup lookup for imports: same brand + same sku/model = same product. */
+export async function adminFindProductByBrandSku(
+  brandId: string,
+  sku: string
+): Promise<Product | null> {
+  if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
+  if (!brandId || !sku) return null;
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("*, brands(slug, name), categories(slug)")
+    .eq("brand_id", brandId)
+    .eq("sku", sku)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return mapDbProduct(data as Record<string, unknown>);
+}
+
 export async function adminDeleteProduct(id: string): Promise<void> {
   if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
   const supabase = createServiceClient();

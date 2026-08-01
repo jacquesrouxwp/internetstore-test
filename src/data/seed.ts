@@ -15,7 +15,7 @@ export const SEED_BRANDS: Brand[] = [
   { id: "b6", slug: "atn", name: "ATN", logoUrl: "/brands/atn.jpg" },
   { id: "b7", slug: "agm", name: "AGM", logoUrl: "/brands/agm.jpg" },
   { id: "b8", slug: "flir", name: "FLIR", logoUrl: "/brands/flir.jpg" },
-  { id: "b9", slug: "thermeye", name: "ThermEye", logoUrl: "/brands/thermeye.jpg" },
+  { id: "b9", slug: "thermtec", name: "ThermTec", logoUrl: "/brands/thermeye.jpg" },
   { id: "b10", slug: "guide", name: "Guide", logoUrl: "/brands/guide.jpg" },
   { id: "b11", slug: "nvectech", name: "NVECTECH", logoUrl: "/brands/nvectech.jpg" },
   { id: "b12", slug: "sytong", name: "Sytong", logoUrl: "/brands/sytong.jpg" },
