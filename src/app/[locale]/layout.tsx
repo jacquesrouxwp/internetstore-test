@@ -7,7 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ConsultWidget } from "@/components/layout/ConsultWidget";
 import { SiteBackground } from "@/components/layout/SiteBackground";
 import { LogoIntro } from "@/components/layout/LogoIntro";
-import { getCategories } from "@/lib/catalog";
+import { getCategories, getCategoryBrandsMap } from "@/lib/catalog";
 import { Analytics } from "@/components/Analytics";
 
 export function generateStaticParams() {
@@ -27,7 +27,10 @@ export default async function LocaleLayout({
   }
   setRequestLocale(locale);
   const messages = await getMessages();
-  const categories = await getCategories();
+  const [categories, categoryBrandsMap] = await Promise.all([
+    getCategories(),
+    getCategoryBrandsMap(),
+  ]);
 
   return (
     <NextIntlClientProvider messages={messages}>
@@ -36,7 +39,7 @@ export default async function LocaleLayout({
       {/* min-h-dvh keeps footer at viewport bottom on short pages without
           stretching document height past content on long pages */}
       <div className="relative z-10 flex min-h-dvh flex-col">
-        <Header categories={categories} />
+        <Header categories={categories} categoryBrandsMap={categoryBrandsMap} />
         <main className="w-full flex-1">{children}</main>
         <Footer />
         <ConsultWidget />

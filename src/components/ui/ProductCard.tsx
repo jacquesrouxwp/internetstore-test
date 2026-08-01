@@ -22,6 +22,11 @@ import {
  */
 const hoverDesk = "[@media(hover:hover)_and_(pointer:fine)]";
 
+// Feature flag: thermal simulator disabled site-wide (kept in code, not
+// removed, per owner request 2026-08-01) -- hides the dead #thermal-simulator
+// deep link that would otherwise sit on every product card.
+const SIMULATOR_LINK_ENABLED = false;
+
 function ProductPlaceholder() {
   return (
     <div className="photo-plate flex h-full w-full items-center justify-center">
@@ -196,19 +201,21 @@ export function ProductCard({
             <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
             <span className="btn-buy__label">{t("buy")}</span>
           </button>
-          <Link
-            href={`/product/${product.slug}#thermal-simulator`}
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex w-full min-h-[2.5rem] items-center justify-center gap-1.5 rounded-full border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-3 text-sm font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)]"
-            title={t("simulationHint")}
-            aria-label={`${t("simulation")}: ${name}`}
-          >
-            <ScanEye
-              className="h-4 w-4 shrink-0 text-[var(--accent)]"
-              strokeWidth={2.25}
-            />
-            <span>{t("simulation")}</span>
-          </Link>
+          {SIMULATOR_LINK_ENABLED && (
+            <Link
+              href={`/product/${product.slug}#thermal-simulator`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex w-full min-h-[2.5rem] items-center justify-center gap-1.5 rounded-full border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-3 text-sm font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)]"
+              title={t("simulationHint")}
+              aria-label={`${t("simulation")}: ${name}`}
+            >
+              <ScanEye
+                className="h-4 w-4 shrink-0 text-[var(--accent)]"
+                strokeWidth={2.25}
+              />
+              <span>{t("simulation")}</span>
+            </Link>
+          )}
         </div>
       </div>
 

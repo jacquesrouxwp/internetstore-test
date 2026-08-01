@@ -11,9 +11,10 @@ import {
   ScanEye,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import type { Category } from "@/types";
+import type { Brand, Category } from "@/types";
 import { categoryName } from "@/types";
 import { SiteLogo } from "@/components/layout/SiteLogo";
 
@@ -21,7 +22,13 @@ import { SiteLogo } from "@/components/layout/SiteLogo";
 // site-wide (kept in code, not removed, per owner request 2026-08-01).
 const SIMULATOR_LINK_ENABLED = false;
 
-export function Header({ categories }: { categories: Category[] }) {
+export function Header({
+  categories,
+  categoryBrandsMap = {},
+}: {
+  categories: Category[];
+  categoryBrandsMap?: Record<string, Brand[]>;
+}) {
   const t = useTranslations("nav");
   const locale = useLocale();
   const pathname = usePathname();
@@ -30,8 +37,29 @@ export function Header({ categories }: { categories: Category[] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [hoverCat, setHoverCat] = useState<{ slug: string; rect: DOMRect } | null>(
+    null
+  );
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => setMounted(true), []);
+
+  const openCategoryMenu = (slug: string, el: HTMLElement) => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    setHoverCat({ slug, rect: el.getBoundingClientRect() });
+  };
+  const scheduleCloseCategoryMenu = () => {
+    closeTimer.current = setTimeout(() => setHoverCat(null), 150);
+  };
+  const cancelCloseCategoryMenu = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
 
   const switchLocale = (next: "uk" | "ru") => {
     router.replace(pathname, { locale: next });
@@ -181,16 +209,26 @@ export function Header({ categories }: { categories: Category[] }) {
         <nav className="hidden border-t md:block" style={{ borderColor: "var(--border)" }}>
           <div className="container-shop">
             <ul className="flex gap-1 overflow-x-auto py-2 no-scrollbar">
-              {categories.map((c) => (
-                <li key={c.id}>
-                  <Link
-                    href={`/catalog/${c.slug}`}
-                    className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-secondary transition hover:bg-white/[0.06] hover:text-primary"
+              {categories.map((c) => {
+                const dropBrands = categoryBrandsMap[c.slug] || [];
+                return (
+                  <li
+                    key={c.id}
+                    onMouseEnter={(e) =>
+                      dropBrands.length &&
+                      openCategoryMenu(c.slug, e.currentTarget)
+                    }
+                    onMouseLeave={scheduleCloseCategoryMenu}
                   >
-                    {categoryName(c, locale as "uk" | "ru")}
-                  </Link>
-                </li>
-              ))}
+                    <Link
+                      href={`/catalog/${c.slug}`}
+                      className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-secondary transition hover:bg-white/[0.06] hover:text-primary"
+                    >
+                      {categoryName(c, locale as "uk" | "ru")}
+                    </Link>
+                  </li>
+                );
+              })}
               {SIMULATOR_LINK_ENABLED && (
                 <li>
                   <Link
@@ -313,6 +351,35 @@ export function Header({ categories }: { categories: Category[] }) {
           </div>
         </div>
       )}
+
+      {mounted &&
+        hoverCat &&
+        (categoryBrandsMap[hoverCat.slug]?.length ?? 0) > 0 &&
+        createPortal(
+          <div
+            onMouseEnter={cancelCloseCategoryMenu}
+            onMouseLeave={scheduleCloseCategoryMenu}
+            className="fixed z-50 min-w-[220px] overflow-hidden rounded-xl border py-2 shadow-xl"
+            style={{
+              top: hoverCat.rect.bottom + 4,
+              left: hoverCat.rect.left,
+              background: "var(--surface)",
+              borderColor: "var(--border)",
+            }}
+          >
+            {categoryBrandsMap[hoverCat.slug].map((b) => (
+              <Link
+                key={b.id}
+                href={`/catalog/${hoverCat.slug}?brand=${b.slug}`}
+                onClick={() => setHoverCat(null)}
+                className="block whitespace-nowrap px-4 py-2 text-sm text-secondary transition hover:bg-white/[0.06] hover:text-primary"
+              >
+                {b.name}
+              </Link>
+            ))}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

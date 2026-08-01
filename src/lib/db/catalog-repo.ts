@@ -276,6 +276,55 @@ export async function dbGetCategories(): Promise<Category[] | null> {
   }
 }
 
+/**
+ * Brands that actually have at least one published product per category --
+ * powers the category hover menu (e.g. hovering "ПНБ" lists only ATN,
+ * HikMicro, Rix... the brands stocked there, not every brand in the DB).
+ */
+export async function dbGetCategoryBrandsMap(): Promise<Record<
+  string,
+  Brand[]
+> | null> {
+  const supabase = await getReadClient();
+  if (!supabase) return null;
+  try {
+    const [{ data: rows, error }, categories, brands] = await Promise.all([
+      supabase
+        .from("products")
+        .select("category_id, brand_id")
+        .eq("published", true)
+        .not("category_id", "is", null)
+        .not("brand_id", "is", null),
+      dbGetCategories(),
+      dbGetBrands(),
+    ]);
+    if (error) throw error;
+    if (!categories || !brands) return null;
+
+    const brandById = new Map(brands.map((b) => [b.id, b]));
+    const catSlugById = new Map(categories.map((c) => [c.id, c.slug]));
+
+    const seen = new Map<string, Set<string>>(); // categorySlug -> brandIds
+    for (const row of rows || []) {
+      const catSlug = catSlugById.get(String(row.category_id));
+      const brandId = String(row.brand_id);
+      if (!catSlug || !brandById.has(brandId)) continue;
+      if (!seen.has(catSlug)) seen.set(catSlug, new Set());
+      seen.get(catSlug)!.add(brandId);
+    }
+
+    const map: Record<string, Brand[]> = {};
+    for (const [catSlug, brandIds] of Array.from(seen)) {
+      map[catSlug] = Array.from(brandIds)
+        .map((id) => brandById.get(id)!)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return map;
+  } catch {
+    return null;
+  }
+}
+
 async function dbDetectionBounds(categorySlug: string) {
   const supabase = await getReadClient();
   if (!supabase) return null;
