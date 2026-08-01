@@ -23,6 +23,10 @@ import { buildSpecRows } from "@/lib/product-specs";
 import { ThermalSimulator } from "@/components/product/ThermalSimulator";
 import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
 import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
+// Live price/stock, and newly imported products must resolve immediately —
+// see the catalog page for the Data Cache problem this avoids.
+export const dynamic = "force-dynamic";
+
 // Feature flag: thermal simulator temporarily disabled site-wide (kept in
 // code, not removed, per owner request 2026-08-01).
 const THERMAL_SIMULATOR_ENABLED = false;

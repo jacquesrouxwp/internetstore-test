@@ -10,6 +10,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+// Catalog must reflect the DB right now: without this, Next.js keeps the
+// Supabase fetch in its Data Cache and the page serves whatever product set
+// existed when it was first rendered (post-import it still showed 3 of 456).
+export const dynamic = "force-dynamic";
+
 type Props = {
   params: Promise<{ locale: string; category: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
