@@ -4,6 +4,10 @@ import { ArrowRight, Truck, Headphones, ScanEye } from "lucide-react";
 import { BlogCarousel } from "@/components/home/BlogCarousel";
 import { listPublishedPosts } from "@/lib/blog/repo";
 
+// Feature flag: thermal simulator sandbox CTA disabled site-wide (kept in
+// code, not removed, per owner request 2026-08-01).
+const SIMULATOR_LINK_ENABLED = false;
+
 /**
  * Hero: left — CTA glass card; right — blog carousel (same surface style).
  */
@@ -36,13 +40,15 @@ export async function Hero() {
                 <span className="truncate">{t("heroCta")}</span>
                 <ArrowRight className="h-4 w-4 shrink-0" />
               </NextLink>
-              <NextLink
-                href="/simulator"
-                className="btn-hero shrink-0 !min-h-[2.6rem] !border-2 !border-[var(--accent)] !bg-[rgba(225,29,42,0.15)] !px-6 !text-sm !text-primary hover:!bg-[rgba(225,29,42,0.25)]"
-              >
-                <ScanEye className="h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
-                <span className="truncate">{t("heroSandbox")}</span>
-              </NextLink>
+              {SIMULATOR_LINK_ENABLED && (
+                <NextLink
+                  href="/simulator"
+                  className="btn-hero shrink-0 !min-h-[2.6rem] !border-2 !border-[var(--accent)] !bg-[rgba(225,29,42,0.15)] !px-6 !text-sm !text-primary hover:!bg-[rgba(225,29,42,0.25)]"
+                >
+                  <ScanEye className="h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
+                  <span className="truncate">{t("heroSandbox")}</span>
+                </NextLink>
+              )}
               <a
                 href="tel:+380637897699"
                 className="btn-hero btn-hero-secondary shrink-0 !min-h-[2.6rem] !px-6 !text-sm"

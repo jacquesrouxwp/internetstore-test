@@ -1,7 +1,12 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { ThermalSandbox } from "@/components/simulator/ThermalSandbox";
 import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
+
+// Feature flag: sandbox route disabled site-wide (kept in code, not
+// removed, per owner request 2026-08-01) -- 404s while off, even by direct URL.
+const SIMULATOR_ENABLED = false;
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -21,6 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SimulatorPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
+  if (!SIMULATOR_ENABLED) notFound();
   const t = await getTranslations("simulator");
   const presets = await listThermalCompareOptions(locale);
 

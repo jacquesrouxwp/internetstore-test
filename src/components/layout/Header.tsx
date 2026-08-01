@@ -17,6 +17,10 @@ import type { Category } from "@/types";
 import { categoryName } from "@/types";
 import { SiteLogo } from "@/components/layout/SiteLogo";
 
+// Feature flag: thermal simulator ("Пісочниця DRI") temporarily disabled
+// site-wide (kept in code, not removed, per owner request 2026-08-01).
+const SIMULATOR_LINK_ENABLED = false;
+
 export function Header({ categories }: { categories: Category[] }) {
   const t = useTranslations("nav");
   const locale = useLocale();
@@ -127,14 +131,16 @@ export function Header({ categories }: { categories: Category[] }) {
           </form>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/simulator"
-              className="inline-flex items-center gap-1.5 rounded-[10px] border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-2.5 py-2 text-xs font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] sm:px-3 sm:text-sm"
-              title={t("simulator")}
-            >
-              <ScanEye className="h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
-              <span className="hidden sm:inline">{t("simulator")}</span>
-            </Link>
+            {SIMULATOR_LINK_ENABLED && (
+              <Link
+                href="/simulator"
+                className="inline-flex items-center gap-1.5 rounded-[10px] border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-2.5 py-2 text-xs font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] sm:px-3 sm:text-sm"
+                title={t("simulator")}
+              >
+                <ScanEye className="h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
+                <span className="hidden sm:inline">{t("simulator")}</span>
+              </Link>
+            )}
             <Link
               href="/cart"
               className="relative inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium text-primary transition"
@@ -185,14 +191,16 @@ export function Header({ categories }: { categories: Category[] }) {
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link
-                  href="/simulator"
-                  className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold text-[var(--accent)] transition hover:bg-white/[0.06]"
-                >
-                  {t("simulator")}
-                </Link>
-              </li>
+              {SIMULATOR_LINK_ENABLED && (
+                <li>
+                  <Link
+                    href="/simulator"
+                    className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold text-[var(--accent)] transition hover:bg-white/[0.06]"
+                  >
+                    {t("simulator")}
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link
                   href="/blog"
@@ -263,15 +271,17 @@ export function Header({ categories }: { categories: Category[] }) {
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link
-                  href="/simulator"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--accent)] hover:bg-white/[0.06]"
-                >
-                  {t("simulator")}
-                </Link>
-              </li>
+              {SIMULATOR_LINK_ENABLED && (
+                <li>
+                  <Link
+                    href="/simulator"
+                    onClick={() => setOpen(false)}
+                    className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--accent)] hover:bg-white/[0.06]"
+                  >
+                    {t("simulator")}
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link
                   href="/blog"

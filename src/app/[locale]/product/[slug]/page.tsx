@@ -23,6 +23,10 @@ import { buildSpecRows } from "@/lib/product-specs";
 import { ThermalSimulator } from "@/components/product/ThermalSimulator";
 import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
 import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
+// Feature flag: thermal simulator temporarily disabled site-wide (kept in
+// code, not removed, per owner request 2026-08-01).
+const THERMAL_SIMULATOR_ENABLED = false;
+
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
 };
@@ -66,6 +70,7 @@ export default async function ProductPage({ params }: Props) {
   // Show sim for any thermal-ish product (catalog may omit resolution on some rows)
   const cat = (product.categorySlug || "").toLowerCase();
   const showThermalSim =
+    THERMAL_SIMULATOR_ENABLED &&
     product.deviceType !== "clipon" &&
     Boolean(
       cat.includes("teploviz") ||

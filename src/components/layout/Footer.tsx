@@ -5,6 +5,10 @@ import { BrandMark } from "@/components/ui/BrandMark";
 import { SiteLogo } from "@/components/layout/SiteLogo";
 import { getAllPublicSettings } from "@/lib/store-settings";
 
+// Feature flag: thermal simulator link disabled site-wide (kept in code,
+// not removed, per owner request 2026-08-01).
+const SIMULATOR_LINK_ENABLED = false;
+
 export async function Footer() {
   const t = await getTranslations("footer");
   const tn = await getTranslations("nav");
@@ -71,14 +75,16 @@ export async function Footer() {
                 ПНБ
               </Link>
             </li>
-            <li>
-              <Link
-                href="/simulator"
-                className="font-semibold text-[var(--accent)] hover:opacity-90"
-              >
-                {tn("simulator")}
-              </Link>
-            </li>
+            {SIMULATOR_LINK_ENABLED && (
+              <li>
+                <Link
+                  href="/simulator"
+                  className="font-semibold text-[var(--accent)] hover:opacity-90"
+                >
+                  {tn("simulator")}
+                </Link>
+              </li>
+            )}
           </ul>
         </div>
 
