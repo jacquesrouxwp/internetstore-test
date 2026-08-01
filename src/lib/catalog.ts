@@ -86,28 +86,44 @@ export async function getCategoryBySlug(
   return cats.find((c) => c.slug === slug) || null;
 }
 
-/** categorySlug -> brands that actually have a published product there. */
+/**
+ * categorySlug -> brands shown in the category hover menu. Normally the
+ * brands that actually stock that category; categories with none fall back
+ * to the full brand list so the menu is never empty (owner's call — an
+ * empty menu looks broken, a human can narrow it down from there).
+ */
 export async function getCategoryBrandsMap(): Promise<Record<string, Brand[]>> {
-  const db = await dbGetCategoryBrandsMap();
-  if (db) return db;
+  const [categories, allBrands] = await Promise.all([
+    getCategories(),
+    getBrands(),
+  ]);
 
-  // memory fallback (dev without Supabase)
-  const products = getRuntimeProducts().filter((p) => p.published);
-  const brands = getRuntimeBrands();
-  const brandBySlug = new Map(brands.map((b) => [b.slug, b]));
-  const map: Record<string, Map<string, Brand>> = {};
-  for (const p of products) {
-    if (!p.categorySlug || !p.brandSlug) continue;
-    const brand = brandBySlug.get(p.brandSlug);
-    if (!brand) continue;
-    if (!map[p.categorySlug]) map[p.categorySlug] = new Map();
-    map[p.categorySlug].set(brand.id, brand);
+  let withProducts = await dbGetCategoryBrandsMap();
+  if (!withProducts) {
+    // memory fallback (dev without Supabase)
+    const products = getRuntimeProducts().filter((p) => p.published);
+    const brandBySlug = new Map(allBrands.map((b) => [b.slug, b]));
+    const acc: Record<string, Map<string, Brand>> = {};
+    for (const p of products) {
+      if (!p.categorySlug || !p.brandSlug) continue;
+      const brand = brandBySlug.get(p.brandSlug);
+      if (!brand) continue;
+      if (!acc[p.categorySlug]) acc[p.categorySlug] = new Map();
+      acc[p.categorySlug].set(brand.id, brand);
+    }
+    withProducts = {};
+    for (const [catSlug, byId] of Object.entries(acc)) {
+      withProducts[catSlug] = Array.from(byId.values());
+    }
   }
+
+  const sortedAll = [...allBrands].sort((a, b) => a.name.localeCompare(b.name));
   const result: Record<string, Brand[]> = {};
-  for (const [catSlug, byId] of Object.entries(map)) {
-    result[catSlug] = Array.from(byId.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
+  for (const c of categories) {
+    const stocked = withProducts[c.slug];
+    result[c.slug] = stocked?.length
+      ? [...stocked].sort((a, b) => a.name.localeCompare(b.name))
+      : sortedAll;
   }
   return result;
 }

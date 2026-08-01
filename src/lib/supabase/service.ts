@@ -14,6 +14,11 @@ export function createServiceClient(): SupabaseClient {
   }
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
+    // Next.js caches fetch() in Server Components by default, which pinned
+    // catalog pages to pre-import product counts. Catalog data must be live.
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
   });
 }
 

@@ -11,6 +11,11 @@ export async function createClient() {
   const cookieStore = cookies();
 
   return createServerClient(url, key, {
+    // See createServiceClient — Next.js fetch caching would serve stale
+    // catalog data from before the last import.
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
     cookies: {
       getAll() {
         return cookieStore.getAll();
