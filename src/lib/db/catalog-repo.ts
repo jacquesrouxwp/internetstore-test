@@ -249,10 +249,12 @@ export async function dbGetBrands(): Promise<Brand[] | null> {
   const supabase = await getReadClient();
   if (!supabase) return null;
   try {
+    // sort_order first (head brands: AGM, HikMicro, InfiRay…), then name
     const { data, error } = await supabase
       .from("brands")
       .select("*")
-      .order("name");
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
     if (error) throw error;
     return (data || []).map((b) => mapDbBrand(b as Record<string, unknown>));
   } catch {

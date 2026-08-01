@@ -3,25 +3,29 @@ import { estimateDetectionRangeM } from "@/lib/detection-range";
 import productImages from "@/data/product-images.json";
 
 /**
- * Brand logos in public/brands (from optics-pro assets + reference grid photo).
+ * Brand logos in public/brands (transparent cutouts from logo teplovizori brands pack).
+ * Display order = array order (also sort_order on Supabase seed).
+ * Head brands first: AGM, HikMicro, InfiRay, Pulsar, ThermTec, PARD, Guide.
  * IDs b1–b12 kept stable for seed product foreign keys.
  */
 export const SEED_BRANDS: Brand[] = [
+  // ── Head brands ────────────────────────────────────────────────────────
   { id: "b7", slug: "agm", name: "AGM", logoUrl: "/brands/agm.svg" },
-  { id: "b1", slug: "hikmicro", name: "HikMicro", logoUrl: "/brands/hikmicro.png" },
+  { id: "b1", slug: "hikmicro", name: "HikMicro", logoUrl: "/brands/hikmicro.webp" },
   { id: "b5", slug: "infiray", name: "INFIRAY", logoUrl: "/brands/infiray.png" },
-  { id: "b3", slug: "pulsar", name: "PULSAR", logoUrl: "/brands/pulsar.png" },
-  { id: "b9", slug: "thermtec", name: "ThermTec", logoUrl: "/brands/thermtec.png" },
+  { id: "b3", slug: "pulsar", name: "PULSAR", logoUrl: "/brands/pulsar.webp" },
+  { id: "b25", slug: "thermtec", name: "ThermTec", logoUrl: "/brands/thermtec.webp" },
   { id: "b4", slug: "pard", name: "PARD", logoUrl: "/brands/pard.png" },
-  { id: "b10", slug: "guide", name: "Guide", logoUrl: "/brands/guide.png" },
-  // Everything below: same brand data, just not in the priority set above.
+  { id: "b10", slug: "guide", name: "Guide", logoUrl: "/brands/guide.webp" },
+  // ── Rest ───────────────────────────────────────────────────────────────
+  { id: "b6", slug: "atn", name: "ATN", logoUrl: "/brands/atn.webp" },
   { id: "b2", slug: "rix", name: "Rix", logoUrl: "/brands/rix.jpg" },
-  { id: "b6", slug: "atn", name: "ATN", logoUrl: "/brands/atn.png" },
   { id: "b8", slug: "flir", name: "FLIR", logoUrl: "/brands/flir.png" },
+  { id: "b9", slug: "thermeye", name: "ThermEye", logoUrl: "/brands/thermtec.webp" },
   { id: "b11", slug: "nvectech", name: "NVECTECH", logoUrl: "/brands/nvectech.svg" },
   { id: "b12", slug: "sytong", name: "Sytong", logoUrl: "/brands/sytong.png" },
   { id: "b13", slug: "armasight", name: "ARMASIGHT", logoUrl: "/brands/armasight.png" },
-  { id: "b14", slug: "atn-ots-hd", name: "ATN OTS-HD", logoUrl: "/brands/atn.png" },
+  { id: "b14", slug: "atn-ots-hd", name: "ATN OTS-HD", logoUrl: "/brands/atn.webp" },
   { id: "b15", slug: "conotech", name: "Cono Tech", logoUrl: "/brands/conotech.png" },
   { id: "b16", slug: "falcon-optic", name: "Falcon Optic", logoUrl: "/brands/falcon-optic.png" },
   { id: "b17", slug: "dahua", name: "DAHUA", logoUrl: "/brands/dahua.png" },
