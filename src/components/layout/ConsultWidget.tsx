@@ -21,8 +21,6 @@ import {
 
 const TG =
   process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/+380637897699";
-const VIBER =
-  process.env.NEXT_PUBLIC_VIBER_URL || "viber://chat?number=%2B380637897699";
 const WA =
   process.env.NEXT_PUBLIC_WHATSAPP_URL ||
   "https://wa.me/380637897699?text=%D0%94%D0%BE%D0%B1%D1%80%D0%BE%D0%B3%D0%BE%20%D0%B4%D0%BD%D1%8F";
@@ -189,12 +187,6 @@ export function ConsultWidget() {
                 brand="telegram"
                 title="Telegram"
                 hint={t("telegramHint")}
-              />
-              <ChannelLink
-                href={VIBER}
-                brand="viber"
-                title="Viber"
-                hint={t("viberHint")}
               />
               <ChannelLink
                 href={WA}

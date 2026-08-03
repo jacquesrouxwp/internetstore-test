@@ -17,12 +17,11 @@ const ICON_PX: Record<Size, number> = {
   lg: 24,
 };
 
-/** Brand colors (simple-icons style) — CSS vars preferred where defined */
-const BRAND_COLOR: Record<BrandMarkId, string> = {
-  "nova-poshta": "var(--brand-nova-poshta, #e21a23)",
-  telegram: "var(--brand-telegram)",
-  viber: "var(--brand-viber)",
-  whatsapp: "var(--brand-whatsapp)",
+/** Raster logos from public/logos (cutouts without junk background) */
+const LOGO_SRC: Partial<Record<BrandMarkId, string>> = {
+  telegram: "/logos/telegram.png",
+  whatsapp: "/logos/whatsapp.png",
+  "nova-poshta": "/logos/nova-poshta.jpg",
 };
 
 const LABELS: Record<BrandMarkId, string> = {
@@ -32,18 +31,11 @@ const LABELS: Record<BrandMarkId, string> = {
   whatsapp: "WhatsApp",
 };
 
+/** Fallback mono icons if raster missing */
 function TelegramIcon({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-    </svg>
-  );
-}
-
-function ViberIcon({ size }: { size: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M11.398.002C9.473.028 5.331.344 3.014 2.467 1.282 4.232.248 6.879.04 10.184c-.244 3.88.148 8.983 3.228 11.325 1.195.91 3.072 1.51 5.06 1.69 1.027.092 1.948.06 3.74-.176 1.533-.2 3.497-.816 4.875-1.535.63-.328 1.83-.95 1.97-1.348.12-.343-.21-.546-.438-.735-.31-.256-.656-.43-.98-.64-.423-.273-.812-.552-1.234-.82-.25-.158-.57-.13-.78.096-.37.4-.79.78-1.13 1.21-.16.2-.37.37-.63.38-.43.02-.98-.17-1.78-.53-1.47-.66-2.59-1.72-3.55-3.01-.4-.54-.77-1.22-1.04-1.89-.15-.38-.02-.75.34-.95.34-.19.72-.44 1.07-.66.32-.2.51-.53.46-.9-.09-.64-.28-1.65-.43-2.31-.1-.43-.34-.69-.75-.78-.41-.09-.94-.15-1.39-.15-.73 0-1.24.24-1.54.58-.45.5-.69 1.22-.69 2.07 0 .36.03.74.12 1.14.53 2.43 1.75 4.69 3.63 6.52 1.94 1.88 4.49 3.31 7.28 3.75 1.14.18 2.25.14 3.2-.2.8-.28 1.45-.8 1.82-1.53.35-.69.45-1.5.3-2.37-.12-.72-.48-1.37-1.02-1.85-.43-.38-1.02-.53-1.64-.45-.35.04-.7.14-1.02.31-.2.1-.38.12-.55.01-.17-.11-.28-.32-.32-.55-.12-.72-.27-1.44-.4-2.16-.07-.38.05-.72.34-.94.29-.22.68-.28 1.05-.17.9.27 1.75.7 2.48 1.25 1.38 1.04 2.17 2.52 2.34 4.23.16 1.62-.23 3.17-1.15 4.5-.98 1.42-2.5 2.35-4.3 2.66-1.22.21-2.48.2-3.74-.03-2.33-.42-4.47-1.43-6.24-2.97C3.59 17.45 2.1 14.95 1.55 12.1c-.4-2.06-.28-4.18.36-6.13.7-2.14 1.96-3.97 3.7-5.22C7.5-.05 9.7-.2 11.4.002z" />
     </svg>
   );
 }
@@ -64,7 +56,15 @@ function NovaPoshtaIcon({ size }: { size: number }) {
   );
 }
 
-const ICONS: Record<
+function ViberIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M11.398.002C9.473.028 5.331.344 3.014 2.467 1.282 4.232.248 6.879.04 10.184c-.244 3.88.148 8.983 3.228 11.325 1.195.91 3.072 1.51 5.06 1.69 1.027.092 1.948.06 3.74-.176 1.533-.2 3.497-.816 4.875-1.535.63-.328 1.83-.95 1.97-1.348.12-.343-.21-.546-.438-.735-.31-.256-.656-.43-.98-.64-.423-.273-.812-.552-1.234-.82-.25-.158-.57-.13-.78.096-.37.4-.79.78-1.13 1.21-.16.2-.37.37-.63.38-.43.02-.98-.17-1.78-.53-1.47-.66-2.59-1.72-3.55-3.01-.4-.54-.77-1.22-1.04-1.89-.15-.38-.02-.75.34-.95.34-.19.72-.44 1.07-.66.32-.2.51-.53.46-.9-.09-.64-.28-1.65-.43-2.31-.1-.43-.34-.69-.75-.78-.41-.09-.94-.15-1.39-.15-.73 0-1.24.24-1.54.58-.45.5-.69 1.22-.69 2.07 0 .36.03.74.12 1.14.53 2.43 1.75 4.69 3.63 6.52 1.94 1.88 4.49 3.31 7.28 3.75 1.14.18 2.25.14 3.2-.2.8-.28 1.45-.8 1.82-1.53.35-.69.45-1.5.3-2.37-.12-.72-.48-1.37-1.02-1.85-.43-.38-1.02-.53-1.64-.45-.35.04-.7.14-1.02.31-.2.1-.38.12-.55.01-.17-.11-.28-.32-.32-.55-.12-.72-.27-1.44-.4-2.16-.07-.38.05-.72.34-.94.29-.22.68-.28 1.05-.17.9.27 1.75.7 2.48 1.25 1.38 1.04 2.17 2.52 2.34 4.23.16 1.62-.23 3.17-1.15 4.5-.98 1.42-2.5 2.35-4.3 2.66-1.22.21-2.48.2-3.74-.03-2.33-.42-4.47-1.43-6.24-2.97C3.59 17.45 2.1 14.95 1.55 12.1c-.4-2.06-.28-4.18.36-6.13.7-2.14 1.96-3.97 3.7-5.22C7.5-.05 9.7-.2 11.4.002z" />
+    </svg>
+  );
+}
+
+const FALLBACK: Record<
   BrandMarkId,
   (p: { size: number }) => React.ReactElement
 > = {
@@ -72,6 +72,13 @@ const ICONS: Record<
   viber: ViberIcon,
   whatsapp: WhatsAppIcon,
   "nova-poshta": NovaPoshtaIcon,
+};
+
+const FALLBACK_COLOR: Record<BrandMarkId, string> = {
+  "nova-poshta": "var(--brand-nova-poshta, #e21a23)",
+  telegram: "var(--brand-telegram)",
+  viber: "var(--brand-viber)",
+  whatsapp: "var(--brand-whatsapp)",
 };
 
 type Props = {
@@ -83,7 +90,7 @@ type Props = {
 };
 
 /**
- * Clean brand SVG icons (no white plate / JPEG artifacts).
+ * Brand marks: real logos for Telegram / WhatsApp when available.
  */
 export function BrandMark({
   brand,
@@ -92,19 +99,33 @@ export function BrandMark({
   withLabel,
   labelClassName,
 }: Props) {
-  const Icon = ICONS[brand];
   const px = ICON_PX[size];
+  const logo = LOGO_SRC[brand];
+  const Icon = FALLBACK[brand];
 
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <span
         className={cn(
-          "inline-flex shrink-0 items-center justify-center",
+          "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full",
           SIZES[size]
         )}
-        style={{ color: BRAND_COLOR[brand] }}
       >
-        <Icon size={px} />
+        {logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logo}
+            alt=""
+            width={px + 8}
+            height={px + 8}
+            className="h-full w-full object-contain"
+            draggable={false}
+          />
+        ) : (
+          <span style={{ color: FALLBACK_COLOR[brand] }}>
+            <Icon size={px} />
+          </span>
+        )}
       </span>
       {withLabel ? (
         <span

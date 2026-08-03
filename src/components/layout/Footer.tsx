@@ -18,9 +18,6 @@ export async function Footer() {
   let address = tp("address");
   let tg =
     process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/+380637897699";
-  let viber =
-    process.env.NEXT_PUBLIC_VIBER_URL ||
-    "viber://chat?number=%2B380637897699";
   let wa =
     process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://wa.me/380637897699";
   let legalLine = "";
@@ -29,7 +26,6 @@ export async function Footer() {
     phones = s.site.phones?.length ? s.site.phones : [];
     if (s.site.address) address = s.site.address;
     if (s.social.telegram) tg = s.social.telegram;
-    if (s.social.viber) viber = s.social.viber;
     if (s.social.whatsapp) wa = s.social.whatsapp;
     if (s.legal.entityName || s.legal.edrpou) {
       legalLine = [s.legal.entityName, s.legal.edrpou && `ЄДРПОУ ${s.legal.edrpou}`]
@@ -145,15 +141,6 @@ export async function Footer() {
                 aria-label="Telegram"
               >
                 <BrandMark brand="telegram" size="lg" />
-              </a>
-              <a
-                href={viber}
-                target="_blank"
-                rel="noreferrer"
-                className="social-icon transition hover:brightness-110"
-                aria-label="Viber"
-              >
-                <BrandMark brand="viber" size="lg" />
               </a>
               <a
                 href={wa}
