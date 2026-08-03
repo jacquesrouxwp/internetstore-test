@@ -35,13 +35,28 @@ export function InfiniteSlider({
   const translation = useMotionValue(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [key, setKey] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   // Keep in sync if parent changes duration prop
   useEffect(() => {
     setCurrentDuration(duration);
   }, [duration]);
 
+  // Accessibility: pause infinite motion when user prefers reduced motion
   useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReduceMotion(mq.matches);
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => mq.removeEventListener?.("change", apply);
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      translation.set(0);
+      return;
+    }
     let controls: { stop: () => void } | undefined;
     const size = direction === "horizontal" ? width : height;
     const contentSize = size + gap;
@@ -88,20 +103,22 @@ export function InfiniteSlider({
     isTransitioning,
     direction,
     reverse,
+    reduceMotion,
   ]);
 
-  const hoverProps = durationOnHover
-    ? {
-        onHoverStart: () => {
-          setIsTransitioning(true);
-          setCurrentDuration(durationOnHover);
-        },
-        onHoverEnd: () => {
-          setIsTransitioning(true);
-          setCurrentDuration(duration);
-        },
-      }
-    : {};
+  const hoverProps =
+    durationOnHover && !reduceMotion
+      ? {
+          onHoverStart: () => {
+            setIsTransitioning(true);
+            setCurrentDuration(durationOnHover);
+          },
+          onHoverEnd: () => {
+            setIsTransitioning(true);
+            setCurrentDuration(duration);
+          },
+        }
+      : {};
 
   return (
     <div className={cn("overflow-hidden", className)}>
@@ -109,8 +126,8 @@ export function InfiniteSlider({
         className="flex w-max"
         style={{
           ...(direction === "horizontal"
-            ? { x: translation }
-            : { y: translation }),
+            ? { x: reduceMotion ? 0 : translation }
+            : { y: reduceMotion ? 0 : translation }),
           gap: `${gap}px`,
           flexDirection: direction === "horizontal" ? "row" : "column",
         }}
@@ -118,7 +135,8 @@ export function InfiniteSlider({
         {...hoverProps}
       >
         {children}
-        {children}
+        {/* Duplicate track for seamless loop (static if reduced motion) */}
+        {!reduceMotion && children}
       </motion.div>
     </div>
   );
