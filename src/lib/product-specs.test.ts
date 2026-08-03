@@ -62,6 +62,36 @@ describe("buildSpecRows — internal keys never reach the storefront", () => {
     assert.equal(rows[0].value, "384x288");
   });
 
+  // Regression: the importer's normalized keys duplicated the donor's own
+  // rows, so each value appeared twice -- "Вага, грам 291.5" and a raw
+  // "weightG 291.5" right next to it.
+  it("hides the normalized filter keys but keeps their Ukrainian twins", () => {
+    const rows = buildSpecRows(
+      {
+        "Вага, грам": "291.5",
+        weightG: "291.5",
+        "Рівень захисту": "IP67",
+        ip: "IP67",
+        netdMk: "20",
+        memoryGb: "64",
+        batteryLifeH: "5.5",
+      },
+      { locale: "uk" }
+    );
+    const labels = rows.map((r) => r.label);
+    assert.ok(labels.includes("Вага, грам"), "human row must survive");
+    assert.ok(
+      !labels.some((l) => /^(weightG|ip|netdMk|memoryGb|batteryLifeH)$/.test(l)),
+      `technical keys leaked: ${labels.join(", ")}`
+    );
+  });
+
+  it("does not hide a latin-named donor characteristic", () => {
+    const rows = buildSpecRows({ microUSB: "Type-C" }, { locale: "uk" });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].label, "microUSB");
+  });
+
   it("still renders genuine characteristics", () => {
     const rows = buildSpecRows(
       { "Матриця": "640x512", NETD: "≤25 мК" },

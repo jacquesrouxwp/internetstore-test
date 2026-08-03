@@ -12,6 +12,41 @@ export function isInternalSpecKey(key: string): boolean {
   return key.trim().startsWith("_");
 }
 
+/**
+ * Normalized keys the importer writes so filters, sliders and scoring have
+ * numbers to work with. They duplicate the donor's own human-readable rows
+ * (weightG "291.5" alongside "Вага, грам" "291.5"), so the storefront showed
+ * every value twice -- once in Ukrainian, once as raw camelCase. Kept in the
+ * database, hidden from shoppers. Listed explicitly rather than matched by
+ * shape, so a genuine latin-named donor characteristic is not swallowed.
+ */
+const TECHNICAL_SPEC_KEYS = new Set([
+  "pixelPitchUm",
+  "netdMk",
+  "frequencyHz",
+  "focalLengthMm",
+  "magnificationMin",
+  "magnificationMax",
+  "display",
+  "displayResolution",
+  "ip",
+  "weightG",
+  "dimensionsMm",
+  "batteryType",
+  "batteryModel",
+  "batteryLifeH",
+  "warrantyMonths",
+  "hasWifi",
+  "hasBluetooth",
+  "memoryGb",
+  "hasRangefinder",
+  "operatingTempRange",
+]);
+
+export function isTechnicalSpecKey(key: string): boolean {
+  return TECHNICAL_SPEC_KEYS.has(key.trim());
+}
+
 /** Drop internal keys from a specs object (admin display, exports, etc). */
 export function stripInternalSpecs(
   specs: Record<string, string> | null | undefined
@@ -105,7 +140,7 @@ export function buildSpecRows(
     if (!value?.trim()) return;
     // Internal bookkeeping keys (import provenance etc.) are never shown to
     // shoppers -- they leaked onto live product pages, donor URL included.
-    if (isInternalSpecKey(rawKey)) return;
+    if (isInternalSpecKey(rawKey) || isTechnicalSpecKey(rawKey)) return;
     const group = canonicalGroup(rawKey);
     if (seen.has(group)) return;
     seen.add(group);
