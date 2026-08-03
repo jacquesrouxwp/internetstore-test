@@ -8,8 +8,8 @@ export function CatalogProductGrid({ products }: { products: Product[] }) {
   return (
     <ProductLayoutGrid
       products={products}
-      defaultMode="2col"
-      modes={["2col", "3col", "4col", "dense"]}
+      defaultMode="4col"
+      modes={["4col", "6col", "dense"]}
       forceCompact={false}
     />
   );

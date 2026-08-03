@@ -2,8 +2,8 @@
 
 /**
  * Product grid density toggle.
- * Mobile: only 2 | 3 (real column change — max 3 cards).
- * Desktop (md+): 2 | 3 | 4 | Больше (up to 6).
+ * Modes: 4 | 6 | Больше (8).
+ * Mobile scales down (2 / 3 / 4) so cards stay usable.
  */
 
 import * as React from "react";
@@ -13,110 +13,75 @@ import {
   type HTMLMotionProps,
   useReducedMotion,
 } from "motion/react";
-import {
-  LayoutGrid,
-  LayoutList,
-  Columns2,
-  Columns3,
-  Grid2x2,
-} from "lucide-react";
+import { LayoutGrid, Grid2x2, Grid3x3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-export type LayoutMode = "list" | "2col" | "3col" | "4col" | "dense";
+/** 4 · 6 · 8 (dense) */
+export type LayoutMode = "4col" | "6col" | "dense";
 
 type LayoutConfig = {
   mode: LayoutMode;
-  /** Real grid classes — mobile values MUST differ or toggle looks broken */
   className: string;
   labelUk: string;
   labelRu: string;
   Icon: React.ComponentType<{ className?: string }>;
-  /** Hide this button below md (4 / dense only on desktop) */
-  desktopOnly?: boolean;
 };
 
 const LAYOUT_CONFIGS: LayoutConfig[] = [
   {
-    mode: "list",
-    className: "flex flex-col gap-3",
-    labelUk: "Список",
-    labelRu: "Список",
-    Icon: LayoutList,
-  },
-  {
-    mode: "2col",
-    // Mobile: 2 large cards
-    className: "grid grid-cols-2 gap-3 sm:gap-4",
-    labelUk: "2",
-    labelRu: "2",
-    Icon: Columns2,
-  },
-  {
-    mode: "3col",
-    // Mobile: TRUE 3 columns
-    className: "grid grid-cols-3 gap-2 sm:gap-3 md:gap-4",
-    labelUk: "3",
-    labelRu: "3",
-    Icon: Columns3,
-  },
-  {
     mode: "4col",
-    // Mobile trial: real 4 columns; roomier from sm+
+    // phone 2 → tablet 3 → desktop 4
     className:
-      "grid grid-cols-4 gap-1.5 sm:grid-cols-4 sm:gap-2 md:gap-3 lg:grid-cols-4 lg:gap-4",
+      "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 lg:gap-4",
     labelUk: "4",
     labelRu: "4",
     Icon: LayoutGrid,
   },
   {
-    mode: "dense",
-    // «Больше» still desktop-oriented; on phone stays at 4 max
+    mode: "6col",
+    // phone 3 → sm 4 → lg 6
     className:
-      "grid grid-cols-4 gap-1 sm:grid-cols-4 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6",
+      "grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2.5 md:grid-cols-5 lg:grid-cols-6 lg:gap-3",
+    labelUk: "6",
+    labelRu: "6",
+    Icon: Grid3x3,
+  },
+  {
+    mode: "dense",
+    // phone 4 → sm 5 → md 6 → xl 8  («Больше» = 8)
+    className:
+      "grid grid-cols-4 gap-1.5 sm:grid-cols-5 sm:gap-2 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 xl:gap-2.5",
     labelUk: "Більше",
     labelRu: "Больше",
     Icon: Grid2x2,
-    desktopOnly: true,
   },
 ];
 
-const STORAGE_KEY = "pro-optics-product-layout";
-/** Modes remapped on phone if shown only on desktop */
-const DESKTOP_ONLY_MODES: LayoutMode[] = ["dense"];
+const STORAGE_KEY = "pro-optics-product-layout-v2";
 
 function readStoredMode(fallback: LayoutMode): LayoutMode {
   if (typeof window === "undefined") return fallback;
   try {
     const v = localStorage.getItem(STORAGE_KEY) as LayoutMode | null;
     if (v && LAYOUT_CONFIGS.some((c) => c.mode === v)) return v;
+    // migrate old keys
+    const old = localStorage.getItem("pro-optics-product-layout");
+    if (old === "2col" || old === "3col") return "4col";
+    if (old === "4col") return "4col";
+    if (old === "dense") return "dense";
   } catch {
     /* ignore */
   }
   return fallback;
 }
 
-function useIsMdUp() {
-  const [mdUp, setMdUp] = React.useState(false);
-  React.useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(min-width: 768px)");
-    const apply = () => setMdUp(mq.matches);
-    apply();
-    mq.addEventListener?.("change", apply);
-    return () => mq.removeEventListener?.("change", apply);
-  }, []);
-  return mdUp;
-}
-
 const ANIMATION_VARIANTS = {
   container: {
     hidden: {},
-    list: { transition: { staggerChildren: 0.03 } },
-    "2col": { transition: { staggerChildren: 0.04 } },
-    "3col": { transition: { staggerChildren: 0.04 } },
-    "4col": { transition: { staggerChildren: 0.05 } },
-    dense: { transition: { staggerChildren: 0.03 } },
+    "4col": { transition: { staggerChildren: 0.04 } },
+    "6col": { transition: { staggerChildren: 0.03 } },
+    dense: { transition: { staggerChildren: 0.025 } },
   },
   card: {
     hidden: { opacity: 0, y: 12 },
@@ -124,8 +89,7 @@ const ANIMATION_VARIANTS = {
   },
 };
 
-/** Context so ProductCard can tighten padding in 3-col mobile */
-export const LayoutModeContext = React.createContext<LayoutMode>("2col");
+export const LayoutModeContext = React.createContext<LayoutMode>("4col");
 
 type ContainerToggleProps = React.HTMLAttributes<HTMLDivElement> & {
   defaultMode?: LayoutMode;
@@ -142,7 +106,7 @@ export const ContainerToggle = React.forwardRef<
     {
       children,
       className,
-      defaultMode = "2col",
+      defaultMode = "4col",
       locale = "uk",
       persist = true,
       modes,
@@ -152,32 +116,22 @@ export const ContainerToggle = React.forwardRef<
   ) => {
     const isRu = locale === "ru";
     const reduceMotion = useReducedMotion();
-    const mdUp = useIsMdUp();
 
     const configs = React.useMemo(() => {
-      const base = !modes?.length
-        ? LAYOUT_CONFIGS.filter((c) => c.mode !== "list")
-        : LAYOUT_CONFIGS.filter((c) => modes.includes(c.mode));
-      return base;
+      if (!modes?.length) return LAYOUT_CONFIGS;
+      return LAYOUT_CONFIGS.filter((c) => modes.includes(c.mode));
     }, [modes]);
 
     const [mode, setMode] = React.useState<LayoutMode>(defaultMode);
     const [hydrated, setHydrated] = React.useState(false);
 
     React.useEffect(() => {
-      const stored = persist ? readStoredMode(defaultMode) : defaultMode;
-      setMode(stored);
+      setMode(persist ? readStoredMode(defaultMode) : defaultMode);
       setHydrated(true);
     }, [defaultMode, persist]);
 
-    // On phone: if user had 4/dense saved, fall back to 3 so UI matches reality
-    const effectiveMode: LayoutMode =
-      !mdUp && DESKTOP_ONLY_MODES.includes(mode) ? "3col" : mode;
-
     const currentConfig =
-      configs.find((c) => c.mode === effectiveMode) ||
-      configs.find((c) => c.mode === "2col") ||
-      configs[0];
+      configs.find((c) => c.mode === mode) || configs[0];
 
     const select = (m: LayoutMode) => {
       setMode(m);
@@ -190,14 +144,9 @@ export const ContainerToggle = React.forwardRef<
       }
     };
 
-    // Visible buttons: hide desktop-only on phone
-    const visibleConfigs = configs.filter(
-      (c) => !c.desktopOnly || mdUp
-    );
-
     return (
       <div ref={ref} className={cn("w-full", className)} {...props}>
-        <LayoutModeContext.Provider value={effectiveMode}>
+        <LayoutModeContext.Provider value={mode}>
           <LayoutGroup id="product-layout-toggle">
             <div
               className="mb-3 flex w-full flex-wrap items-center justify-between gap-2 sm:mb-5"
@@ -208,8 +157,8 @@ export const ContainerToggle = React.forwardRef<
                 {isRu ? "Вид" : "Вигляд"}
               </p>
               <div className="inline-flex max-w-full flex-wrap justify-end rounded-lg border border-white/15 bg-black/30 p-0.5">
-                {visibleConfigs.map((config) => {
-                  const selected = effectiveMode === config.mode;
+                {configs.map((config) => {
+                  const selected = mode === config.mode;
                   const label = isRu ? config.labelRu : config.labelUk;
                   const Icon = config.Icon;
                   return (
@@ -221,7 +170,13 @@ export const ContainerToggle = React.forwardRef<
                       onClick={() => select(config.mode)}
                       aria-pressed={selected}
                       aria-label={label}
-                      title={label}
+                      title={
+                        config.mode === "dense"
+                          ? isRu
+                            ? "Больше — до 8 в ряд"
+                            : "Більше — до 8 в ряд"
+                          : label
+                      }
                       className={cn(
                         "relative h-8 gap-1 rounded-md px-2.5 text-xs font-semibold hover:bg-transparent sm:h-9 sm:px-3",
                         selected
@@ -246,7 +201,6 @@ export const ContainerToggle = React.forwardRef<
                       )}
                       <span className="relative z-[1] inline-flex items-center gap-1">
                         <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                        {/* Always show label on phone (2 / 3 / Больше) */}
                         <span className="tabular-nums">{label}</span>
                       </span>
                     </Button>
@@ -256,19 +210,16 @@ export const ContainerToggle = React.forwardRef<
             </div>
 
             <motion.div
-              key={effectiveMode}
+              key={mode}
               layout={!reduceMotion}
               variants={ANIMATION_VARIANTS.container}
               initial={false}
-              animate={hydrated ? effectiveMode : "2col"}
-              data-layout={effectiveMode}
+              animate={hydrated ? mode : "4col"}
+              data-layout={mode}
               className={cn(
                 currentConfig.className,
                 "w-full min-w-0",
-                // denser cards when 3-up on narrow screens
-                effectiveMode === "3col" && "product-grid--tight",
-                (effectiveMode === "4col" || effectiveMode === "dense") &&
-                  "product-grid--tight"
+                mode !== "4col" && "product-grid--tight"
               )}
             >
               {children}

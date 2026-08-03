@@ -56,13 +56,10 @@ export function ProductCard({
     ? scoreProduct(product).scores.thermalPerformance
     : null;
   const layoutMode = useContext(LayoutModeContext);
-  /** 3+/4-up → smaller padding/type so cards fit on phone */
-  const tight =
-    layoutMode === "3col" ||
-    layoutMode === "4col" ||
-    layoutMode === "dense";
-  /** Extra-tight for true 4-col on narrow screens */
-  const ultraTight = layoutMode === "4col" || layoutMode === "dense";
+  /** 6-up → tighter cards */
+  const tight = layoutMode === "6col" || layoutMode === "dense";
+  /** 8-up (Больше) → ultra compact */
+  const ultraTight = layoutMode === "dense";
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();

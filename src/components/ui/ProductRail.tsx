@@ -35,8 +35,8 @@ export function ProductRail({
         {/* Toggle + responsive grid — no side-scroll on mobile */}
         <ProductLayoutGrid
           products={products}
-          defaultMode="2col"
-          modes={["2col", "3col", "4col", "dense"]}
+          defaultMode="4col"
+          modes={["4col", "6col", "dense"]}
         />
       </div>
     </section>

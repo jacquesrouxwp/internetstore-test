@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   products: Product[];
-  /** Home rails default denser; catalog can pass "3col" */
+  /** Default: 4 columns */
   defaultMode?: LayoutMode;
   className?: string;
   /** Subset of modes (home can hide "list" if desired) */
