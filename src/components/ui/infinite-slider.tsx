@@ -2,7 +2,8 @@
 
 /**
  * Infinite marquee slider (horizontal / vertical).
- * Based on Kaif UI InfiniteSlider — framer-motion + useMeasure.
+ * Kaif UI style — framer-motion + react-use-measure.
+ * @see https://kaif-ui.vercel.app/
  */
 
 import { cn } from "@/lib/utils";
@@ -35,21 +36,29 @@ export function InfiniteSlider({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [key, setKey] = useState(0);
 
+  // Keep in sync if parent changes duration prop
+  useEffect(() => {
+    setCurrentDuration(duration);
+  }, [duration]);
+
   useEffect(() => {
     let controls: { stop: () => void } | undefined;
     const size = direction === "horizontal" ? width : height;
     const contentSize = size + gap;
-    if (!contentSize || !Number.isFinite(contentSize)) return;
+    // Wait until layout is measured
+    if (!size || !Number.isFinite(contentSize) || contentSize <= 0) return;
 
     const from = reverse ? -contentSize / 2 : 0;
     const to = reverse ? 0 : -contentSize / 2;
 
     if (isTransitioning) {
+      const remaining =
+        contentSize > 0
+          ? Math.abs((translation.get() - to) / contentSize)
+          : 1;
       controls = animate(translation, [translation.get(), to], {
         ease: "linear",
-        duration:
-          currentDuration *
-          Math.abs((translation.get() - to) / contentSize),
+        duration: currentDuration * remaining,
         onComplete: () => {
           setIsTransitioning(false);
           setKey((prevKey) => prevKey + 1);
