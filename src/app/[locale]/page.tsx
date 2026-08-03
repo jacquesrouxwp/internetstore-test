@@ -8,6 +8,7 @@ import {
 } from "@/lib/catalog";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star } from "lucide-react";
+import { visibleBrandGridBrands } from "@/lib/brand-priority";
 
 /** Refresh catalog rails (incl. price compare badges) periodically */
 export const revalidate = 60;
@@ -61,7 +62,10 @@ export default async function HomePage({
         viewAllLabel={t("viewAll")}
       />
 
-      <BrandGrid brands={brands} title={tc("brandsBlock")} />
+      <BrandGrid
+        brands={visibleBrandGridBrands(brands)}
+        title={tc("brandsBlock")}
+      />
 
       <section className="py-12">
         <div className="container-shop">

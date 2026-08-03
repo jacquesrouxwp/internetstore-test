@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { sortBrandsByPriority } from "./brand-priority";
+import {
+  sortBrandsByPriority,
+  visibleBrandGridBrands,
+} from "./brand-priority";
 import type { Brand } from "@/types";
 
 function b(slug: string, name: string): Brand {
@@ -42,5 +45,31 @@ describe("sortBrandsByPriority", () => {
     const copy = [...input];
     sortBrandsByPriority(input);
     assert.deepEqual(input, copy);
+  });
+});
+
+describe("visibleBrandGridBrands", () => {
+  it("drops the brands excluded from the homepage grid, keeps the rest", () => {
+    const input = [
+      b("agm", "AGM"),
+      b("dipol", "Dipol"),
+      b("rix", "Rix"),
+      b("hikmicro", "HikMicro"),
+      b("conotech", "Cono Tech"),
+      b("konus", "KONUS"),
+      b("guide", "Guide"),
+    ];
+    assert.deepEqual(
+      visibleBrandGridBrands(input).map((x) => x.slug),
+      ["agm", "hikmicro", "guide"]
+    );
+  });
+
+  it("preserves the incoming order", () => {
+    const input = [b("guide", "Guide"), b("rix", "Rix"), b("agm", "AGM")];
+    assert.deepEqual(
+      visibleBrandGridBrands(input).map((x) => x.slug),
+      ["guide", "agm"]
+    );
   });
 });
