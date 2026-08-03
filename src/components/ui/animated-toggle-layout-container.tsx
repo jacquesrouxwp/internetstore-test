@@ -54,7 +54,7 @@ const LAYOUT_CONFIGS: LayoutConfig[] = [
   },
   {
     mode: "3col",
-    // Mobile: TRUE 3 columns (was wrongly grid-cols-2 before)
+    // Mobile: TRUE 3 columns
     className: "grid grid-cols-3 gap-2 sm:gap-3 md:gap-4",
     labelUk: "3",
     labelRu: "3",
@@ -62,19 +62,18 @@ const LAYOUT_CONFIGS: LayoutConfig[] = [
   },
   {
     mode: "4col",
-    // Mobile max 3; 4 only from lg
+    // Mobile trial: real 4 columns; roomier from sm+
     className:
-      "grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 lg:gap-4",
+      "grid grid-cols-4 gap-1.5 sm:grid-cols-4 sm:gap-2 md:gap-3 lg:grid-cols-4 lg:gap-4",
     labelUk: "4",
     labelRu: "4",
     Icon: LayoutGrid,
-    desktopOnly: true,
   },
   {
     mode: "dense",
-    // Mobile max 3; denser on larger screens
+    // «Больше» still desktop-oriented; on phone stays at 4 max
     className:
-      "grid grid-cols-3 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6",
+      "grid grid-cols-4 gap-1 sm:grid-cols-4 sm:gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6",
     labelUk: "Більше",
     labelRu: "Больше",
     Icon: Grid2x2,
@@ -83,8 +82,8 @@ const LAYOUT_CONFIGS: LayoutConfig[] = [
 ];
 
 const STORAGE_KEY = "pro-optics-product-layout";
-/** Modes that need a desktop viewport; remapped to 3col on phone */
-const DESKTOP_ONLY_MODES: LayoutMode[] = ["4col", "dense"];
+/** Modes remapped on phone if shown only on desktop */
+const DESKTOP_ONLY_MODES: LayoutMode[] = ["dense"];
 
 function readStoredMode(fallback: LayoutMode): LayoutMode {
   if (typeof window === "undefined") return fallback;

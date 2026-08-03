@@ -56,11 +56,13 @@ export function ProductCard({
     ? scoreProduct(product).scores.thermalPerformance
     : null;
   const layoutMode = useContext(LayoutModeContext);
-  /** 3-up (and denser) → smaller image padding / type so cards fit on phone */
+  /** 3+/4-up → smaller padding/type so cards fit on phone */
   const tight =
     layoutMode === "3col" ||
     layoutMode === "4col" ||
     layoutMode === "dense";
+  /** Extra-tight for true 4-col on narrow screens */
+  const ultraTight = layoutMode === "4col" || layoutMode === "dense";
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -76,7 +78,8 @@ export function ProductCard({
         "product-card group relative flex h-full w-full min-w-0 flex-col overflow-visible",
         "active:scale-[0.99]",
         compact && "max-w-none",
-        tight && "product-card--tight"
+        tight && "product-card--tight",
+        ultraTight && "product-card--ultra"
       )}
       data-layout={layoutMode}
     >
@@ -97,7 +100,11 @@ export function ProductCard({
               alt={name}
               className={cn(
                 "h-full w-full object-contain transition-all duration-500 ease-premium",
-                tight ? "p-1.5 sm:p-2.5" : "p-4",
+                ultraTight
+                  ? "p-0.5 sm:p-2"
+                  : tight
+                    ? "p-1.5 sm:p-2.5"
+                    : "p-4",
                 `${hoverDesk}:group-hover:p-8 ${hoverDesk}:group-hover:scale-[1.04]`
               )}
             />
@@ -141,12 +148,16 @@ export function ProductCard({
       <div
         className={cn(
           "relative z-10 flex flex-1 flex-col transition-opacity duration-300 ease-premium",
-          tight ? "px-1.5 pt-1.5 sm:px-3 sm:pt-3" : "px-3.5 pt-3.5 sm:px-4 sm:pt-4",
+          ultraTight
+            ? "px-1 pt-1 sm:px-2.5 sm:pt-2.5"
+            : tight
+              ? "px-1.5 pt-1.5 sm:px-3 sm:pt-3"
+              : "px-3.5 pt-3.5 sm:px-4 sm:pt-4",
           `${hoverDesk}:group-hover:pointer-events-none`,
           `${hoverDesk}:group-hover:opacity-0`
         )}
       >
-        {product.brandName ? (
+        {product.brandName && !ultraTight ? (
           <p
             className={cn(
               "product-card__brand mb-0.5 font-medium uppercase tracking-wider",
@@ -160,9 +171,11 @@ export function ProductCard({
           <h3
             className={cn(
               "line-clamp-2 font-semibold leading-snug text-primary",
-              tight
-                ? "min-h-0 text-[11px] sm:min-h-[2.5rem] sm:text-sm"
-                : "min-h-[2.5rem] text-sm"
+              ultraTight
+                ? "min-h-0 text-[9px] leading-tight sm:text-xs"
+                : tight
+                  ? "min-h-0 text-[11px] sm:min-h-[2.5rem] sm:text-sm"
+                  : "min-h-[2.5rem] text-sm"
             )}
           >
             {name}
@@ -176,26 +189,32 @@ export function ProductCard({
 
         <div
           className={cn(
-            "mt-1.5 flex flex-wrap items-center gap-1.5 text-secondary",
-            tight ? "text-[10px] sm:text-xs" : "mt-2 gap-2 text-xs"
+            "mt-1 flex flex-wrap items-center gap-1 text-secondary",
+            ultraTight
+              ? "text-[9px]"
+              : tight
+                ? "mt-1.5 text-[10px] sm:text-xs"
+                : "mt-2 gap-2 text-xs"
           )}
         >
-          <span className="inline-flex items-center gap-0.5">
-            <Star
-              className={cn(
-                "fill-[var(--rating)] text-[var(--rating)]",
-                tight ? "h-3 w-3" : "h-3.5 w-3.5"
-              )}
-            />
-            <span className="font-medium text-primary">
-              {product.rating.toFixed(1)}
-            </span>
-            {!tight && (
-              <span className="text-muted-ui">
-                ({product.reviewsCount} {t("reviews")})
+          {!ultraTight && (
+            <span className="inline-flex items-center gap-0.5">
+              <Star
+                className={cn(
+                  "fill-[var(--rating)] text-[var(--rating)]",
+                  tight ? "h-3 w-3" : "h-3.5 w-3.5"
+                )}
+              />
+              <span className="font-medium text-primary">
+                {product.rating.toFixed(1)}
               </span>
-            )}
-          </span>
+              {!tight && (
+                <span className="text-muted-ui">
+                  ({product.reviewsCount} {t("reviews")})
+                </span>
+              )}
+            </span>
+          )}
           {thermalScore != null && !tight && (
             <ThermalScoreBadge score={thermalScore} />
           )}
@@ -205,25 +224,43 @@ export function ProductCard({
       <div
         className={cn(
           "relative z-30 mt-auto rounded-b-[calc(var(--radius-card)-1px)] bg-[var(--surface)]",
-          tight
-            ? "px-1.5 pb-1.5 pt-1.5 sm:px-3 sm:pb-3 sm:pt-2"
-            : "px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4"
+          ultraTight
+            ? "px-1 pb-1 pt-1 sm:px-2 sm:pb-2"
+            : tight
+              ? "px-1.5 pb-1.5 pt-1.5 sm:px-3 sm:pb-3 sm:pt-2"
+              : "px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4"
         )}
       >
-        <div className={cn("mb-1.5 flex flex-wrap items-baseline gap-1", !tight && "mb-2 gap-2")}>
+        <div
+          className={cn(
+            "flex flex-wrap items-baseline gap-0.5",
+            ultraTight ? "mb-1" : tight ? "mb-1.5 gap-1" : "mb-2 gap-2"
+          )}
+        >
           <span
             className={cn(
               "tracking-tight text-price",
-              tight ? "text-sm sm:text-lg" : "text-lg"
+              ultraTight
+                ? "text-[10px] leading-none sm:text-sm"
+                : tight
+                  ? "text-sm sm:text-lg"
+                  : "text-lg"
             )}
           >
             {formatPrice(product.price, locale)}
           </span>
-          {product.oldPrice != null && product.oldPrice > product.price && (
-            <span className={cn("text-price-old", tight ? "text-[10px]" : "text-sm")}>
-              {formatPrice(product.oldPrice, locale)}
-            </span>
-          )}
+          {product.oldPrice != null &&
+            product.oldPrice > product.price &&
+            !ultraTight && (
+              <span
+                className={cn(
+                  "text-price-old",
+                  tight ? "text-[10px]" : "text-sm"
+                )}
+              >
+                {formatPrice(product.oldPrice, locale)}
+              </span>
+            )}
         </div>
         {product.priceCompare && !tight && (
           <div className="mb-3">
@@ -235,10 +272,18 @@ export function ProductCard({
             type="button"
             onClick={handleAdd}
             disabled={product.stock <= 0}
-            className={cn("btn-buy w-full", tight && "btn-buy--compact text-[11px]")}
+            className={cn(
+              "btn-buy w-full",
+              tight && "btn-buy--compact text-[11px]",
+              ultraTight && "px-1 py-1.5 text-[9px] leading-none"
+            )}
           >
-            <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
-            <span className="btn-buy__label">{t("buy")}</span>
+            {!ultraTight && (
+              <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
+            )}
+            <span className="btn-buy__label">
+              {ultraTight ? "₴" : t("buy")}
+            </span>
           </button>
           {SIMULATOR_LINK_ENABLED && (
             <Link
