@@ -80,10 +80,12 @@ function buildProduct(
       ? Number(body.detectionRangeM)
       : existing?.detectionRangeM ?? null;
 
-  const specs: Record<string, string> = {
-    ...(existing?.specs || {}),
-    ...((body.specs as Record<string, string>) || {}),
-  };
+  // When the client sends specs it is the complete, authoritative set --
+  // merging it over the stored specs silently resurrected every key the
+  // admin had just deleted, so "видалити" + save never stuck.
+  const specs: Record<string, string> = body.specs
+    ? { ...(body.specs as Record<string, string>) }
+    : { ...(existing?.specs || {}) };
   if (detectionRangeM != null && !Number.isNaN(detectionRangeM)) {
     specs["Дальність виявлення людини, м"] = String(detectionRangeM);
   }

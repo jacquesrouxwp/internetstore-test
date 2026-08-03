@@ -4,6 +4,25 @@
 
 export type SpecRow = { key: string; label: string; value: string };
 
+/**
+ * Keys the storefront must never render: anything underscore-prefixed is
+ * internal bookkeeping (import source URL, timestamps, review flags).
+ */
+export function isInternalSpecKey(key: string): boolean {
+  return key.trim().startsWith("_");
+}
+
+/** Drop internal keys from a specs object (admin display, exports, etc). */
+export function stripInternalSpecs(
+  specs: Record<string, string> | null | undefined
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(specs || {})) {
+    if (!isInternalSpecKey(k)) out[k] = v;
+  }
+  return out;
+}
+
 /** Canonical keys used in seed / admin / DB */
 const LABEL_MAP: Record<string, { uk: string; ru: string }> = {
   "Дальність виявлення людини, м": {
@@ -84,6 +103,9 @@ export function buildSpecRows(
 
   const push = (rawKey: string, value: string) => {
     if (!value?.trim()) return;
+    // Internal bookkeeping keys (import provenance etc.) are never shown to
+    // shoppers -- they leaked onto live product pages, donor URL included.
+    if (isInternalSpecKey(rawKey)) return;
     const group = canonicalGroup(rawKey);
     if (seen.has(group)) return;
     seen.add(group);

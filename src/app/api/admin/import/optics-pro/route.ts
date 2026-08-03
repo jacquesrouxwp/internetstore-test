@@ -162,13 +162,9 @@ export async function POST(req: NextRequest) {
             catMap.deviceType,
             existing
           );
-          if (!imagesConsistent) {
-            record.specs._imagesFlagged = folderOk
-              ? "donor-gallery-may-include-sibling-model-photo-please-verify"
-              : "donor-gallery-had-unrelated-brand-photos-dropped";
-          }
-
-          const fewSpecs = Object.keys(record.specs).filter((k) => !k.startsWith("_")).length < 8;
+          // Gallery-mismatch warnings are reported in the import summary
+          // only -- writing them into specs put them on the product page.
+          const fewSpecs = Object.keys(record.specs).length < 8;
           const rowMeta = {
             url,
             name: record.nameUk,

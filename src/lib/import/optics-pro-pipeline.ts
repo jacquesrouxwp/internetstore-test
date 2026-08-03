@@ -3,17 +3,16 @@ import { slugify } from "@/lib/utils";
 import type { ParsedDonorProduct } from "./optics-pro-scraper";
 import { normalizeSpecs, resolutionString } from "./optics-pro-normalize";
 
-const SOURCE_SITE = "optics-pro.com.ua";
-
 /**
  * Turn one scraped+parsed donor product into a Product ready for
  * adminUpsertProduct. Caller has already resolved brand/category and decided
  * the product is in scope (whitelisted brand + mapped category).
  *
  * Per explicit product decision: specs are normalized as usual, but
- * descriptions are carried over verbatim from the donor for now (marked
- * `_rewriteNeeded`) -- a separate follow-up task rewrites them before
- * publish. Import always lands as a draft (`published: false`).
+ * descriptions are carried over verbatim from the donor for now -- a separate
+ * follow-up task rewrites them before publish. Import always lands as a draft
+ * (`published: false`). Nothing is written into `specs` except real product
+ * characteristics: specs renders straight onto the public product page.
  */
 export function buildProductRecord(
   parsed: ParsedDonorProduct,
@@ -55,12 +54,10 @@ export function buildProductRecord(
     specs.hasRangefinder = String(normalized.hasRangefinder);
   setSpec("operatingTempRange", normalized.operatingTempRange);
 
-  // Internal tracking -- never shown to a shopper, used to gate publish and
-  // to re-run/dedupe later.
-  specs._sourceSite = SOURCE_SITE;
-  specs._sourceUrl = `https://www.optics-pro.com.ua/${parsed.url}`;
-  specs._importedAt = new Date().toISOString();
-  specs._rewriteNeeded = "true";
+  // No bookkeeping keys go into specs: specs is rendered verbatim on the
+  // product page, so the previous _sourceSite/_sourceUrl/_importedAt/
+  // _rewriteNeeded entries showed up in the public characteristics table --
+  // donor URL and all. Dedupe does not need them (it matches on brand + sku).
 
   const description = parsed.descriptionRaw || null;
   const inStock = parsed.availability === "InStock";
