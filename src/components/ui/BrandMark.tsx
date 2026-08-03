@@ -118,7 +118,13 @@ export function BrandMark({
             alt=""
             width={px + 8}
             height={px + 8}
-            className="h-full w-full object-contain"
+            className={cn(
+              "h-full w-full",
+              // WhatsApp fills the circle solid green (no pale fringe)
+              brand === "whatsapp"
+                ? "scale-110 object-cover"
+                : "object-contain"
+            )}
             draggable={false}
           />
         ) : (
