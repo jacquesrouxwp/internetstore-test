@@ -21,6 +21,7 @@ import {
 } from "@/data/seed";
 import { getDetectionRangeBounds } from "@/lib/detection-range";
 import { hasPublicSupabase } from "@/lib/supabase/service";
+import { sortBrandsByPriority } from "@/lib/brand-priority";
 
 export async function getCatalog(
   filters: CatalogFilters = {},
@@ -69,8 +70,8 @@ export async function getProductsByFlag(
 
 export async function getBrands(): Promise<Brand[]> {
   const db = await dbGetBrands();
-  if (db?.length) return db;
-  return getRuntimeBrands();
+  if (db?.length) return sortBrandsByPriority(db);
+  return sortBrandsByPriority(getRuntimeBrands());
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -117,12 +118,12 @@ export async function getCategoryBrandsMap(): Promise<Record<string, Brand[]>> {
     }
   }
 
-  const sortedAll = [...allBrands].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedAll = sortBrandsByPriority(allBrands);
   const result: Record<string, Brand[]> = {};
   for (const c of categories) {
     const stocked = withProducts[c.slug];
     result[c.slug] = stocked?.length
-      ? [...stocked].sort((a, b) => a.name.localeCompare(b.name))
+      ? sortBrandsByPriority(stocked)
       : sortedAll;
   }
   return result;

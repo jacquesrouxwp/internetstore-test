@@ -21,6 +21,7 @@ import {
 } from "@/data/seed";
 import type { Review } from "@/types";
 import { getPriceCompareMap } from "@/lib/price-compare/repo";
+import { sortBrandsByPriority } from "@/lib/brand-priority";
 
 async function attachPriceCompare(products: Product[]): Promise<Product[]> {
   if (!products.length || !hasServiceSupabase()) return products;
@@ -169,7 +170,7 @@ export async function dbGetCatalog(
       total: count ?? 0,
       page,
       limit,
-      brands: brands || [],
+      brands: sortBrandsByPriority(brands || []),
       categories: categories || [],
       detectionRangeBounds,
     };
@@ -394,7 +395,7 @@ export async function getCatalogWithFallback(
     total,
     page,
     limit,
-    brands: getRuntimeBrands(),
+    brands: sortBrandsByPriority(getRuntimeBrands()),
     categories: getRuntimeCategories(),
     detectionRangeBounds: getDetectionRangeBounds(
       getRuntimeProducts().filter((p) => p.published),
