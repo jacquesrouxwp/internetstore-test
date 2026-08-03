@@ -15,6 +15,7 @@ import {
 } from "motion/react";
 import { LayoutGrid, LayoutList, Columns2, Columns3, Grid2x2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export type LayoutMode = "list" | "2col" | "3col" | "4col" | "dense";
 
@@ -168,17 +169,19 @@ export const ContainerToggle = React.forwardRef<
                 const label = isRu ? config.labelRu : config.labelUk;
                 const Icon = config.Icon;
                 return (
-                  <button
+                  <Button
                     key={config.mode}
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => select(config.mode)}
                     aria-pressed={selected}
                     aria-label={label}
                     title={label}
                     className={cn(
-                      "relative inline-flex h-8 min-w-[2rem] items-center justify-center gap-1 rounded-md px-2 text-[11px] font-semibold transition sm:h-9 sm:px-2.5 sm:text-xs",
+                      "relative h-8 min-w-[2rem] gap-1 rounded-md px-2 text-[11px] font-semibold hover:bg-transparent sm:h-9 sm:px-2.5 sm:text-xs",
                       selected
-                        ? "text-white"
+                        ? "text-white hover:text-white"
                         : "text-secondary hover:text-primary"
                     )}
                   >
@@ -195,20 +198,11 @@ export const ContainerToggle = React.forwardRef<
                     )}
                     <span className="relative z-[1] inline-flex items-center gap-1">
                       <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      <span
-                        className={cn(
-                          "hidden tabular-nums sm:inline",
-                          config.mode === "dense" || config.mode === "list"
-                            ? "sm:inline"
-                            : ""
-                        )}
-                      >
-                        {config.mode === "list" || config.mode === "dense"
-                          ? label
-                          : label}
+                      <span className="hidden tabular-nums sm:inline">
+                        {label}
                       </span>
                     </span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
