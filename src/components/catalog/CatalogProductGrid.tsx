@@ -8,7 +8,7 @@ export function CatalogProductGrid({ products }: { products: Product[] }) {
   return (
     <ProductLayoutGrid
       products={products}
-      defaultMode="3col"
+      defaultMode="2col"
       modes={["2col", "3col", "4col", "dense"]}
       forceCompact={false}
     />

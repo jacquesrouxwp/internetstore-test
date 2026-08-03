@@ -7,13 +7,14 @@ import type { Product } from "@/types";
 import { productName, productShort, salePercent } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-store";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
 import { ThermalScoreBadge } from "@/components/product/ThermalScorePanel";
 import {
   isThermalProduct,
   scoreProduct,
 } from "@/lib/thermal/thermal-score";
+import { LayoutModeContext } from "@/components/ui/animated-toggle-layout-container";
 
 /**
  * Desktop-only hover: only devices with real hover + fine pointer
@@ -54,6 +55,12 @@ export function ProductCard({
   const thermalScore = isThermalProduct(product)
     ? scoreProduct(product).scores.thermalPerformance
     : null;
+  const layoutMode = useContext(LayoutModeContext);
+  /** 3-up (and denser) → smaller image padding / type so cards fit on phone */
+  const tight =
+    layoutMode === "3col" ||
+    layoutMode === "4col" ||
+    layoutMode === "dense";
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -68,9 +75,10 @@ export function ProductCard({
         /* overflow-visible so price-compare popover is not clipped */
         "product-card group relative flex h-full w-full min-w-0 flex-col overflow-visible",
         "active:scale-[0.99]",
-        /* No min-width: grids (incl. mobile 2-col) must wrap without side-scroll */
-        compact && "max-w-none"
+        compact && "max-w-none",
+        tight && "product-card--tight"
       )}
+      data-layout={layoutMode}
     >
       <Link
         href={`/product/${product.slug}`}
@@ -88,7 +96,8 @@ export function ProductCard({
               src={product.images[0]}
               alt={name}
               className={cn(
-                "h-full w-full object-contain p-4 transition-all duration-500 ease-premium",
+                "h-full w-full object-contain transition-all duration-500 ease-premium",
+                tight ? "p-1.5 sm:p-2.5" : "p-4",
                 `${hoverDesk}:group-hover:p-8 ${hoverDesk}:group-hover:scale-[1.04]`
               )}
             />
@@ -131,41 +140,63 @@ export function ProductCard({
       {/* Meta fades under photo hover; price plate is sibling (z-30) so popover stays opaque */}
       <div
         className={cn(
-          "relative z-10 flex flex-1 flex-col px-3.5 pt-3.5 sm:px-4 sm:pt-4",
-          "transition-opacity duration-300 ease-premium",
+          "relative z-10 flex flex-1 flex-col transition-opacity duration-300 ease-premium",
+          tight ? "px-1.5 pt-1.5 sm:px-3 sm:pt-3" : "px-3.5 pt-3.5 sm:px-4 sm:pt-4",
           `${hoverDesk}:group-hover:pointer-events-none`,
           `${hoverDesk}:group-hover:opacity-0`
         )}
       >
         {product.brandName ? (
-          <p className="product-card__brand mb-1 text-[11px] font-medium uppercase tracking-wider">
+          <p
+            className={cn(
+              "product-card__brand mb-0.5 font-medium uppercase tracking-wider",
+              tight ? "text-[9px] sm:text-[11px]" : "text-[11px]"
+            )}
+          >
             {product.brandName}
           </p>
         ) : null}
         <Link href={`/product/${product.slug}`}>
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-primary">
+          <h3
+            className={cn(
+              "line-clamp-2 font-semibold leading-snug text-primary",
+              tight
+                ? "min-h-0 text-[11px] sm:min-h-[2.5rem] sm:text-sm"
+                : "min-h-[2.5rem] text-sm"
+            )}
+          >
             {name}
           </h3>
         </Link>
-        {short && !compact && (
+        {short && !compact && !tight && (
           <p className="mt-1 line-clamp-2 text-xs leading-normal text-secondary">
             {short}
           </p>
         )}
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-secondary">
-          <span className="inline-flex items-center gap-1">
+        <div
+          className={cn(
+            "mt-1.5 flex flex-wrap items-center gap-1.5 text-secondary",
+            tight ? "text-[10px] sm:text-xs" : "mt-2 gap-2 text-xs"
+          )}
+        >
+          <span className="inline-flex items-center gap-0.5">
             <Star
-              className="h-3.5 w-3.5 fill-[var(--rating)] text-[var(--rating)]"
+              className={cn(
+                "fill-[var(--rating)] text-[var(--rating)]",
+                tight ? "h-3 w-3" : "h-3.5 w-3.5"
+              )}
             />
             <span className="font-medium text-primary">
               {product.rating.toFixed(1)}
             </span>
-            <span className="text-muted-ui">
-              ({product.reviewsCount} {t("reviews")})
-            </span>
+            {!tight && (
+              <span className="text-muted-ui">
+                ({product.reviewsCount} {t("reviews")})
+              </span>
+            )}
           </span>
-          {thermalScore != null && (
+          {thermalScore != null && !tight && (
             <ThermalScoreBadge score={thermalScore} />
           )}
         </div>
@@ -173,21 +204,28 @@ export function ProductCard({
 
       <div
         className={cn(
-          "relative z-30 mt-auto px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4",
-          "rounded-b-[calc(var(--radius-card)-1px)] bg-[var(--surface)]"
+          "relative z-30 mt-auto rounded-b-[calc(var(--radius-card)-1px)] bg-[var(--surface)]",
+          tight
+            ? "px-1.5 pb-1.5 pt-1.5 sm:px-3 sm:pb-3 sm:pt-2"
+            : "px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4"
         )}
       >
-        <div className="mb-2 flex flex-wrap items-baseline gap-2">
-          <span className="text-lg tracking-tight text-price">
+        <div className={cn("mb-1.5 flex flex-wrap items-baseline gap-1", !tight && "mb-2 gap-2")}>
+          <span
+            className={cn(
+              "tracking-tight text-price",
+              tight ? "text-sm sm:text-lg" : "text-lg"
+            )}
+          >
             {formatPrice(product.price, locale)}
           </span>
           {product.oldPrice != null && product.oldPrice > product.price && (
-            <span className="text-sm text-price-old">
+            <span className={cn("text-price-old", tight ? "text-[10px]" : "text-sm")}>
               {formatPrice(product.oldPrice, locale)}
             </span>
           )}
         </div>
-        {product.priceCompare && (
+        {product.priceCompare && !tight && (
           <div className="mb-3">
             <PriceCompareBadge compare={product.priceCompare} />
           </div>
@@ -197,7 +235,7 @@ export function ProductCard({
             type="button"
             onClick={handleAdd}
             disabled={product.stock <= 0}
-            className="btn-buy w-full"
+            className={cn("btn-buy w-full", tight && "btn-buy--compact text-[11px]")}
           >
             <ShoppingCart className="btn-buy__icon" strokeWidth={2} />
             <span className="btn-buy__label">{t("buy")}</span>
