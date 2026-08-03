@@ -34,6 +34,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const dryRun = Boolean(body.dryRun);
   const limit = Number(body.limit) > 0 ? Number(body.limit) : 250;
+  // Descriptions run to several KB each, so pulling the whole catalogue in
+  // one request timed out. Walk it a page at a time and let the caller drive.
+  const offset = Number(body.offset) > 0 ? Number(body.offset) : 0;
+  const pageSize = Number(body.pageSize) > 0 ? Number(body.pageSize) : 100;
+  const onePage = body.onePage !== false;
 
   const supabase = createServiceClient();
   let scanned = 0;
@@ -41,13 +46,14 @@ export async function POST(req: NextRequest) {
   let remaining = 0;
   let hadCompetitor = 0;
   let stillDirty = 0;
+  let nextOffset: number | null = null;
   const sample: Record<string, unknown>[] = [];
 
-  const pageSize = 500;
-  for (let from = 0; ; from += pageSize) {
+  for (let from = offset; ; from += pageSize) {
     const { data, error } = await supabase
       .from("products")
       .select("id, slug, description_uk, description_ru")
+      .order("id")
       .range(from, from + pageSize - 1);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -100,6 +106,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (data.length < pageSize) break;
+    if (onePage) {
+      nextOffset = from + pageSize;
+      break;
+    }
   }
 
   return NextResponse.json({
@@ -110,6 +120,7 @@ export async function POST(req: NextRequest) {
     remaining,
     hadCompetitor,
     stillDirtyAfterSanitize: stillDirty,
+    nextOffset,
     sample,
   });
 }
