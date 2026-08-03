@@ -14,6 +14,10 @@ import { Suspense } from "react";
 // Supabase fetch in its Data Cache and the page serves whatever product set
 // existed when it was first rendered (post-import it still showed 3 of 456).
 export const dynamic = "force-dynamic";
+// See the product page: force-dynamic does not by itself stop Next reusing
+// Data-Cache entries for the Supabase reads. Route-scoped, so statically
+// rendered pages keep their caching.
+export const fetchCache = "force-no-store";
 
 type Props = {
   params: Promise<{ locale: string; category: string }>;

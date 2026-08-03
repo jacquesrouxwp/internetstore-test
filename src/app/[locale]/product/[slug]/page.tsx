@@ -26,6 +26,11 @@ import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
 // Live price/stock, and newly imported products must resolve immediately —
 // see the catalog page for the Data Cache problem this avoids.
 export const dynamic = "force-dynamic";
+// force-dynamic alone still let Next reuse Data-Cache entries for the Supabase
+// reads, so a page visited before an edit kept replaying the old row (a product
+// cleaned in the DB still rendered its removed specs). Route-scoped, so the
+// statically rendered pages are unaffected.
+export const fetchCache = "force-no-store";
 
 // Feature flag: thermal simulator temporarily disabled site-wide (kept in
 // code, not removed, per owner request 2026-08-01).
