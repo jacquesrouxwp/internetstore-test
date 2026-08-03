@@ -57,11 +57,13 @@ describe("visibleBrandGridBrands", () => {
       b("hikmicro", "HikMicro"),
       b("conotech", "Cono Tech"),
       b("konus", "KONUS"),
+      b("seek", "Seek Thermal"),
       b("guide", "Guide"),
+      b("leupold", "Leupold"),
     ];
     assert.deepEqual(
       visibleBrandGridBrands(input).map((x) => x.slug),
-      ["agm", "hikmicro", "guide"]
+      ["agm", "hikmicro", "guide", "leupold"]
     );
   });
 

@@ -16,12 +16,12 @@ export const SEED_BRANDS: Brand[] = [
   { id: "b10", slug: "guide", name: "Guide", logoUrl: "/brands/guide.png" },
   // Everything below: same brand data, just not in the priority set above.
   { id: "b2", slug: "rix", name: "Rix", logoUrl: "/brands/rix.jpg" },
-  { id: "b6", slug: "atn", name: "ATN", logoUrl: "/brands/atn.jpg" },
-  { id: "b8", slug: "flir", name: "FLIR", logoUrl: "/brands/flir.jpg" },
+  { id: "b6", slug: "atn", name: "ATN", logoUrl: "/brands/atn.png" },
+  { id: "b8", slug: "flir", name: "FLIR", logoUrl: "/brands/flir.png" },
   { id: "b11", slug: "nvectech", name: "NVECTECH", logoUrl: "/brands/nvectech.svg" },
   { id: "b12", slug: "sytong", name: "Sytong", logoUrl: "/brands/sytong.jpg" },
   { id: "b13", slug: "armasight", name: "ARMASIGHT", logoUrl: "/brands/armasight.png" },
-  { id: "b14", slug: "atn-ots-hd", name: "ATN OTS-HD", logoUrl: "/brands/atn.jpg" },
+  { id: "b14", slug: "atn-ots-hd", name: "ATN OTS-HD", logoUrl: "/brands/atn.png" },
   { id: "b15", slug: "conotech", name: "Cono Tech", logoUrl: "/brands/conotech.png" },
   { id: "b16", slug: "falcon-optic", name: "Falcon Optic", logoUrl: "/brands/falcon-optic.jpg" },
   { id: "b17", slug: "dahua", name: "DAHUA", logoUrl: "/brands/dahua.png" },
@@ -30,7 +30,7 @@ export const SEED_BRANDS: Brand[] = [
   { id: "b20", slug: "dipol", name: "Dipol", logoUrl: "/brands/dipol.jpg" },
   { id: "b21", slug: "konus", name: "KONUS", logoUrl: "/brands/konus.jpg" },
   { id: "b22", slug: "seek", name: "Seek Thermal", logoUrl: "/brands/seek.jpg" },
-  { id: "b23", slug: "leupold", name: "Leupold", logoUrl: "/brands/leupold.jpg" },
+  { id: "b23", slug: "leupold", name: "Leupold", logoUrl: "/brands/leupold.png" },
   { id: "b24", slug: "delta", name: "Delta", logoUrl: "/brands/delta.png" },
 ];
 
