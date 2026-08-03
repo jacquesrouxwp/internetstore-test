@@ -1,7 +1,7 @@
 import { CatalogFilters } from "@/components/catalog/CatalogFilters";
 import { CatalogToolbar } from "@/components/catalog/CatalogToolbar";
+import { CatalogProductGrid } from "@/components/catalog/CatalogProductGrid";
 import { Pagination } from "@/components/catalog/Pagination";
-import { ProductCard } from "@/components/ui/ProductCard";
 import { getCatalog, getCategoryBySlug } from "@/lib/catalog";
 import { Link } from "@/i18n/routing";
 import { categoryName, supportsDetectionRangeFilter } from "@/types";
@@ -101,11 +101,7 @@ export default async function CatalogPage({ params, searchParams }: Props) {
               {t("empty")}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {result.products.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
+            <CatalogProductGrid products={result.products} />
           )}
 
           <Suspense fallback={null}>

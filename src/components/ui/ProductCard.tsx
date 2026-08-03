@@ -66,9 +66,10 @@ export function ProductCard({
     <article
       className={cn(
         /* overflow-visible so price-compare popover is not clipped */
-        "product-card group relative flex flex-col overflow-visible",
+        "product-card group relative flex h-full w-full min-w-0 flex-col overflow-visible",
         "active:scale-[0.99]",
-        compact && "min-w-[220px] max-w-[260px]"
+        /* No min-width: grids (incl. mobile 2-col) must wrap without side-scroll */
+        compact && "max-w-none"
       )}
     >
       <Link
