@@ -31,7 +31,7 @@ type LayoutConfig = {
 const LAYOUT_CONFIGS: LayoutConfig[] = [
   {
     mode: "4col",
-    // phone 2 → tablet 3 → desktop 4
+    // phone max 2 (readable) → sm 3 → lg 4  |  never >3 on phone
     className:
       "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 lg:gap-4",
     labelUk: "4",
@@ -40,18 +40,18 @@ const LAYOUT_CONFIGS: LayoutConfig[] = [
   },
   {
     mode: "6col",
-    // phone 3 → sm 4 → lg 6
+    // phone max 3 → md 4 → lg 6
     className:
-      "grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-2.5 md:grid-cols-5 lg:grid-cols-6 lg:gap-3",
+      "grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-2.5 md:grid-cols-4 lg:grid-cols-6 lg:gap-3",
     labelUk: "6",
     labelRu: "6",
     Icon: Grid3x3,
   },
   {
     mode: "dense",
-    // phone 4 → sm 5 → md 6 → xl 8  («Больше» = 8)
+    // phone max 3 (no 4/8 on mobile) → md 5 → lg 6 → xl 8
     className:
-      "grid grid-cols-4 gap-1.5 sm:grid-cols-5 sm:gap-2 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 xl:gap-2.5",
+      "grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-2 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 xl:gap-2.5",
     labelUk: "Більше",
     labelRu: "Больше",
     Icon: Grid2x2,
