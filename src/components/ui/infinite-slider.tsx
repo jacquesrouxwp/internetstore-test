@@ -130,6 +130,8 @@ export function InfiniteSlider({
             : { y: reduceMotion ? 0 : translation }),
           gap: `${gap}px`,
           flexDirection: direction === "horizontal" ? "row" : "column",
+          // Allow taps/clicks on brand cards inside the marquee
+          pointerEvents: "auto",
         }}
         ref={ref}
         {...hoverProps}
