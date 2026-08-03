@@ -36,7 +36,7 @@ export function ProductRail({
         <ProductLayoutGrid
           products={products}
           defaultMode="4col"
-          modes={["4col", "6col", "dense"]}
+          modes={["4col", "6col"]}
         />
       </div>
     </section>

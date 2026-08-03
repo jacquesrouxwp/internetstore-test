@@ -7,7 +7,7 @@ import type { Product } from "@/types";
 import { productName, productShort, salePercent } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-store";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
 import { ThermalScoreBadge } from "@/components/product/ThermalScorePanel";
 import {
@@ -56,22 +56,10 @@ export function ProductCard({
     ? scoreProduct(product).scores.thermalPerformance
     : null;
   const layoutMode = useContext(LayoutModeContext);
-  /** 6-up / Больше → tighter cards (on phone both are still max 3 cols) */
-  const tight = layoutMode === "6col" || layoutMode === "dense";
-  /**
-   * Ultra-tight only when dense AND wide enough for 5+ cols.
-   * On phone dense = 3 cols → use normal tight, not stamp-sized cards.
-   */
-  const [wide, setWide] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(min-width: 768px)");
-    const apply = () => setWide(mq.matches);
-    apply();
-    mq.addEventListener?.("change", apply);
-    return () => mq.removeEventListener?.("change", apply);
-  }, []);
-  const ultraTight = layoutMode === "dense" && wide;
+  /** 6-up → slightly tighter cards */
+  const tight = layoutMode === "6col";
+  /** No ultra-tiny 8-col mode anymore */
+  const ultraTight = false;
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();

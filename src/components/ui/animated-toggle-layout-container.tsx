@@ -2,8 +2,8 @@
 
 /**
  * Product grid density toggle.
- * Modes: 4 | 6 | Больше (8).
- * Mobile scales down (2 / 3 / 4) so cards stay usable.
+ * Modes: 4 | 6 only (no 8 / «Больше»).
+ * Mobile: 4→2, 6→3 max.
  */
 
 import * as React from "react";
@@ -13,12 +13,12 @@ import {
   type HTMLMotionProps,
   useReducedMotion,
 } from "motion/react";
-import { LayoutGrid, Grid2x2, Grid3x3 } from "lucide-react";
+import { LayoutGrid, Grid3x3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-/** 4 · 6 · 8 (dense) */
-export type LayoutMode = "4col" | "6col" | "dense";
+/** 4 · 6 */
+export type LayoutMode = "4col" | "6col";
 
 type LayoutConfig = {
   mode: LayoutMode;
@@ -31,7 +31,7 @@ type LayoutConfig = {
 const LAYOUT_CONFIGS: LayoutConfig[] = [
   {
     mode: "4col",
-    // phone max 2 (readable) → sm 3 → lg 4  |  never >3 on phone
+    // phone 2 → sm 3 → lg 4
     className:
       "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 lg:gap-4",
     labelUk: "4",
@@ -47,29 +47,21 @@ const LAYOUT_CONFIGS: LayoutConfig[] = [
     labelRu: "6",
     Icon: Grid3x3,
   },
-  {
-    mode: "dense",
-    // phone max 3 (no 4/8 on mobile) → md 5 → lg 6 → xl 8
-    className:
-      "grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-2 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 xl:gap-2.5",
-    labelUk: "Більше",
-    labelRu: "Больше",
-    Icon: Grid2x2,
-  },
 ];
 
-const STORAGE_KEY = "pro-optics-product-layout-v2";
+const STORAGE_KEY = "pro-optics-product-layout-v3";
 
 function readStoredMode(fallback: LayoutMode): LayoutMode {
   if (typeof window === "undefined") return fallback;
   try {
     const v = localStorage.getItem(STORAGE_KEY) as LayoutMode | null;
     if (v && LAYOUT_CONFIGS.some((c) => c.mode === v)) return v;
-    // migrate old keys
-    const old = localStorage.getItem("pro-optics-product-layout");
-    if (old === "2col" || old === "3col") return "4col";
-    if (old === "4col") return "4col";
-    if (old === "dense") return "dense";
+    // migrate: dense/8 → 6
+    const old =
+      localStorage.getItem("pro-optics-product-layout-v2") ||
+      localStorage.getItem("pro-optics-product-layout");
+    if (old === "6col" || old === "dense") return "6col";
+    if (old === "4col" || old === "2col" || old === "3col") return "4col";
   } catch {
     /* ignore */
   }
@@ -81,7 +73,6 @@ const ANIMATION_VARIANTS = {
     hidden: {},
     "4col": { transition: { staggerChildren: 0.04 } },
     "6col": { transition: { staggerChildren: 0.03 } },
-    dense: { transition: { staggerChildren: 0.025 } },
   },
   card: {
     hidden: { opacity: 0, y: 12 },
@@ -170,13 +161,7 @@ export const ContainerToggle = React.forwardRef<
                       onClick={() => select(config.mode)}
                       aria-pressed={selected}
                       aria-label={label}
-                      title={
-                        config.mode === "dense"
-                          ? isRu
-                            ? "Больше — до 8 в ряд"
-                            : "Більше — до 8 в ряд"
-                          : label
-                      }
+                      title={label}
                       className={cn(
                         "relative h-8 gap-1 rounded-md px-2.5 text-xs font-semibold hover:bg-transparent sm:h-9 sm:px-3",
                         selected
@@ -219,7 +204,7 @@ export const ContainerToggle = React.forwardRef<
               className={cn(
                 currentConfig.className,
                 "w-full min-w-0",
-                mode !== "4col" && "product-grid--tight"
+                mode === "6col" && "product-grid--tight"
               )}
             >
               {children}
