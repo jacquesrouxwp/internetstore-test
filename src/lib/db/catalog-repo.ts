@@ -91,7 +91,15 @@ export async function dbGetCatalog(
       query = query.eq("device_type", filters.deviceType);
     }
     if (filters.resolutions?.length) {
-      query = query.in("resolution", filters.resolutions);
+      // The sidebar sends the sensor width only ("256"), while the column
+      // holds the full geometry ("256x192"), so an exact match never hit and
+      // the resolution filter always returned nothing. Match on the prefix.
+      const conds = filters.resolutions
+        .map((r) => String(r).replace(/[^0-9]/g, ""))
+        .filter(Boolean)
+        .map((r) => `resolution.ilike.${r}%`)
+        .join(",");
+      if (conds) query = query.or(conds);
     }
     if (filters.q) {
       const q = filters.q.replace(/%/g, "");
