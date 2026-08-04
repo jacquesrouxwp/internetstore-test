@@ -8,6 +8,8 @@ import { getAllPublicSettings } from "@/lib/store-settings";
 // Feature flag: thermal simulator link disabled site-wide (kept in code,
 // not removed, per owner request 2026-08-01).
 const SIMULATOR_LINK_ENABLED = false;
+/** Temporarily hide blog links (route still works if opened directly). */
+const BLOG_NAV_ENABLED = false;
 
 export async function Footer() {
   const t = await getTranslations("footer");
@@ -104,11 +106,13 @@ export async function Footer() {
                 {tn("warranty")}
               </Link>
             </li>
-            <li>
-              <Link href="/blog" className="hover:text-[var(--accent)]">
-                {tn("blog")}
-              </Link>
-            </li>
+            {BLOG_NAV_ENABLED && (
+              <li>
+                <Link href="/blog" className="hover:text-[var(--accent)]">
+                  {tn("blog")}
+                </Link>
+              </li>
+            )}
           </ul>
         </div>
 

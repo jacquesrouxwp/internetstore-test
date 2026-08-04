@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type {
   Brand,
   CatalogFilters,
@@ -11,6 +12,7 @@ import {
   dbGetCategories,
   dbGetCategoryBrandsMap,
   dbGetProductBySlug,
+  dbGetRelatedProducts,
   getCatalogWithFallback,
   getReviewsSeed,
 } from "@/lib/db/catalog-repo";
@@ -37,22 +39,31 @@ export function getCategoryDetectionRangeBounds(categorySlug: string) {
   );
 }
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  const fromDb = await dbGetProductBySlug(slug);
-  if (fromDb) return fromDb;
-  // fallback only without supabase
-  if (hasPublicSupabase()) return null;
-  return getRuntimeProducts().find((p) => p.slug === slug) || null;
-}
+/**
+ * Deduped per-request (metadata + page share one Supabase hit).
+ */
+export const getProductBySlug = cache(
+  async (slug: string): Promise<Product | null> => {
+    const fromDb = await dbGetProductBySlug(slug);
+    if (fromDb) return fromDb;
+    // fallback only without supabase
+    if (hasPublicSupabase()) return null;
+    return getRuntimeProducts().find((p) => p.slug === slug) || null;
+  }
+);
 
 export async function getRelatedProducts(
   product: Product,
   limit = 4
 ): Promise<Product[]> {
-  const all = await getCatalog({ limit: 50, sort: "rating" });
-  return all.products
+  // Lightweight DB path — avoids loading 50 products + full price-compare map
+  const fromDb = await dbGetRelatedProducts(product, limit);
+  if (fromDb) return fromDb;
+  if (hasPublicSupabase()) return [];
+  return getRuntimeProducts()
     .filter(
       (p) =>
+        p.published &&
         p.id !== product.id &&
         (p.brandSlug === product.brandSlug ||
           p.categorySlug === product.categorySlug)

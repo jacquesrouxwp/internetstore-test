@@ -68,10 +68,13 @@ export default async function ProductPage({ params }: Props) {
   const name = productName(product, loc);
   const desc = productDescription(product, loc);
   const sale = salePercent(product.price, product.oldPrice);
-  const related = await getRelatedProducts(product, 4);
-  const boughtWith = (await getProductsByFlag("hit", 4)).filter(
-    (p) => p.id !== product.id
-  );
+
+  // Parallel I/O — related no longer scans 50-product catalog
+  const [related, hitProducts] = await Promise.all([
+    getRelatedProducts(product, 4),
+    getProductsByFlag("hit", 4),
+  ]);
+  const boughtWith = hitProducts.filter((p) => p.id !== product.id);
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://optics-shop-skeleton.vercel.app";
@@ -93,6 +96,7 @@ export default async function ProductPage({ params }: Props) {
         product.deviceType === "scope" ||
         product.deviceType === "binocular"
     );
+  // Sim is off — skip heavy compare-options fetch
   const thermalCompareOptions = showThermalSim
     ? await listThermalCompareOptions(loc, product.id)
     : [];
@@ -122,6 +126,8 @@ export default async function ProductPage({ params }: Props) {
                 src={product.images[0]}
                 alt={name}
                 className="h-full w-full object-contain p-8"
+                fetchPriority="high"
+                decoding="async"
               />
             ) : (
               <div className="flex h-full items-center justify-center bg-canvas">

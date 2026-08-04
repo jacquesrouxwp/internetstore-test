@@ -8,13 +8,18 @@ import { listPublishedPosts } from "@/lib/blog/repo";
 // code, not removed, per owner request 2026-08-01).
 const SIMULATOR_LINK_ENABLED = false;
 
+/** Temporarily hide hero blog carousel — keep the right-hand slot empty. */
+const BLOG_HERO_ENABLED = false;
+
 /**
  * Hero: left — CTA glass card; right — blog carousel (same surface style).
  */
 export async function Hero() {
   const t = await getTranslations("home");
   const locale = await getLocale();
-  const { posts } = await listPublishedPosts({ limit: 5, page: 1 });
+  const { posts } = BLOG_HERO_ENABLED
+    ? await listPublishedPosts({ limit: 5, page: 1 })
+    : { posts: [] as Awaited<ReturnType<typeof listPublishedPosts>>["posts"] };
 
   return (
     <section className="relative z-10 overflow-hidden py-10 sm:py-14 lg:py-16">
@@ -77,11 +82,18 @@ export async function Hero() {
             </ul>
           </div>
 
-          {/* Right — blog carousel */}
-          <div className="relative z-10 flex min-h-[320px] w-full lg:min-h-0">
-            <div className="w-full lg:flex lg:flex-1">
-              <BlogCarousel posts={posts} locale={locale} />
-            </div>
+          {/* Right — blog carousel (hidden for now; empty slot keeps layout) */}
+          <div className="relative z-10 hidden min-h-[320px] w-full lg:flex lg:min-h-0">
+            {BLOG_HERO_ENABLED ? (
+              <div className="w-full lg:flex lg:flex-1">
+                <BlogCarousel posts={posts} locale={locale} />
+              </div>
+            ) : (
+              <div
+                className="hero-glass w-full flex-1 rounded-[var(--radius-card)]"
+                aria-hidden
+              />
+            )}
           </div>
         </div>
       </div>

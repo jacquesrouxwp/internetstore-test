@@ -21,6 +21,8 @@ import { SiteLogo } from "@/components/layout/SiteLogo";
 // Feature flag: thermal simulator ("Пісочниця DRI") temporarily disabled
 // site-wide (kept in code, not removed, per owner request 2026-08-01).
 const SIMULATOR_LINK_ENABLED = false;
+/** Temporarily hide blog in top nav (routes still exist). */
+const BLOG_NAV_ENABLED = false;
 
 export function Header({
   categories,
@@ -208,12 +210,17 @@ export function Header({
 
         <nav className="hidden border-t md:block" style={{ borderColor: "var(--border)" }}>
           <div className="container-shop">
-            <ul className="flex gap-1 overflow-x-auto py-2 no-scrollbar">
+            {/*
+              shrink-0 links + modest padding so long labels (e.g. «Аксесуари»)
+              are fully visible; horizontal scroll only if truly needed.
+            */}
+            <ul className="flex flex-nowrap items-center gap-0.5 overflow-x-auto py-2 pr-1 no-scrollbar">
               {categories.map((c) => {
                 const dropBrands = categoryBrandsMap[c.slug] || [];
                 return (
                   <li
                     key={c.id}
+                    className="shrink-0"
                     onMouseEnter={(e) =>
                       dropBrands.length &&
                       openCategoryMenu(c.slug, e.currentTarget)
@@ -222,7 +229,7 @@ export function Header({
                   >
                     <Link
                       href={`/catalog/${c.slug}`}
-                      className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium text-secondary transition hover:bg-white/[0.06] hover:text-primary"
+                      className="inline-block whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-medium leading-none text-secondary transition hover:bg-white/[0.06] hover:text-primary lg:px-3 lg:text-sm"
                     >
                       {categoryName(c, locale as "uk" | "ru")}
                     </Link>
@@ -230,23 +237,25 @@ export function Header({
                 );
               })}
               {SIMULATOR_LINK_ENABLED && (
-                <li>
+                <li className="shrink-0">
                   <Link
                     href="/simulator"
-                    className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold text-[var(--accent)] transition hover:bg-white/[0.06]"
+                    className="inline-block whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-semibold leading-none text-[var(--accent)] transition hover:bg-white/[0.06] lg:px-3 lg:text-sm"
                   >
                     {t("simulator")}
                   </Link>
                 </li>
               )}
-              <li>
-                <Link
-                  href="/blog"
-                  className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold text-secondary transition hover:bg-white/[0.06] hover:text-primary"
-                >
-                  {t("blog")}
-                </Link>
-              </li>
+              {BLOG_NAV_ENABLED && (
+                <li className="shrink-0">
+                  <Link
+                    href="/blog"
+                    className="inline-block whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-semibold leading-none text-secondary transition hover:bg-white/[0.06] hover:text-primary lg:px-3 lg:text-sm"
+                  >
+                    {t("blog")}
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
         </nav>
@@ -320,15 +329,17 @@ export function Header({
                   </Link>
                 </li>
               )}
-              <li>
-                <Link
-                  href="/blog"
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-primary hover:bg-white/[0.06]"
-                >
-                  {t("blog")}
-                </Link>
-              </li>
+              {BLOG_NAV_ENABLED && (
+                <li>
+                  <Link
+                    href="/blog"
+                    onClick={() => setOpen(false)}
+                    className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-primary hover:bg-white/[0.06]"
+                  >
+                    {t("blog")}
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link
                   href="/about"

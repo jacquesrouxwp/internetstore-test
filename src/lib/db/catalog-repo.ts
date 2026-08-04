@@ -221,6 +221,74 @@ export async function dbGetProductBySlug(
   }
 }
 
+/**
+ * Lightweight related products for PDP (no full-catalog scan).
+ * Prefer same brand, then same category.
+ */
+export async function dbGetRelatedProducts(
+  product: Product,
+  limit = 4
+): Promise<Product[] | null> {
+  const supabase = await getReadClient();
+  if (!supabase) return null;
+  try {
+    const select = "*, brands(slug, name), categories(slug)";
+    // Prefer brand_id (reliable), then category_id, then top-rated
+    let rows: unknown[] = [];
+    if (product.brandId) {
+      const { data, error } = await supabase
+        .from("products")
+        .select(select)
+        .eq("published", true)
+        .neq("id", product.id)
+        .eq("brand_id", product.brandId)
+        .order("rating", { ascending: false })
+        .limit(limit);
+      if (!error && data?.length) rows = data;
+    }
+    if (rows.length < limit && product.categoryId) {
+      const haveIds = new Set(
+        [product.id, ...rows.map((r) => String((r as { id: string }).id))]
+      );
+      const { data, error } = await supabase
+        .from("products")
+        .select(select)
+        .eq("published", true)
+        .eq("category_id", product.categoryId)
+        .order("rating", { ascending: false })
+        .limit(limit + 4);
+      if (!error && data?.length) {
+        for (const r of data) {
+          const id = String((r as { id: string }).id);
+          if (haveIds.has(id)) continue;
+          rows.push(r);
+          haveIds.add(id);
+          if (rows.length >= limit) break;
+        }
+      }
+    }
+    if (!rows.length) {
+      const { data, error } = await supabase
+        .from("products")
+        .select(select)
+        .eq("published", true)
+        .neq("id", product.id)
+        .order("rating", { ascending: false })
+        .limit(limit);
+      if (error || !data?.length) return [];
+      rows = data;
+    }
+
+    const products = rows
+      .slice(0, limit)
+      .map((r) => mapDbProduct(r as Record<string, unknown>));
+    return attachPriceCompare(products);
+  } catch (e) {
+    console.error("[related]", e);
+    return null;
+  }
+}
+
 export async function dbGetProductById(id: string): Promise<Product | null> {
   const supabase = await getReadClient();
   if (!supabase) return null;
