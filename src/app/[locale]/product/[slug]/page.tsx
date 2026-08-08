@@ -15,6 +15,7 @@ import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
 import { ProductDescriptionBody } from "@/components/product/ProductDescriptionBody";
+import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
@@ -119,25 +120,11 @@ export default async function ProductPage({ params }: Props) {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
-        <div>
-          <div className="relative aspect-square overflow-hidden rounded-2xl border border-line bg-white">
-            {product.images[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={product.images[0]}
-                alt={name}
-                className="h-full w-full object-contain p-8"
-                fetchPriority="high"
-                decoding="async"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center bg-canvas">
-                <div className="h-32 w-40 rounded-[2rem] bg-gradient-to-br from-zinc-500 to-zinc-800 shadow-lg">
-                  <div className="mx-auto mt-10 h-14 w-14 rounded-full border-2 border-white/80" />
-                </div>
-              </div>
-            )}
-            <div className="absolute left-4 top-4 flex flex-col gap-1.5">
+        <ProductImageGallery
+          images={product.images}
+          alt={name}
+          badges={
+            <>
               {sale != null && sale > 0 && (
                 <span className="label-badge badge-sale">-{sale}%</span>
               )}
@@ -150,22 +137,9 @@ export default async function ProductPage({ params }: Props) {
               {product.isTop === true && !product.isHit && t("top") ? (
                 <span className="label-badge badge-hit">{t("top")}</span>
               ) : null}
-            </div>
-          </div>
-          {product.images.length > 1 && (
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {product.images.slice(0, 4).map((src, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={src}
-                  alt=""
-                  className="aspect-square rounded-lg border border-line object-contain p-2"
-                />
-              ))}
-            </div>
-          )}
-        </div>
+            </>
+          }
+        />
 
         <div>
           {product.brandName && (

@@ -14,12 +14,11 @@ import {
 // code, not removed, per owner request 2026-08-01).
 const SIMULATOR_LINK_ENABLED = false;
 
-/** Temporarily hide hero blog carousel — empty glass slot on the right. */
+/** Temporarily hide hero blog — no empty right glass (slot returns when true). */
 const BLOG_HERO_ENABLED = false;
 
 /**
- * Hero: left — CTA glass card + brand marquee at bottom;
- * right — blog carousel (when enabled) or empty slot.
+ * Hero: CTA glass card + brand marquee; optional blog column when enabled.
  */
 export async function Hero() {
   const t = await getTranslations("home");
@@ -40,8 +39,14 @@ export async function Hero() {
   return (
     <section className="relative z-10 overflow-hidden py-10 sm:py-14 lg:py-16">
       <div className="container-shop">
-        <div className="grid items-stretch gap-5 lg:grid-cols-2 lg:gap-6">
-          {/* Left — main pitch + brand ticker */}
+        <div
+          className={
+            BLOG_HERO_ENABLED
+              ? "grid items-stretch gap-5 lg:grid-cols-2 lg:gap-6"
+              : "grid items-stretch gap-5"
+          }
+        >
+          {/* Main pitch + brand ticker */}
           <div className="hero-glass relative z-10 flex w-full flex-col rounded-[var(--radius-card)] px-6 py-8 sm:px-9 sm:py-10 lg:px-10 lg:py-11">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-ui sm:text-xs">
               Professional Optics · Ukraine
@@ -100,7 +105,6 @@ export async function Hero() {
               ))}
             </ul>
 
-            {/* Brand marquee — bottom of left card */}
             <HeroBrandMarquee
               brands={brands}
               title={t("heroTrustBrandsTitle")}
@@ -108,19 +112,13 @@ export async function Hero() {
             />
           </div>
 
-          {/* Right — blog (later) or empty glass slot */}
-          <div className="relative z-10 hidden min-h-[320px] w-full lg:flex lg:min-h-0">
-            {BLOG_HERO_ENABLED ? (
+          {BLOG_HERO_ENABLED ? (
+            <div className="relative z-10 hidden min-h-[320px] w-full lg:flex lg:min-h-0">
               <div className="w-full lg:flex lg:flex-1">
                 <BlogCarousel posts={posts} locale={locale} />
               </div>
-            ) : (
-              <div
-                className="hero-glass w-full flex-1 rounded-[var(--radius-card)]"
-                aria-hidden
-              />
-            )}
-          </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
