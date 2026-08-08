@@ -9,11 +9,6 @@ import { formatPrice, cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-store";
 import { useContext, useState } from "react";
 import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
-import { ThermalScoreBadge } from "@/components/product/ThermalScorePanel";
-import {
-  isThermalProduct,
-  scoreProduct,
-} from "@/lib/thermal/thermal-score";
 import { LayoutModeContext } from "@/components/ui/animated-toggle-layout-container";
 
 /**
@@ -52,9 +47,6 @@ export function ProductCard({
   const sale = salePercent(product.price, product.oldPrice);
   const name = productName(product, locale);
   const short = productShort(product, locale);
-  const thermalScore = isThermalProduct(product)
-    ? scoreProduct(product).scores.thermalPerformance
-    : null;
   const layoutMode = useContext(LayoutModeContext);
   /** 6-up → slightly tighter cards */
   const tight = layoutMode === "6col";
@@ -214,9 +206,6 @@ export function ProductCard({
                 </span>
               )}
             </span>
-          )}
-          {thermalScore != null && !tight && (
-            <ThermalScoreBadge score={thermalScore} />
           )}
         </div>
       </div>
