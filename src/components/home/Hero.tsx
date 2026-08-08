@@ -18,7 +18,8 @@ const SIMULATOR_LINK_ENABLED = false;
 const BLOG_HERO_ENABLED = false;
 
 /**
- * Hero: CTA glass card + brand marquee; optional blog column when enabled.
+ * Hero: left pitch card (~half width on desktop) + brand marquee;
+ * right blog column only when enabled (no empty glass placeholder).
  */
 export async function Hero() {
   const t = await getTranslations("home");
@@ -39,14 +40,9 @@ export async function Hero() {
   return (
     <section className="relative z-10 overflow-hidden py-10 sm:py-14 lg:py-16">
       <div className="container-shop">
-        <div
-          className={
-            BLOG_HERO_ENABLED
-              ? "grid items-stretch gap-5 lg:grid-cols-2 lg:gap-6"
-              : "grid items-stretch gap-5"
-          }
-        >
-          {/* Main pitch + brand ticker */}
+        {/* Always 2 cols on lg so left card keeps original half-width size */}
+        <div className="grid items-stretch gap-5 lg:grid-cols-2 lg:gap-6">
+          {/* Left — pitch + brand ticker */}
           <div className="hero-glass relative z-10 flex w-full flex-col rounded-[var(--radius-card)] px-6 py-8 sm:px-9 sm:py-10 lg:px-10 lg:py-11">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-ui sm:text-xs">
               Professional Optics · Ukraine
@@ -112,13 +108,16 @@ export async function Hero() {
             />
           </div>
 
+          {/* Right — blog when enabled; otherwise empty half (no glass box) */}
           {BLOG_HERO_ENABLED ? (
             <div className="relative z-10 hidden min-h-[320px] w-full lg:flex lg:min-h-0">
               <div className="w-full lg:flex lg:flex-1">
                 <BlogCarousel posts={posts} locale={locale} />
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="hidden lg:block" aria-hidden />
+          )}
         </div>
       </div>
     </section>
