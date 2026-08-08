@@ -2,7 +2,7 @@ import NextLink from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowRight, Truck, Headphones, ScanEye } from "lucide-react";
 import { BlogCarousel } from "@/components/home/BlogCarousel";
-import { HeroTrustPanel } from "@/components/home/HeroTrustPanel";
+import { HeroBrandMarquee } from "@/components/home/HeroBrandMarquee";
 import { listPublishedPosts } from "@/lib/blog/repo";
 import { getBrands } from "@/lib/catalog";
 import {
@@ -14,12 +14,12 @@ import {
 // code, not removed, per owner request 2026-08-01).
 const SIMULATOR_LINK_ENABLED = false;
 
-/** Temporarily hide hero blog carousel — trust panel fills the slot instead. */
+/** Temporarily hide hero blog carousel — empty glass slot on the right. */
 const BLOG_HERO_ENABLED = false;
 
 /**
- * Hero: left — CTA glass card; right — trust panel + brand marquee
- * (or blog carousel when BLOG_HERO_ENABLED).
+ * Hero: left — CTA glass card + brand marquee at bottom;
+ * right — blog carousel (when enabled) or empty slot.
  */
 export async function Hero() {
   const t = await getTranslations("home");
@@ -41,7 +41,7 @@ export async function Hero() {
     <section className="relative z-10 overflow-hidden py-10 sm:py-14 lg:py-16">
       <div className="container-shop">
         <div className="grid items-stretch gap-5 lg:grid-cols-2 lg:gap-6">
-          {/* Left — main pitch */}
+          {/* Left — main pitch + brand ticker */}
           <div className="hero-glass relative z-10 flex w-full flex-col rounded-[var(--radius-card)] px-6 py-8 sm:px-9 sm:py-10 lg:px-10 lg:py-11">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-ui sm:text-xs">
               Professional Optics · Ukraine
@@ -99,16 +99,26 @@ export async function Hero() {
                 </li>
               ))}
             </ul>
+
+            {/* Brand marquee — bottom of left card */}
+            <HeroBrandMarquee
+              brands={brands}
+              title={t("heroTrustBrandsTitle")}
+              className="mt-6 border-t border-white/[0.1] pt-5"
+            />
           </div>
 
-          {/* Right — trust panel + brand ticker (or blog when enabled) */}
-          <div className="relative z-10 flex min-h-0 w-full flex-col">
+          {/* Right — blog (later) or empty glass slot */}
+          <div className="relative z-10 hidden min-h-[320px] w-full lg:flex lg:min-h-0">
             {BLOG_HERO_ENABLED ? (
-              <div className="hidden w-full lg:flex lg:min-h-[320px] lg:flex-1">
+              <div className="w-full lg:flex lg:flex-1">
                 <BlogCarousel posts={posts} locale={locale} />
               </div>
             ) : (
-              <HeroTrustPanel brands={brands} />
+              <div
+                className="hero-glass w-full flex-1 rounded-[var(--radius-card)]"
+                aria-hidden
+              />
             )}
           </div>
         </div>
