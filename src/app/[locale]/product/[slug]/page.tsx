@@ -14,6 +14,7 @@ import { formatPrice } from "@/lib/utils";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
+import { ProductDescriptionBody } from "@/components/product/ProductDescriptionBody";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
@@ -273,15 +274,9 @@ export default async function ProductPage({ params }: Props) {
 
         <section className="product-panel">
           <h2 className="product-panel__title">{t("description")}</h2>
-          <div className="product-panel__body">
-            {(desc || productShort(product, loc) || "")
-              .split(/\n\s*\n|\n/)
-              .map((p) => p.trim())
-              .filter(Boolean)
-              .map((paragraph, i) => (
-                <p key={i}>{paragraph}</p>
-              ))}
-          </div>
+          <ProductDescriptionBody
+            text={desc || productShort(product, loc) || ""}
+          />
         </section>
       </div>
 

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "tsx --test src/lib/thermal/parse-product-thermal.test.ts src/lib/thermal/zoom.test.ts src/lib/thermal/sandbox-physics.test.ts src/lib/thermal/targets.test.ts src/lib/thermal/thermal-score.test.ts src/lib/thermal/thermal-score-distance.test.ts src/lib/admin/session.test.ts src/lib/import/optics-pro-normalize.test.ts src/lib/import/optics-pro-categories.test.ts src/lib/import/optics-pro-scraper.test.ts src/lib/translit.test.ts src/lib/brand-priority.test.ts src/lib/product-specs.test.ts src/lib/import/sanitize-description.test.ts",
+    "test": "tsx --test src/lib/thermal/parse-product-thermal.test.ts src/lib/thermal/zoom.test.ts src/lib/thermal/sandbox-physics.test.ts src/lib/thermal/targets.test.ts src/lib/thermal/thermal-score.test.ts src/lib/thermal/thermal-score-distance.test.ts src/lib/admin/session.test.ts src/lib/import/optics-pro-normalize.test.ts src/lib/import/optics-pro-categories.test.ts src/lib/import/optics-pro-scraper.test.ts src/lib/translit.test.ts src/lib/brand-priority.test.ts src/lib/product-specs.test.ts src/lib/import/sanitize-description.test.ts src/lib/format-description.test.ts",
     "db:check": "node scripts/seed-supabase.mjs"
   },
   "dependencies": {

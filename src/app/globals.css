@@ -338,18 +338,56 @@ body {
   .product-panel__body {
     color: #b0b5bc;
     font-size: 1rem; /* 16px */
-    line-height: 1.6;
+    line-height: 1.7;
     font-weight: 400;
     opacity: 1;
+    max-width: 42rem; /* ~70ch */
   }
 
   .product-panel__body p {
-    margin: 0 0 0.9em;
-    max-width: 42rem; /* ~70ch */
+    margin: 0 0 1em;
   }
 
   .product-panel__body p:last-child {
     margin-bottom: 0;
+  }
+
+  /* Section labels inside description (e.g. «Комплектація») */
+  .product-panel__subtitle {
+    margin: 1.15em 0 0.45em;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
+    color: #e4e7eb;
+  }
+
+  .product-panel__subtitle:first-child {
+    margin-top: 0;
+  }
+
+  .product-panel__list {
+    margin: 0 0 1em;
+    padding: 0 0 0 1.15rem;
+    list-style: disc;
+  }
+
+  .product-panel__list:last-child {
+    margin-bottom: 0;
+  }
+
+  .product-panel__list li {
+    margin: 0 0 0.4em;
+    padding-left: 0.15rem;
+    line-height: 1.55;
+  }
+
+  .product-panel__list li:last-child {
+    margin-bottom: 0;
+  }
+
+  .product-panel__list li::marker {
+    color: #7a8490;
   }
 
   .product-panel__specs {
