@@ -11,6 +11,7 @@ import {
   salePercent,
 } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
@@ -40,12 +41,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Product" };
   const name = productName(product, locale as "uk" | "ru");
+  const desc = productShort(product, locale as "uk" | "ru") || name;
+  const path =
+    locale === "ru" ? `/ru/product/${slug}` : `/product/${slug}`;
+  const url = absoluteUrl(path);
   return {
     title: name,
-    description: productShort(product, locale as "uk" | "ru") || name,
+    description: desc,
+    alternates: { canonical: url },
     openGraph: {
       title: name,
-      description: productShort(product, locale as "uk" | "ru") || undefined,
+      description: desc,
+      url,
       images: product.images[0] ? [product.images[0]] : undefined,
     },
   };
@@ -70,9 +77,7 @@ export default async function ProductPage({ params }: Props) {
     getProductsByFlag("hit", 4, { priceCompare: false }),
   ]);
   const boughtWith = hitProducts.filter((p) => p.id !== product.id);
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://optics-shop-skeleton.vercel.app";
+  const siteUrl = getSiteUrl();
 
   return (
     <div className="container-shop py-6 sm:py-10">

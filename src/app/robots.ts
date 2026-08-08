@@ -1,15 +1,16 @@
 import type { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/site-url";
 
 export default function robots(): MetadataRoute.Robots {
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://optics-shop-skeleton.vercel.app";
+  const base = getSiteUrl();
   return {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin", "/api"],
+      // Storefront is indexable; admin only blocked (API is not content)
+      disallow: ["/admin", "/admin/"],
     },
     sitemap: `${base}/sitemap.xml`,
+    host: base.replace(/^https?:\/\//, ""),
   };
 }

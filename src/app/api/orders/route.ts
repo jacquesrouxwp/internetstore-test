@@ -7,14 +7,18 @@ import {
   hasServiceSupabase,
 } from "@/lib/supabase/service";
 import { isUuid } from "@/lib/supabase/mappers";
+import { getSiteUrl } from "@/lib/site-url";
 
 function createPaymentUrl(
   order: Order,
   method: PaymentMethod
 ): string | null {
   if (method === "cod") return null;
+  // Prefer canonical storefront; never hardcode vercel.app
   const site =
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    process.env.NODE_ENV === "development" && !process.env.NEXT_PUBLIC_SITE_URL
+      ? "http://localhost:3000"
+      : getSiteUrl();
   if (method === "monobank" && process.env.MONOBANK_TOKEN) {
     return `${site}/checkout?pending=${order.orderNumber}&provider=monobank`;
   }

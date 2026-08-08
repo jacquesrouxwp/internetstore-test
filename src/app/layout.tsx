@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
+import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,10 +15,10 @@ const manrope = Manrope({
   display: "swap",
 });
 
+const siteUrl = getSiteUrl();
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://optics-shop-skeleton.vercel.app"
-  ),
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Pro-Optics — професійна оптика та тепловізори",
     template: "%s | Pro-Optics",
@@ -28,6 +29,10 @@ export const metadata: Metadata = {
     type: "website",
     locale: "uk_UA",
     siteName: "Pro-Optics",
+    url: siteUrl,
+  },
+  alternates: {
+    canonical: siteUrl,
   },
 };
 

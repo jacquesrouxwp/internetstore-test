@@ -6,11 +6,22 @@ import {
   isAdminPublicPath,
   verifyAdminSession,
 } from "./lib/admin/session";
+import { CANONICAL_SITE_ORIGIN, LEGACY_VERCEL_HOST } from "./lib/site-url";
 
 const intlMiddleware = createMiddleware(routing);
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const host = (req.headers.get("host") || "").split(":")[0].toLowerCase();
+
+  // 301: old Vercel deploy host → canonical domain (avoid duplicate index)
+  if (
+    host === LEGACY_VERCEL_HOST ||
+    (host.endsWith(".vercel.app") && host.includes("optics-shop-skeleton"))
+  ) {
+    const dest = new URL(pathname + req.nextUrl.search, CANONICAL_SITE_ORIGIN);
+    return NextResponse.redirect(dest, 301);
+  }
 
   // Protect /admin/* (except login page itself)
   if (pathname.startsWith("/admin")) {

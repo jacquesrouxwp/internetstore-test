@@ -14,6 +14,7 @@ import {
   postTitle,
   stripHtml,
 } from "@/lib/blog/types";
+import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -27,12 +28,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!post) return { title: "Blog" };
   const title = postMetaTitle(post, locale);
   const description = postMetaDescription(post, locale);
+  const path = locale === "ru" ? `/ru/blog/${slug}` : `/blog/${slug}`;
+  const url = absoluteUrl(path);
   return {
     title,
     description,
+    alternates: { canonical: url },
     openGraph: {
       title,
       description,
+      url,
       type: "article",
       images: post.coverUrl ? [post.coverUrl] : undefined,
       publishedTime: post.publishedAt || undefined,
@@ -57,9 +62,11 @@ export default async function BlogPostPage({ params }: Props) {
     : "";
   const backLabel = loc === "ru" ? "← Все статьи" : "← Усі статті";
   const relatedLabel = loc === "ru" ? "Похожие статьи" : "Схожі статті";
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://optics-shop-skeleton.vercel.app";
+  const siteUrl = getSiteUrl();
+  const pageUrl =
+    loc === "ru"
+      ? absoluteUrl(`/ru/blog/${post.slug}`)
+      : absoluteUrl(`/blog/${post.slug}`);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -78,7 +85,7 @@ export default async function BlogPostPage({ params }: Props) {
       name: "Pro-Optics",
       url: siteUrl,
     },
-    mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
+    mainEntityOfPage: pageUrl,
     articleSection: post.category || undefined,
     inLanguage: loc === "ru" ? "ru-UA" : "uk-UA",
   };

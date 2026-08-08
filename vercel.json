@@ -3,6 +3,30 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "optics-shop-skeleton.vercel.app"
+        }
+      ],
+      "destination": "https://pro-optics.com.ua/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "optics-shop-skeleton-jacqros-projects.vercel.app"
+        }
+      ],
+      "destination": "https://pro-optics.com.ua/:path*",
+      "permanent": true
+    }
+  ],
   "crons": [
     {
       "path": "/api/admin/price-sync",
