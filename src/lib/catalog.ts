@@ -74,9 +74,10 @@ export async function getRelatedProducts(
 
 export async function getProductsByFlag(
   flag: "hit" | "new" | "top" | "sale",
-  limit = 8
+  limit = 8,
+  opts?: { priceCompare?: boolean }
 ): Promise<Product[]> {
-  const fromDb = await dbGetProductsByFlag(flag, limit);
+  const fromDb = await dbGetProductsByFlag(flag, limit, opts);
   if (fromDb) return fromDb;
   if (hasPublicSupabase()) return [];
   // in-memory seed fallback

@@ -226,7 +226,8 @@ export async function dbGetProductBySlug(
  */
 export async function dbGetProductsByFlag(
   flag: "hit" | "new" | "top" | "sale",
-  limit = 8
+  limit = 8,
+  opts?: { priceCompare?: boolean }
 ): Promise<Product[] | null> {
   const supabase = await getReadClient();
   if (!supabase) return null;
@@ -250,6 +251,8 @@ export async function dbGetProductsByFlag(
     const products = (data || []).map((r) =>
       mapDbProduct(r as Record<string, unknown>)
     );
+    // Homepage wants badges; PDP secondary rails skip the extra query
+    if (opts?.priceCompare === false) return products;
     return attachPriceCompare(products);
   } catch (e) {
     console.error("[products-by-flag]", e);
@@ -315,10 +318,10 @@ export async function dbGetRelatedProducts(
       rows = data;
     }
 
-    const products = rows
+    // No price-compare on related rails — keeps PDP TTFB lower
+    return rows
       .slice(0, limit)
       .map((r) => mapDbProduct(r as Record<string, unknown>));
-    return attachPriceCompare(products);
   } catch (e) {
     console.error("[related]", e);
     return null;

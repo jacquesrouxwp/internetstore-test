@@ -20,11 +20,8 @@ import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Star, Check, Package, ScanEye } from "lucide-react";
+import { Star, Check, Package } from "lucide-react";
 import { buildSpecRows } from "@/lib/product-specs";
-import { ThermalSimulator } from "@/components/product/ThermalSimulator";
-import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
-import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
 // Live price/stock, and newly imported products must resolve immediately —
 // see the catalog page for the Data Cache problem this avoids.
 export const dynamic = "force-dynamic";
@@ -33,10 +30,6 @@ export const dynamic = "force-dynamic";
 // cleaned in the DB still rendered its removed specs). Route-scoped, so the
 // statically rendered pages are unaffected.
 export const fetchCache = "force-no-store";
-
-// Feature flag: thermal simulator temporarily disabled site-wide (kept in
-// code, not removed, per owner request 2026-08-01).
-const THERMAL_SIMULATOR_ENABLED = false;
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -71,37 +64,15 @@ export default async function ProductPage({ params }: Props) {
   const desc = productDescription(product, loc);
   const sale = salePercent(product.price, product.oldPrice);
 
-  // Parallel I/O — related no longer scans 50-product catalog
+  // Parallel I/O — no price-compare on secondary rails (faster PDP)
   const [related, hitProducts] = await Promise.all([
     getRelatedProducts(product, 4),
-    getProductsByFlag("hit", 4),
+    getProductsByFlag("hit", 4, { priceCompare: false }),
   ]);
   const boughtWith = hitProducts.filter((p) => p.id !== product.id);
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://optics-shop-skeleton.vercel.app";
-
-  // Show sim for any thermal-ish product (catalog may omit resolution on some rows)
-  const cat = (product.categorySlug || "").toLowerCase();
-  const showThermalSim =
-    THERMAL_SIMULATOR_ENABLED &&
-    product.deviceType !== "clipon" &&
-    Boolean(
-      cat.includes("teploviz") ||
-        cat.includes("pricil") ||
-        cat.includes("mono") ||
-        cat.includes("binokl") ||
-        cat.includes("thermal") ||
-        product.resolution ||
-        (product.detectionRangeM != null && product.detectionRangeM > 0) ||
-        product.deviceType === "mono" ||
-        product.deviceType === "scope" ||
-        product.deviceType === "binocular"
-    );
-  // Sim is off — skip heavy compare-options fetch
-  const thermalCompareOptions = showThermalSim
-    ? await listThermalCompareOptions(loc, product.id)
-    : [];
 
   return (
     <div className="container-shop py-6 sm:py-10">
@@ -200,30 +171,10 @@ export default async function ProductPage({ params }: Props) {
               product={product}
               className="btn-buy min-w-[200px] w-full sm:w-auto"
             />
-            {showThermalSim && (
-              <a
-                href="#thermal-simulator"
-                className="btn-sim inline-flex w-full min-h-[2.75rem] min-w-[200px] items-center justify-center gap-2 rounded-full border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-5 py-2.5 text-sm font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] hover:border-[var(--accent-hover)] sm:w-auto"
-                title={t("simulationHint")}
-              >
-                <ScanEye className="h-5 w-5 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
-                <span>{t("simulation")}</span>
-              </a>
-            )}
           </div>
-          {showThermalSim && (
-            <p className="mt-2 max-w-md text-[12px] leading-snug text-muted">
-              {t("simulationHint")}
-            </p>
-          )}
 
           <PriceCompareSection compare={product.priceCompare} locale={locale} />
-
-          {productShort(product, loc) && (
-            <p className="product-panel__body mt-8 max-w-xl text-base">
-              {productShort(product, loc)}
-            </p>
-          )}
+          {/* Full text only in «Опис» below — not duplicated under cart */}
         </div>
       </div>
 
@@ -253,24 +204,6 @@ export default async function ProductPage({ params }: Props) {
           />
         </section>
       </div>
-
-      {/* Thermal vision simulator — driven by product matrix / range / NETD */}
-      {showThermalSim && (
-        <div id="thermal-simulator" className="mt-10 scroll-mt-24">
-          <ThermalSimulator
-            locale={loc}
-            currentProductId={product.id}
-            compareOptions={thermalCompareOptions}
-            params={parseProductThermal({
-              resolution: product.resolution,
-              detectionRangeM: product.detectionRangeM,
-              specs: product.specs,
-              name: name,
-              price: product.price,
-            })}
-          />
-        </div>
-      )}
 
       {related.length > 0 && (
         <section className="mt-14">
