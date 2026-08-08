@@ -2,24 +2,40 @@ import NextLink from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowRight, Truck, Headphones, ScanEye } from "lucide-react";
 import { BlogCarousel } from "@/components/home/BlogCarousel";
+import { HeroTrustPanel } from "@/components/home/HeroTrustPanel";
 import { listPublishedPosts } from "@/lib/blog/repo";
+import { getBrands } from "@/lib/catalog";
+import {
+  sortBrandsByPriority,
+  visibleBrandGridBrands,
+} from "@/lib/brand-priority";
 
 // Feature flag: thermal simulator sandbox CTA disabled site-wide (kept in
 // code, not removed, per owner request 2026-08-01).
 const SIMULATOR_LINK_ENABLED = false;
 
-/** Temporarily hide hero blog carousel — keep the right-hand slot empty. */
+/** Temporarily hide hero blog carousel — trust panel fills the slot instead. */
 const BLOG_HERO_ENABLED = false;
 
 /**
- * Hero: left — CTA glass card; right — blog carousel (same surface style).
+ * Hero: left — CTA glass card; right — trust panel + brand marquee
+ * (or blog carousel when BLOG_HERO_ENABLED).
  */
 export async function Hero() {
   const t = await getTranslations("home");
   const locale = await getLocale();
-  const { posts } = BLOG_HERO_ENABLED
-    ? await listPublishedPosts({ limit: 5, page: 1 })
-    : { posts: [] as Awaited<ReturnType<typeof listPublishedPosts>>["posts"] };
+  const [{ posts }, allBrands] = await Promise.all([
+    BLOG_HERO_ENABLED
+      ? listPublishedPosts({ limit: 5, page: 1 })
+      : Promise.resolve({
+          posts: [] as Awaited<
+            ReturnType<typeof listPublishedPosts>
+          >["posts"],
+        }),
+    getBrands(),
+  ]);
+
+  const brands = sortBrandsByPriority(visibleBrandGridBrands(allBrands));
 
   return (
     <section className="relative z-10 overflow-hidden py-10 sm:py-14 lg:py-16">
@@ -50,7 +66,10 @@ export async function Hero() {
                   href="/simulator"
                   className="btn-hero shrink-0 !min-h-[2.6rem] !border-2 !border-[var(--accent)] !bg-[rgba(225,29,42,0.15)] !px-6 !text-sm !text-primary hover:!bg-[rgba(225,29,42,0.25)]"
                 >
-                  <ScanEye className="h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
+                  <ScanEye
+                    className="h-4 w-4 shrink-0 text-[var(--accent)]"
+                    strokeWidth={2.25}
+                  />
                   <span className="truncate">{t("heroSandbox")}</span>
                 </NextLink>
               )}
@@ -82,17 +101,14 @@ export async function Hero() {
             </ul>
           </div>
 
-          {/* Right — blog carousel (hidden for now; empty slot keeps layout) */}
-          <div className="relative z-10 hidden min-h-[320px] w-full lg:flex lg:min-h-0">
+          {/* Right — trust panel + brand ticker (or blog when enabled) */}
+          <div className="relative z-10 flex min-h-0 w-full flex-col">
             {BLOG_HERO_ENABLED ? (
-              <div className="w-full lg:flex lg:flex-1">
+              <div className="hidden w-full lg:flex lg:min-h-[320px] lg:flex-1">
                 <BlogCarousel posts={posts} locale={locale} />
               </div>
             ) : (
-              <div
-                className="hero-glass w-full flex-1 rounded-[var(--radius-card)]"
-                aria-hidden
-              />
+              <HeroTrustPanel brands={brands} />
             )}
           </div>
         </div>
