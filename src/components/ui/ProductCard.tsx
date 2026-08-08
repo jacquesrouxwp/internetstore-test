@@ -82,6 +82,7 @@ export function ProductCard({
     >
       <Link
         href={`/product/${product.slug}`}
+        prefetch
         className={cn(
           "relative z-10 block aspect-square overflow-hidden photo-plate",
           `${hoverDesk}:group-hover:absolute ${hoverDesk}:group-hover:inset-0`,
@@ -95,6 +96,8 @@ export function ProductCard({
             <img
               src={product.images[0]}
               alt={name}
+              loading="lazy"
+              decoding="async"
               className={cn(
                 "h-full w-full object-contain transition-all duration-500 ease-premium",
                 ultraTight

@@ -13,6 +13,7 @@ import {
   dbGetCategoryBrandsMap,
   dbGetProductBySlug,
   dbGetRelatedProducts,
+  dbGetProductsByFlag,
   getCatalogWithFallback,
   getReviewsSeed,
 } from "@/lib/db/catalog-repo";
@@ -75,6 +76,10 @@ export async function getProductsByFlag(
   flag: "hit" | "new" | "top" | "sale",
   limit = 8
 ): Promise<Product[]> {
+  const fromDb = await dbGetProductsByFlag(flag, limit);
+  if (fromDb) return fromDb;
+  if (hasPublicSupabase()) return [];
+  // in-memory seed fallback
   const result = await getCatalog({ flags: [flag], limit, sort: "rating" });
   return result.products;
 }

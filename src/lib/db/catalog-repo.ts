@@ -222,6 +222,42 @@ export async function dbGetProductBySlug(
 }
 
 /**
+ * Lightweight flag rails (hit/new/top/sale) — only N rows, not full catalog.
+ */
+export async function dbGetProductsByFlag(
+  flag: "hit" | "new" | "top" | "sale",
+  limit = 8
+): Promise<Product[] | null> {
+  const supabase = await getReadClient();
+  if (!supabase) return null;
+  const col =
+    flag === "hit"
+      ? "is_hit"
+      : flag === "new"
+        ? "is_new"
+        : flag === "top"
+          ? "is_top"
+          : "is_sale";
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*, brands(slug, name), categories(slug)")
+      .eq("published", true)
+      .eq(col, true)
+      .order("rating", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    const products = (data || []).map((r) =>
+      mapDbProduct(r as Record<string, unknown>)
+    );
+    return attachPriceCompare(products);
+  } catch (e) {
+    console.error("[products-by-flag]", e);
+    return null;
+  }
+}
+
+/**
  * Lightweight related products for PDP (no full-catalog scan).
  * Prefer same brand, then same category.
  */

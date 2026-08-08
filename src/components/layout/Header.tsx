@@ -211,10 +211,10 @@ export function Header({
         <nav className="hidden border-t md:block" style={{ borderColor: "var(--border)" }}>
           <div className="container-shop">
             {/*
-              shrink-0 links + modest padding so long labels (e.g. «Аксесуари»)
-              are fully visible; horizontal scroll only if truly needed.
+              flex-wrap so long labels (e.g. «Аксесуари») never clip mid-word.
+              Full text always visible; second row only if categories overflow.
             */}
-            <ul className="flex flex-nowrap items-center gap-0.5 overflow-x-auto py-2 pr-1 no-scrollbar">
+            <ul className="flex flex-wrap items-center gap-x-0.5 gap-y-1 py-2">
               {categories.map((c) => {
                 const dropBrands = categoryBrandsMap[c.slug] || [];
                 return (
@@ -229,7 +229,7 @@ export function Header({
                   >
                     <Link
                       href={`/catalog/${c.slug}`}
-                      className="inline-block whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-medium leading-none text-secondary transition hover:bg-white/[0.06] hover:text-primary lg:px-3 lg:text-sm"
+                      className="inline-block whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-medium leading-snug text-secondary transition hover:bg-white/[0.06] hover:text-primary lg:px-2.5 lg:text-sm"
                     >
                       {categoryName(c, locale as "uk" | "ru")}
                     </Link>
@@ -240,7 +240,7 @@ export function Header({
                 <li className="shrink-0">
                   <Link
                     href="/simulator"
-                    className="inline-block whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-semibold leading-none text-[var(--accent)] transition hover:bg-white/[0.06] lg:px-3 lg:text-sm"
+                    className="inline-block whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-semibold leading-snug text-[var(--accent)] transition hover:bg-white/[0.06] lg:px-2.5 lg:text-sm"
                   >
                     {t("simulator")}
                   </Link>
@@ -250,7 +250,7 @@ export function Header({
                 <li className="shrink-0">
                   <Link
                     href="/blog"
-                    className="inline-block whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-semibold leading-none text-secondary transition hover:bg-white/[0.06] hover:text-primary lg:px-3 lg:text-sm"
+                    className="inline-block whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-semibold leading-snug text-secondary transition hover:bg-white/[0.06] hover:text-primary lg:px-2.5 lg:text-sm"
                   >
                     {t("blog")}
                   </Link>
