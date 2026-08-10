@@ -19,8 +19,8 @@ const SIMULATOR_LINK_ENABLED = false;
 const BLOG_HERO_ENABLED = false;
 
 /**
- * Hero: pitch card + brand marquee (half width on desktop).
- * Mobile: compact padding/type so the glass block is not stretched tall.
+ * Hero: pitch card + brand marquee.
+ * Mobile uses short copy + .hero-mobile CSS so the glass block fits a phone.
  */
 export async function Hero() {
   const t = await getTranslations("home");
@@ -39,33 +39,42 @@ export async function Hero() {
   const brands = sortBrandsByPriority(visibleBrandGridBrands(allBrands));
 
   return (
-    <section className="relative z-10 overflow-hidden py-5 sm:py-10 lg:py-14">
-      <div className="container-shop">
-        <div className="grid items-stretch gap-4 lg:grid-cols-2 lg:gap-6">
-          {/* Pitch + brand ticker */}
-          <div className="hero-glass relative z-10 flex w-full flex-col rounded-[var(--radius-card)] px-4 py-5 sm:px-8 sm:py-9 lg:px-10 lg:py-11">
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-ui sm:mb-3 sm:text-[11px] sm:tracking-[0.2em] sm:text-xs">
+    <section className="hero-section relative z-10 overflow-x-hidden py-3 sm:py-10 lg:py-14">
+      <div className="container-shop !px-3 sm:!px-6">
+        <div className="grid items-start gap-3 lg:grid-cols-2 lg:items-stretch lg:gap-6">
+          <div className="hero-glass hero-mobile relative z-10 flex w-full max-w-full flex-col overflow-hidden rounded-[var(--radius-card)] px-3.5 py-3.5 sm:px-8 sm:py-9 lg:px-10 lg:py-11">
+            <p className="hero-mobile__eyebrow mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-ui sm:mb-3 sm:text-[11px] sm:tracking-[0.2em] sm:text-xs">
               Professional Optics · Ukraine
             </p>
-            <h1 className="font-display text-[1.35rem] font-bold leading-[1.18] tracking-tight text-primary sm:text-3xl sm:leading-[1.15] lg:text-[2.15rem]">
+
+            {/* Short title on phone — full title from sm+ */}
+            <h1 className="hero-mobile__title font-display font-bold tracking-tight text-primary sm:hidden">
+              {t("heroTitleMobile")}
+            </h1>
+            <h1 className="hidden font-display text-3xl font-bold leading-[1.15] tracking-tight text-primary sm:block lg:text-[2.15rem]">
               {t("heroTitle")}
             </h1>
-            <p className="mt-2 max-w-2xl text-[0.8125rem] leading-snug text-secondary sm:mt-3.5 sm:text-[0.9375rem] sm:leading-relaxed sm:text-base">
+
+            <p className="hero-mobile__sub mt-1.5 text-[0.75rem] leading-snug text-secondary sm:hidden">
+              {t("heroSubtitleMobile")}
+            </p>
+            <p className="mt-3.5 hidden max-w-2xl text-[0.9375rem] leading-relaxed text-secondary sm:block sm:text-base">
               {t("heroSubtitle")}
             </p>
 
-            <div className="mt-4 flex flex-col gap-2 sm:mt-7 sm:flex-row sm:flex-wrap sm:gap-2.5">
+            <div className="hero-mobile__cta mt-3 flex flex-row gap-1.5 sm:mt-7 sm:flex-wrap sm:gap-2.5">
               <NextLink
                 href="/catalog/teplovizori"
-                className="btn-hero btn-hero-primary w-full shrink-0 !min-h-[2.4rem] !px-5 !py-2 !text-[0.8125rem] sm:w-auto sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
+                className="btn-hero btn-hero-primary hero-mobile__btn min-w-0 flex-1 sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
               >
-                <span className="truncate">{t("heroCta")}</span>
+                <span className="truncate sm:hidden">{t("heroCtaMobile")}</span>
+                <span className="hidden truncate sm:inline">{t("heroCta")}</span>
                 <ArrowRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               </NextLink>
               {SIMULATOR_LINK_ENABLED && (
                 <NextLink
                   href="/simulator"
-                  className="btn-hero w-full shrink-0 !min-h-[2.4rem] !border-2 !border-[var(--accent)] !bg-[rgba(225,29,42,0.15)] !px-5 !py-2 !text-[0.8125rem] !text-primary hover:!bg-[rgba(225,29,42,0.25)] sm:w-auto sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
+                  className="btn-hero hero-mobile__btn min-w-0 flex-1 !border-2 !border-[var(--accent)] !bg-[rgba(225,29,42,0.15)] !text-primary hover:!bg-[rgba(225,29,42,0.25)] sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
                 >
                   <ScanEye
                     className="h-3.5 w-3.5 shrink-0 text-[var(--accent)] sm:h-4 sm:w-4"
@@ -76,25 +85,33 @@ export async function Hero() {
               )}
               <a
                 href={STORE_PHONE_TEL}
-                className="btn-hero btn-hero-secondary w-full shrink-0 !min-h-[2.4rem] !px-5 !py-2 !text-[0.8125rem] sm:w-auto sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
+                className="btn-hero btn-hero-secondary hero-mobile__btn min-w-0 flex-1 sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
               >
-                <span className="truncate">{t("heroSecondary")}</span>
+                <span className="truncate sm:hidden">
+                  {t("heroSecondaryMobile")}
+                </span>
+                <span className="hidden truncate sm:inline">
+                  {t("heroSecondary")}
+                </span>
               </a>
             </div>
 
-            <ul className="mt-4 grid grid-cols-2 gap-1.5 border-t border-white/[0.1] pt-3.5 sm:mt-7 sm:gap-2.5 sm:pt-5 sm:gap-3">
+            <ul className="hero-mobile__perks mt-3 grid grid-cols-2 gap-1 border-t border-white/[0.1] pt-2.5 sm:mt-7 sm:gap-3 sm:pt-5">
               {[
                 { icon: Truck, text: t("why2") },
                 { icon: Headphones, text: t("why3") },
               ].map(({ icon: Icon, text }) => (
                 <li
                   key={text}
-                  className="hero-perk flex items-center gap-2 rounded-lg px-2 py-1.5 sm:gap-2.5 sm:rounded-xl sm:px-3.5 sm:py-2.5"
+                  className="hero-perk flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 sm:gap-2.5 sm:rounded-xl sm:px-3.5 sm:py-2.5"
                 >
-                  <span className="hero-perk__icon flex h-7 w-7 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9">
-                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={1.75} />
+                  <span className="hero-perk__icon flex h-6 w-6 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9">
+                    <Icon
+                      className="h-3 w-3 sm:h-4 sm:w-4"
+                      strokeWidth={1.75}
+                    />
                   </span>
-                  <span className="text-[10px] font-semibold leading-snug text-primary sm:text-xs sm:text-sm">
+                  <span className="min-w-0 text-[9px] font-semibold leading-tight text-primary sm:text-sm sm:leading-snug">
                     {text}
                   </span>
                 </li>
@@ -104,7 +121,7 @@ export async function Hero() {
             <HeroBrandMarquee
               brands={brands}
               title={t("heroTrustBrandsTitle")}
-              className="mt-3.5 border-t border-white/[0.1] pt-3.5 sm:mt-6 sm:pt-5"
+              className="hero-mobile__marquee mt-2.5 border-t border-white/[0.1] pt-2.5 sm:mt-6 sm:pt-5"
             />
           </div>
 

@@ -22,30 +22,30 @@ function BrandChip({ brand }: { brand: Brand }) {
     <Link
       href={href}
       className={cn(
-        "group flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1",
+        "group flex shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5",
         "sm:gap-2 sm:rounded-xl sm:px-2.5 sm:py-1.5",
         "transition hover:border-[var(--accent)]/45 hover:bg-white/[0.07]"
       )}
       title={brand.name}
     >
-      <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-md bg-white px-0.5 sm:h-8 sm:w-8 sm:rounded-lg sm:px-1">
+      <span className="flex h-5 w-5 items-center justify-center overflow-hidden rounded bg-white px-0.5 sm:h-8 sm:w-8 sm:rounded-lg sm:px-1">
         {brand.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={brand.logoUrl}
             alt=""
-            className="max-h-4 w-auto max-w-full object-contain sm:max-h-5"
+            className="max-h-3.5 w-auto max-w-full object-contain sm:max-h-5"
             loading="lazy"
             decoding="async"
             draggable={false}
           />
         ) : (
-          <span className="text-[8px] font-bold text-zinc-800 sm:text-[9px]">
+          <span className="text-[7px] font-bold text-zinc-800 sm:text-[9px]">
             {brand.name.slice(0, 2).toUpperCase()}
           </span>
         )}
       </span>
-      <span className="whitespace-nowrap text-[11px] font-semibold tracking-tight text-primary group-hover:text-white sm:text-xs sm:text-sm">
+      <span className="max-w-[4.5rem] truncate whitespace-nowrap text-[10px] font-semibold tracking-tight text-primary group-hover:text-white sm:max-w-none sm:text-xs sm:text-sm">
         {brand.name}
       </span>
     </Link>
