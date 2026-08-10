@@ -1,6 +1,6 @@
 import NextLink from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
-import { ArrowRight, Truck, Headphones, ScanEye } from "lucide-react";
+import { ArrowRight, Headphones, ScanEye } from "lucide-react";
 import { BlogCarousel } from "@/components/home/BlogCarousel";
 import { HeroBrandMarquee } from "@/components/home/HeroBrandMarquee";
 import { listPublishedPosts } from "@/lib/blog/repo";
@@ -97,25 +97,35 @@ export async function Hero() {
             </div>
 
             <ul className="hero-mobile__perks mt-3 grid grid-cols-2 gap-1 border-t border-white/[0.1] pt-2.5 sm:mt-7 sm:gap-3 sm:pt-5">
-              {[
-                { icon: Truck, text: t("why2") },
-                { icon: Headphones, text: t("why3") },
-              ].map(({ icon: Icon, text }) => (
-                <li
-                  key={text}
-                  className="hero-perk flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 sm:gap-2.5 sm:rounded-xl sm:px-3.5 sm:py-2.5"
-                >
-                  <span className="hero-perk__icon flex h-6 w-6 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9">
-                    <Icon
-                      className="h-3 w-3 sm:h-4 sm:w-4"
-                      strokeWidth={1.75}
-                    />
-                  </span>
-                  <span className="min-w-0 text-[9px] font-semibold leading-tight text-primary sm:text-sm sm:leading-snug">
-                    {text}
-                  </span>
-                </li>
-              ))}
+              <li className="hero-perk flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 sm:gap-2.5 sm:rounded-xl sm:px-3.5 sm:py-2.5">
+                {/* Nova Poshta mark — small brand chip next to delivery line */}
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white/15 sm:h-9 sm:w-9">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/logos/nova-poshta.jpg"
+                    alt="Нова Пошта"
+                    className="h-full w-full object-contain p-0.5 sm:p-1"
+                    width={36}
+                    height={36}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </span>
+                <span className="min-w-0 text-[9px] font-semibold leading-tight text-primary sm:text-sm sm:leading-snug">
+                  {t("why2")}
+                </span>
+              </li>
+              <li className="hero-perk flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 sm:gap-2.5 sm:rounded-xl sm:px-3.5 sm:py-2.5">
+                <span className="hero-perk__icon flex h-6 w-6 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9">
+                  <Headphones
+                    className="h-3 w-3 sm:h-4 sm:w-4"
+                    strokeWidth={1.75}
+                  />
+                </span>
+                <span className="min-w-0 text-[9px] font-semibold leading-tight text-primary sm:text-sm sm:leading-snug">
+                  {t("why3")}
+                </span>
+              </li>
             </ul>
 
             <HeroBrandMarquee
