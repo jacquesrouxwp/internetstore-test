@@ -196,23 +196,23 @@ export function escapeXml(s: string): string {
  * Never injects HTML, script, or comments.
  */
 export function renderSitemapXml(entries: SitemapEntry[]): string {
+  // Only sitemap protocol elements — never HTML/script/comments
   const body = entries
     .map((e) => {
-      const parts = [
-        "  <url>",
-        `    <loc>${escapeXml(e.loc)}</loc>`,
-      ];
+      // Sanitize loc: absolute https URL only, no angle brackets
+      const loc = escapeXml(e.loc.replace(/[<>]/g, ""));
+      const parts = ["  <url>", `    <loc>${loc}</loc>`];
       if (e.lastmod) {
-        parts.push(`    <lastmod>${escapeXml(e.lastmod)}</lastmod>`);
+        const lm = escapeXml(String(e.lastmod).replace(/[<>]/g, ""));
+        parts.push(`    <lastmod>${lm}</lastmod>`);
       }
       if (e.changefreq) {
-        parts.push(
-          `    <changefreq>${escapeXml(e.changefreq)}</changefreq>`
-        );
+        const cf = escapeXml(String(e.changefreq).replace(/[^a-z]/gi, ""));
+        if (cf) parts.push(`    <changefreq>${cf}</changefreq>`);
       }
-      if (e.priority != null) {
+      if (e.priority != null && Number.isFinite(e.priority)) {
         parts.push(
-          `    <priority>${Number(e.priority).toFixed(1)}</priority>`
+          `    <priority>${Math.min(1, Math.max(0, Number(e.priority))).toFixed(1)}</priority>`
         );
       }
       parts.push("  </url>");
@@ -220,11 +220,10 @@ export function renderSitemapXml(entries: SitemapEntry[]): string {
     })
     .join("\n");
 
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    body,
-    "</urlset>",
-    "",
-  ].join("\n");
+  return (
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    body +
+    "\n</urlset>\n"
+  );
 }

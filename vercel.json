@@ -3,6 +3,12 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/seo/sitemap"
+    }
+  ],
   "redirects": [
     {
       "source": "/:path*",

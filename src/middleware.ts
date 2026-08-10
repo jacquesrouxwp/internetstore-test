@@ -23,6 +23,13 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(dest, 301);
   }
 
+  // SEO files: rewrite to pure API (no next-intl / no HTML shell)
+  if (pathname === "/sitemap.xml") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/api/seo/sitemap";
+    return NextResponse.rewrite(url);
+  }
+
   // Protect /admin/* (except login page itself)
   if (pathname.startsWith("/admin")) {
     if (!isAdminPublicPath(pathname)) {
@@ -48,6 +55,8 @@ export const config = {
     "/(uk|ru)/:path*",
     "/admin",
     "/admin/:path*",
+    // Include sitemap.xml so we can rewrite it to pure API XML
+    "/sitemap.xml",
     "/((?!api|_next|_vercel|demo|.*\\..*).*)",
   ],
 };
