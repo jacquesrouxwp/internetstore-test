@@ -519,22 +519,6 @@ async function dbDetectionBoundsById(categoryId: string) {
   }
 }
 
-async function dbDetectionBounds(categorySlug: string) {
-  const supabase = await getReadClient();
-  if (!supabase) return null;
-  try {
-    const { data: cat } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("slug", categorySlug)
-      .maybeSingle();
-    if (!cat) return null;
-    return dbDetectionBoundsById(String(cat.id));
-  } catch {
-    return null;
-  }
-}
-
 /** Prefer DB; fall back to in-memory seed only if DB unavailable */
 export async function getCatalogWithFallback(
   filters: CatalogFilters = {},
