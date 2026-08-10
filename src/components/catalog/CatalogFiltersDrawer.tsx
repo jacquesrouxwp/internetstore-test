@@ -84,27 +84,27 @@ export function CatalogFiltersDrawer({
         onClick={() => setOpen(true)}
         className={cn(
           "catalog-filter-tab lg:hidden",
-          "fixed left-0 top-[42%] z-40 flex items-center gap-1.5",
-          "rounded-r-xl border border-l-0 border-white/15",
-          "bg-[rgba(18,20,26,0.92)] px-1.5 py-3 shadow-xl backdrop-blur-md",
-          "text-[10px] font-bold uppercase tracking-[0.14em] text-primary",
+          "fixed left-0 top-[40%] z-40 flex items-center gap-2",
+          "rounded-r-2xl border border-l-0 border-white/20",
+          "bg-[rgba(18,20,26,0.95)] px-2.5 py-5 shadow-2xl backdrop-blur-md",
+          "text-[13px] font-bold uppercase tracking-[0.16em] text-primary",
           "transition active:scale-[0.98]",
-          "touch-manipulation"
+          "touch-manipulation min-h-[7.5rem]"
         )}
         aria-expanded={open}
         aria-controls="catalog-filters-drawer"
       >
         <span
-          className="inline-flex items-center gap-1"
+          className="inline-flex items-center gap-1.5"
           style={{
             writingMode: "vertical-rl",
             transform: "rotate(180deg)",
           }}
         >
-          <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+          <SlidersHorizontal className="h-4.5 w-4.5 h-[1.15rem] w-[1.15rem] shrink-0 text-[var(--accent)]" />
           {t("filters")}
           {activeCount > 0 && (
-            <span className="mt-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-white">
+            <span className="mt-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[11px] font-bold text-white">
               {activeCount}
             </span>
           )}
