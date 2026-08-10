@@ -8,7 +8,8 @@ import { ConsultWidget } from "@/components/layout/ConsultWidget";
 import { SiteBackground } from "@/components/layout/SiteBackground";
 import { LogoIntro } from "@/components/layout/LogoIntro";
 import { getCategories, getCategoryBrandsMap } from "@/lib/catalog";
-import { Analytics } from "@/components/Analytics";
+import { Analytics as SiteAnalytics } from "@/components/Analytics";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -45,7 +46,9 @@ export default async function LocaleLayout({
         </main>
         <Footer />
         <ConsultWidget />
-        <Analytics />
+        {/* GA/Pixel when env set; Vercel Web Analytics always (enable in dashboard) */}
+        <SiteAnalytics />
+        <VercelAnalytics />
       </div>
     </NextIntlClientProvider>
   );
