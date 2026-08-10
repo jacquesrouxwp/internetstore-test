@@ -323,7 +323,7 @@ export function CheckoutForm() {
                 required
                 type="tel"
                 className="input"
-                placeholder="+380..."
+                placeholder="063 789-76-99"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"

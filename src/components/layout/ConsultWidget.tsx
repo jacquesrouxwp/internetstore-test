@@ -18,12 +18,15 @@ import {
   answerUserQuestion,
   type FaqItem,
 } from "@/lib/ai-assistant";
+import {
+  STORE_PHONE_TELEGRAM,
+  STORE_PHONE_WHATSAPP,
+} from "@/lib/contact";
 
-const TG =
-  process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/+380637897699";
+const TG = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
 const WA =
   process.env.NEXT_PUBLIC_WHATSAPP_URL ||
-  "https://wa.me/380637897699?text=%D0%94%D0%BE%D0%B1%D1%80%D0%BE%D0%B3%D0%BE%20%D0%B4%D0%BD%D1%8F";
+  `${STORE_PHONE_WHATSAPP}?text=${encodeURIComponent("Доброго дня")}`;
 
 type ChatMsg = {
   id: string;

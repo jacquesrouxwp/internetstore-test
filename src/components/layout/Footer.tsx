@@ -4,6 +4,12 @@ import { Phone } from "lucide-react";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { SiteLogo } from "@/components/layout/SiteLogo";
 import { getAllPublicSettings } from "@/lib/store-settings";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_TELEGRAM,
+  STORE_PHONE_WHATSAPP,
+} from "@/lib/contact";
 
 // Feature flag: thermal simulator link disabled site-wide (kept in code,
 // not removed, per owner request 2026-08-01).
@@ -16,16 +22,15 @@ export async function Footer() {
   const tn = await getTranslations("nav");
   const tp = await getTranslations("pages");
   const year = new Date().getFullYear();
-  let phones: string[] = [];
+  // Only one public phone — never list multiple from settings
+  const phoneDisplay = STORE_PHONE_DISPLAY;
+  const phoneTel = STORE_PHONE_TEL;
   let address = tp("address");
-  let tg =
-    process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/+380637897699";
-  let wa =
-    process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://wa.me/380637897699";
+  let tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
+  let wa = process.env.NEXT_PUBLIC_WHATSAPP_URL || STORE_PHONE_WHATSAPP;
   let legalLine = "";
   try {
     const s = await getAllPublicSettings();
-    phones = s.site.phones?.length ? s.site.phones : [];
     if (s.site.address) address = s.site.address;
     if (s.social.telegram) tg = s.social.telegram;
     if (s.social.whatsapp) wa = s.social.whatsapp;
@@ -122,20 +127,15 @@ export async function Footer() {
           </h4>
           <ul className="space-y-3 text-sm text-secondary">
             <li>{address}</li>
-            {(phones.length
-              ? phones
-              : ["+38 063 789-76-99"]
-            ).map((ph) => (
-              <li key={ph}>
-                <a
-                  href={`tel:${ph.replace(/[^\d+]/g, "")}`}
-                  className="inline-flex items-center gap-2 font-medium text-primary hover:text-[var(--accent)]"
-                >
-                  <Phone className="h-4 w-4" />
-                  {ph}
-                </a>
-              </li>
-            ))}
+            <li>
+              <a
+                href={`tel:${phoneTel}`}
+                className="inline-flex items-center gap-2 font-medium text-primary hover:text-[var(--accent)]"
+              >
+                <Phone className="h-4 w-4" />
+                {phoneDisplay}
+              </a>
+            </li>
             <li className="flex flex-wrap items-center gap-3 pt-1">
               <a
                 href={tg}

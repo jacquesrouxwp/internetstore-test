@@ -9,6 +9,7 @@ import {
   sortBrandsByPriority,
   visibleBrandGridBrands,
 } from "@/lib/brand-priority";
+import { STORE_PHONE_TEL } from "@/lib/contact";
 
 // Feature flag: thermal simulator sandbox CTA disabled site-wide (kept in
 // code, not removed, per owner request 2026-08-01).
@@ -74,7 +75,7 @@ export async function Hero() {
                 </NextLink>
               )}
               <a
-                href="tel:+380637897699"
+                href={STORE_PHONE_TEL}
                 className="btn-hero btn-hero-secondary w-full shrink-0 !min-h-[2.4rem] !px-5 !py-2 !text-[0.8125rem] sm:w-auto sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
               >
                 <span className="truncate">{t("heroSecondary")}</span>

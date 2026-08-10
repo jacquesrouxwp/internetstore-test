@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import type { Brand, Category } from "@/types";
 import { categoryName } from "@/types";
 import { SiteLogo } from "@/components/layout/SiteLogo";
+import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
 
 // Feature flag: thermal simulator ("Пісочниця DRI") temporarily disabled
 // site-wide (kept in code, not removed, per owner request 2026-08-01).
@@ -87,11 +88,11 @@ export function Header({
         <div className="container-shop flex flex-wrap items-center gap-x-6 gap-y-2 py-2">
           <span className="text-muted-ui">{t("workNote")}</span>
           <a
-            href="tel:+380637897699"
+            href={STORE_PHONE_TEL}
             className="inline-flex items-center gap-1.5 font-semibold text-primary hover:opacity-90"
           >
             <Phone className="h-3.5 w-3.5" />
-            +38 063 789-76-99
+            {STORE_PHONE_DISPLAY}
           </a>
           <span className="hidden text-muted-ui sm:inline">{t("hours")}</span>
           <div className="ml-auto flex items-center gap-4">

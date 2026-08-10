@@ -7,6 +7,12 @@ import {
   hasServiceSupabase,
 } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TELEGRAM,
+  STORE_PHONE_VIBER,
+  STORE_PHONE_WHATSAPP,
+} from "@/lib/contact";
 
 export type SiteSettings = {
   phones: string[];
@@ -58,19 +64,16 @@ export type SecuritySettings = {
 
 const DEFAULTS: Record<string, unknown> = {
   site: {
-    phones: ["+38 063 789-76-99"],
+    phones: [STORE_PHONE_DISPLAY],
     email: "info@pro-optics.ua",
     address: "Київ, Україна",
     hours: "Пн–Пт: 9:00–18:00 · Сб: 12:00–15:00",
     siteName: "Pro-Optics",
   } satisfies SiteSettings,
   social: {
-    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://t.me/+380637897699",
-    viber:
-      process.env.NEXT_PUBLIC_VIBER_URL ||
-      "viber://chat?number=%2B380637897699",
-    whatsapp:
-      process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://wa.me/380637897699",
+    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM,
+    viber: process.env.NEXT_PUBLIC_VIBER_URL || STORE_PHONE_VIBER,
+    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_URL || STORE_PHONE_WHATSAPP,
   } satisfies SocialSettings,
   legal: {
     entityName: "",
