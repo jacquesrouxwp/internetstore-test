@@ -22,11 +22,19 @@ export const useCart = create<CartState>()(
       add: (product, locale, qty = 1) => {
         set((state) => {
           const existing = state.items.find((i) => i.productId === product.id);
+          const image =
+            product.images?.find((u) => typeof u === "string" && u.trim()) ||
+            undefined;
           if (existing) {
             return {
               items: state.items.map((i) =>
                 i.productId === product.id
-                  ? { ...i, quantity: i.quantity + qty }
+                  ? {
+                      ...i,
+                      quantity: i.quantity + qty,
+                      // Backfill photo if older cart entry had none
+                      image: i.image || image,
+                    }
                   : i
               ),
             };
@@ -36,7 +44,7 @@ export const useCart = create<CartState>()(
             slug: product.slug,
             name: productName(product, locale),
             price: product.price,
-            image: product.images[0],
+            image,
             quantity: qty,
           };
           return { items: [...state.items, item] };

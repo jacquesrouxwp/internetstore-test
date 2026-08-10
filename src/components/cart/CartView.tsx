@@ -42,9 +42,24 @@ export function CartView() {
             className="card-surface flex flex-wrap items-center gap-4 p-4 sm:flex-nowrap"
           >
             <div
-              className="h-20 w-20 shrink-0 rounded-xl"
+              className="photo-plate relative h-20 w-20 shrink-0 overflow-hidden rounded-xl"
               style={{ background: "var(--photo-bg)" }}
-            />
+            >
+              {item.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="h-full w-full object-contain p-1.5"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <div className="h-8 w-10 rounded-lg bg-[#d8d8dc]" />
+                </div>
+              )}
+            </div>
             <div className="min-w-0 flex-1">
               <Link
                 href={`/product/${item.slug}`}
