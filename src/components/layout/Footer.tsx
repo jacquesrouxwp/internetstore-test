@@ -24,7 +24,6 @@ export async function Footer() {
   const year = new Date().getFullYear();
   // Only one public phone — never list multiple from settings
   const phoneDisplay = STORE_PHONE_DISPLAY;
-  const phoneTel = STORE_PHONE_TEL;
   let address = tp("address");
   let tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
   let wa = process.env.NEXT_PUBLIC_WHATSAPP_URL || STORE_PHONE_WHATSAPP;
@@ -129,7 +128,7 @@ export async function Footer() {
             <li>{address}</li>
             <li>
               <a
-                href={`tel:${phoneTel}`}
+                href={STORE_PHONE_TEL}
                 className="inline-flex items-center gap-2 font-medium text-primary hover:text-[var(--accent)]"
               >
                 <Phone className="h-4 w-4" />

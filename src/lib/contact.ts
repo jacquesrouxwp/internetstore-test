@@ -6,8 +6,11 @@
 /** Visible format on the site */
 export const STORE_PHONE_DISPLAY = "063 789-76-99";
 
-/** tel: href (+380…) */
-export const STORE_PHONE_TEL = "+380637897699";
+/** E.164 with + (no tel: prefix) */
+export const STORE_PHONE_E164 = "+380637897699";
+
+/** Full tel: href for <a href> */
+export const STORE_PHONE_TEL = "tel:+380637897699";
 
 /** Digits only for wa.me / APIs */
 export const STORE_PHONE_DIGITS = "380637897699";

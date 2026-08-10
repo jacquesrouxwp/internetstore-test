@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Manrope } from "next/font/google";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
@@ -55,6 +56,8 @@ export default function RootLayout({
         className={`${inter.variable} ${manrope.variable} font-sans antialiased`}
       >
         {children}
+        {/* Root layout = all routes (store + admin). Enable Web Analytics in Vercel dashboard. */}
+        <VercelAnalytics />
       </body>
     </html>
   );
