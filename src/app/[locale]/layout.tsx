@@ -38,9 +38,11 @@ export default async function LocaleLayout({
       <LogoIntro />
       {/* min-h-dvh keeps footer at viewport bottom on short pages without
           stretching document height past content on long pages */}
-      <div className="relative z-10 flex min-h-dvh flex-col">
+      <div className="relative z-10 flex min-h-dvh w-full max-w-[100vw] flex-col overflow-x-hidden">
         <Header categories={categories} categoryBrandsMap={categoryBrandsMap} />
-        <main className="w-full flex-1">{children}</main>
+        <main className="w-full min-w-0 max-w-full flex-1 overflow-x-hidden">
+          {children}
+        </main>
         <Footer />
         <ConsultWidget />
         <Analytics />
