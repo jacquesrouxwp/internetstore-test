@@ -1,10 +1,14 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { Link } from "@/i18n/routing";
 import type { Category } from "@/types";
 import { categoryName } from "@/types";
 import { cn } from "@/lib/utils";
 
 /**
- * Horizontal category switcher — scroll if chips don't fit (mobile + desktop).
+ * Horizontal category switcher — scroll if chips don't fit.
+ * Keeps the active (red) chip in view after navigation.
  */
 export function CatalogCategoryTabs({
   categories,
@@ -15,12 +19,33 @@ export function CatalogCategoryTabs({
   currentSlug: string;
   locale: "uk" | "ru";
 }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    const el = activeRef.current;
+    const scroller = scrollerRef.current;
+    if (!el || !scroller) return;
+
+    // Center active chip in the horizontal strip (or nearest edge if short)
+    const preferCenter =
+      typeof window !== "undefined" &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    el.scrollIntoView({
+      behavior: preferCenter ? "smooth" : "auto",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [currentSlug]);
+
   if (!categories.length) return null;
 
   return (
     <div className="catalog-cat-tabs relative mb-4 sm:mb-5">
       <div
-        className="flex gap-2 overflow-x-auto pb-1 pt-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        ref={scrollerRef}
+        className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="tablist"
         aria-label="Categories"
       >
@@ -30,6 +55,7 @@ export function CatalogCategoryTabs({
           return (
             <Link
               key={c.id}
+              ref={active ? activeRef : undefined}
               href={`/catalog/${c.slug}`}
               prefetch
               role="tab"
@@ -47,7 +73,6 @@ export function CatalogCategoryTabs({
           );
         })}
       </div>
-      {/* Soft fade on the right when list scrolls */}
       <div
         className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-12"
         style={{
