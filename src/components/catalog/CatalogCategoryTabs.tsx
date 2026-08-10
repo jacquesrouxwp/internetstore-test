@@ -41,8 +41,9 @@ export function CatalogCategoryTabs({
 
   if (!categories.length) return null;
 
+  // Mobile/tablet only — desktop already has category nav in the header
   return (
-    <div className="catalog-cat-tabs relative mb-4 sm:mb-5">
+    <div className="catalog-cat-tabs relative mb-4 md:hidden">
       <div
         ref={scrollerRef}
         className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
