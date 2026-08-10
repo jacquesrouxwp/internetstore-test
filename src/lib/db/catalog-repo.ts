@@ -5,6 +5,7 @@ import type {
   Category,
   Product,
 } from "@/types";
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   createServiceClient,
@@ -22,6 +23,13 @@ import {
 import type { Review } from "@/types";
 import { getPriceCompareMap } from "@/lib/price-compare/repo";
 import { sortBrandsByPriority } from "@/lib/brand-priority";
+
+/**
+ * Catalog card fields only — skip heavy description/specs/meta payloads.
+ * Cuts JSON size ~5–15× for list pages.
+ */
+const CATALOG_LIST_SELECT =
+  "id, slug, sku, name_uk, name_ru, price, old_price, stock, brand_id, category_id, resolution, device_type, detection_range_m, rating, reviews_count, is_hit, is_new, is_top, is_sale, images, created_at, brands(slug, name), categories(slug)";
 
 async function attachPriceCompare(products: Product[]): Promise<Product[]> {
   if (!products.length || !hasServiceSupabase()) return products;
@@ -66,20 +74,36 @@ export async function dbGetCatalog(
   const limit = filters.limit ?? 12;
 
   try {
-    let query = supabase
-      .from("products")
-      .select("*, brands(slug, name), categories(slug)", { count: "exact" })
-      .eq("published", true);
-
+    // Resolve category id first (tiny row) — needed for filters + bounds
+    let categoryId: string | null = null;
     if (categorySlug) {
       const { data: cat } = await supabase
         .from("categories")
         .select("id")
         .eq("slug", categorySlug)
         .maybeSingle();
-      if (cat) query = query.eq("category_id", cat.id);
-      else return emptyCatalog(page, limit);
+      if (!cat) return emptyCatalog(page, limit);
+      categoryId = String(cat.id);
     }
+
+    // Brand filter ids (if any) — parallel-ready small query
+    let brandIds: string[] | null = null;
+    if (filters.brands?.length) {
+      const { data: brandRows } = await supabase
+        .from("brands")
+        .select("id, slug")
+        .in("slug", filters.brands);
+      brandIds = (brandRows || []).map((b) => String(b.id));
+      if (!brandIds.length) return emptyCatalog(page, limit);
+    }
+
+    let query = supabase
+      .from("products")
+      .select(CATALOG_LIST_SELECT, { count: "exact" })
+      .eq("published", true);
+
+    if (categoryId) query = query.eq("category_id", categoryId);
+    if (brandIds) query = query.in("brand_id", brandIds);
 
     if (filters.priceMin != null) query = query.gte("price", filters.priceMin);
     if (filters.priceMax != null) query = query.lte("price", filters.priceMax);
@@ -106,15 +130,6 @@ export async function dbGetCatalog(
       query = query.or(
         `name_uk.ilike.%${q}%,name_ru.ilike.%${q}%,sku.ilike.%${q}%`
       );
-    }
-    if (filters.brands?.length) {
-      const { data: brandRows } = await supabase
-        .from("brands")
-        .select("id, slug")
-        .in("slug", filters.brands);
-      const ids = (brandRows || []).map((b) => b.id);
-      if (ids.length) query = query.in("brand_id", ids);
-      else return emptyCatalog(page, limit);
     }
     if (filters.flags?.length) {
       for (const f of filters.flags) {
@@ -153,20 +168,30 @@ export async function dbGetCatalog(
     const from = (page - 1) * limit;
     query = query.range(from, from + limit - 1);
 
-    const { data, count, error } = await query;
+    // Product page + taxonomy + bounds in parallel (bounds use categoryId)
+    const productsPromise = query;
+    const brandsPromise = dbGetBrandsCached();
+    const categoriesPromise = dbGetCategoriesCached();
+    const boundsPromise =
+      categorySlug && categoryId
+        ? dbDetectionBoundsById(categoryId)
+        : Promise.resolve(null);
+
+    const [
+      { data, count, error },
+      brands,
+      categories,
+      detectionRangeBounds,
+    ] = await Promise.all([
+      productsPromise,
+      brandsPromise,
+      categoriesPromise,
+      boundsPromise,
+    ]);
+
     if (error) {
       console.error("[catalog] query error", error.message);
       return null;
-    }
-
-    const [brands, categories] = await Promise.all([
-      dbGetBrands(),
-      dbGetCategories(),
-    ]);
-
-    let detectionRangeBounds: CatalogResult["detectionRangeBounds"] = null;
-    if (categorySlug) {
-      detectionRangeBounds = await dbDetectionBounds(categorySlug);
     }
 
     const products = await attachPriceCompare(
@@ -242,7 +267,7 @@ export async function dbGetProductsByFlag(
   try {
     const { data, error } = await supabase
       .from("products")
-      .select("*, brands(slug, name), categories(slug)")
+      .select(CATALOG_LIST_SELECT)
       .eq("published", true)
       .eq(col, true)
       .order("rating", { ascending: false })
@@ -271,7 +296,7 @@ export async function dbGetRelatedProducts(
   const supabase = await getReadClient();
   if (!supabase) return null;
   try {
-    const select = "*, brands(slug, name), categories(slug)";
+    const select = CATALOG_LIST_SELECT;
     // Prefer brand_id (reliable), then category_id, then top-rated
     let rows: unknown[] = [];
     if (product.brandId) {
@@ -367,7 +392,7 @@ export async function dbGetBrands(): Promise<Brand[] | null> {
     // sort_order first (head brands: AGM, HikMicro, InfiRay…), then name
     const { data, error } = await supabase
       .from("brands")
-      .select("*")
+      .select("id, slug, name, logo_url, sort_order")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
     if (error) throw error;
@@ -377,13 +402,22 @@ export async function dbGetBrands(): Promise<Brand[] | null> {
   }
 }
 
+/** Cross-request cache — brands rarely change (admin edits). */
+export const dbGetBrandsCached = unstable_cache(
+  async () => dbGetBrands(),
+  ["db-brands-v1"],
+  { revalidate: 120, tags: ["brands"] }
+);
+
 export async function dbGetCategories(): Promise<Category[] | null> {
   const supabase = await getReadClient();
   if (!supabase) return null;
   try {
     const { data, error } = await supabase
       .from("categories")
-      .select("*")
+      .select(
+        "id, slug, name_uk, name_ru, description_uk, description_ru, parent_id, sort_order"
+      )
       .order("sort_order");
     if (error) throw error;
     return (data || []).map((c) =>
@@ -394,12 +428,18 @@ export async function dbGetCategories(): Promise<Category[] | null> {
   }
 }
 
+export const dbGetCategoriesCached = unstable_cache(
+  async () => dbGetCategories(),
+  ["db-categories-v1"],
+  { revalidate: 120, tags: ["categories"] }
+);
+
 /**
  * Brands that actually have at least one published product per category --
  * powers the category hover menu (e.g. hovering "ПНБ" lists only ATN,
  * HikMicro, Rix... the brands stocked there, not every brand in the DB).
  */
-export async function dbGetCategoryBrandsMap(): Promise<Record<
+async function dbGetCategoryBrandsMapUncached(): Promise<Record<
   string,
   Brand[]
 > | null> {
@@ -413,8 +453,8 @@ export async function dbGetCategoryBrandsMap(): Promise<Record<
         .eq("published", true)
         .not("category_id", "is", null)
         .not("brand_id", "is", null),
-      dbGetCategories(),
-      dbGetBrands(),
+      dbGetCategoriesCached(),
+      dbGetBrandsCached(),
     ]);
     if (error) throw error;
     if (!categories || !brands) return null;
@@ -443,6 +483,42 @@ export async function dbGetCategoryBrandsMap(): Promise<Record<
   }
 }
 
+/** Cached — layout hits this on every navigation */
+export const dbGetCategoryBrandsMap = unstable_cache(
+  async () => dbGetCategoryBrandsMapUncached(),
+  ["db-category-brands-map-v1"],
+  { revalidate: 120, tags: ["category-brands"] }
+);
+
+/** Min/max detection range with 2 index-friendly LIMIT 1 queries (not full table). */
+async function dbDetectionBoundsById(categoryId: string) {
+  const supabase = await getReadClient();
+  if (!supabase) return null;
+  try {
+    const base = () =>
+      supabase
+        .from("products")
+        .select("detection_range_m")
+        .eq("published", true)
+        .eq("category_id", categoryId)
+        .not("detection_range_m", "is", null)
+        .gt("detection_range_m", 0);
+
+    const [{ data: minRow }, { data: maxRow }] = await Promise.all([
+      base().order("detection_range_m", { ascending: true }).limit(1),
+      base().order("detection_range_m", { ascending: false }).limit(1),
+    ]);
+
+    const min = Number(minRow?.[0]?.detection_range_m);
+    let max = Number(maxRow?.[0]?.detection_range_m);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+    if (max <= min) max = min + 1;
+    return { min, max };
+  } catch {
+    return null;
+  }
+}
+
 async function dbDetectionBounds(categorySlug: string) {
   const supabase = await getReadClient();
   if (!supabase) return null;
@@ -453,20 +529,7 @@ async function dbDetectionBounds(categorySlug: string) {
       .eq("slug", categorySlug)
       .maybeSingle();
     if (!cat) return null;
-    const { data: rows } = await supabase
-      .from("products")
-      .select("detection_range_m")
-      .eq("published", true)
-      .eq("category_id", cat.id)
-      .not("detection_range_m", "is", null);
-    const vals = (rows || [])
-      .map((r) => Number(r.detection_range_m))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    if (!vals.length) return null;
-    const min = Math.min(...vals);
-    let max = Math.max(...vals);
-    if (max <= min) max = min + 1;
-    return { min, max };
+    return dbDetectionBoundsById(String(cat.id));
   } catch {
     return null;
   }

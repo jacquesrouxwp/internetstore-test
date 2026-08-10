@@ -183,7 +183,9 @@ export async function getPriceCompareMap(
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("competitor_product_links")
-    .select("*, competitors(name)")
+    .select(
+      "id, product_id, competitor_id, product_url, last_price, last_checked_at, last_error, is_active, competitors(name)"
+    )
     .in("product_id", productIds)
     .eq("is_active", true);
   if (error || !data?.length) return {};

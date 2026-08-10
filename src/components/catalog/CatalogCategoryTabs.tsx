@@ -31,6 +31,7 @@ export function CatalogCategoryTabs({
             <Link
               key={c.id}
               href={`/catalog/${c.slug}`}
+              prefetch
               role="tab"
               aria-selected={active}
               className={cn(

@@ -9,7 +9,9 @@ import type {
 } from "@/types";
 import {
   dbGetBrands,
+  dbGetBrandsCached,
   dbGetCategories,
+  dbGetCategoriesCached,
   dbGetCategoryBrandsMap,
   dbGetProductBySlug,
   dbGetRelatedProducts,
@@ -85,66 +87,70 @@ export async function getProductsByFlag(
   return result.products;
 }
 
-export async function getBrands(): Promise<Brand[]> {
-  const db = await dbGetBrands();
+/** Per-request dedupe + 120s unstable_cache underneath */
+export const getBrands = cache(async (): Promise<Brand[]> => {
+  const db = (await dbGetBrandsCached()) || (await dbGetBrands());
   if (db?.length) return sortBrandsByPriority(db);
   return sortBrandsByPriority(getRuntimeBrands());
-}
+});
 
-export async function getCategories(): Promise<Category[]> {
-  const db = await dbGetCategories();
+export const getCategories = cache(async (): Promise<Category[]> => {
+  const db = (await dbGetCategoriesCached()) || (await dbGetCategories());
   if (db?.length) return db;
   return getRuntimeCategories();
-}
+});
 
-export async function getCategoryBySlug(
-  slug: string
-): Promise<Category | null> {
-  const cats = await getCategories();
-  return cats.find((c) => c.slug === slug) || null;
-}
+export const getCategoryBySlug = cache(
+  async (slug: string): Promise<Category | null> => {
+    const cats = await getCategories();
+    return cats.find((c) => c.slug === slug) || null;
+  }
+);
 
 /**
  * categorySlug -> brands shown in the category hover menu. Normally the
  * brands that actually stock that category; categories with none fall back
  * to the full brand list so the menu is never empty (owner's call — an
  * empty menu looks broken, a human can narrow it down from there).
+ * Cached across requests (120s) — layout uses this every navigation.
  */
-export async function getCategoryBrandsMap(): Promise<Record<string, Brand[]>> {
-  const [categories, allBrands] = await Promise.all([
-    getCategories(),
-    getBrands(),
-  ]);
+export const getCategoryBrandsMap = cache(
+  async (): Promise<Record<string, Brand[]>> => {
+    const [categories, allBrands] = await Promise.all([
+      getCategories(),
+      getBrands(),
+    ]);
 
-  let withProducts = await dbGetCategoryBrandsMap();
-  if (!withProducts) {
-    // memory fallback (dev without Supabase)
-    const products = getRuntimeProducts().filter((p) => p.published);
-    const brandBySlug = new Map(allBrands.map((b) => [b.slug, b]));
-    const acc: Record<string, Map<string, Brand>> = {};
-    for (const p of products) {
-      if (!p.categorySlug || !p.brandSlug) continue;
-      const brand = brandBySlug.get(p.brandSlug);
-      if (!brand) continue;
-      if (!acc[p.categorySlug]) acc[p.categorySlug] = new Map();
-      acc[p.categorySlug].set(brand.id, brand);
+    let withProducts = await dbGetCategoryBrandsMap();
+    if (!withProducts) {
+      // memory fallback (dev without Supabase)
+      const products = getRuntimeProducts().filter((p) => p.published);
+      const brandBySlug = new Map(allBrands.map((b) => [b.slug, b]));
+      const acc: Record<string, Map<string, Brand>> = {};
+      for (const p of products) {
+        if (!p.categorySlug || !p.brandSlug) continue;
+        const brand = brandBySlug.get(p.brandSlug);
+        if (!brand) continue;
+        if (!acc[p.categorySlug]) acc[p.categorySlug] = new Map();
+        acc[p.categorySlug].set(brand.id, brand);
+      }
+      withProducts = {};
+      for (const [catSlug, byId] of Object.entries(acc)) {
+        withProducts[catSlug] = Array.from(byId.values());
+      }
     }
-    withProducts = {};
-    for (const [catSlug, byId] of Object.entries(acc)) {
-      withProducts[catSlug] = Array.from(byId.values());
-    }
-  }
 
-  const sortedAll = sortBrandsByPriority(allBrands);
-  const result: Record<string, Brand[]> = {};
-  for (const c of categories) {
-    const stocked = withProducts[c.slug];
-    result[c.slug] = stocked?.length
-      ? sortBrandsByPriority(stocked)
-      : sortedAll;
+    const sortedAll = sortBrandsByPriority(allBrands);
+    const result: Record<string, Brand[]> = {};
+    for (const c of categories) {
+      const stocked = withProducts[c.slug];
+      result[c.slug] = stocked?.length
+        ? sortBrandsByPriority(stocked)
+        : sortedAll;
+    }
+    return result;
   }
-  return result;
-}
+);
 
 export function getReviews(): Review[] {
   return getReviewsSeed();

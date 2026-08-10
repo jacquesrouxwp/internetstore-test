@@ -11,14 +11,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-// Catalog must reflect the DB right now: without this, Next.js keeps the
-// Supabase fetch in its Data Cache and the page serves whatever product set
-// existed when it was first rendered (post-import it still showed 3 of 456).
+// searchParams → dynamic render; taxonomy uses unstable_cache (120s).
+// Soft product freshness without full force-no-store (was killing catalog speed).
+export const revalidate = 30;
 export const dynamic = "force-dynamic";
-// See the product page: force-dynamic does not by itself stop Next reusing
-// Data-Cache entries for the Supabase reads. Route-scoped, so statically
-// rendered pages keep their caching.
-export const fetchCache = "force-no-store";
 
 type Props = {
   params: Promise<{ locale: string; category: string }>;

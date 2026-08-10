@@ -2,6 +2,7 @@
  * Store settings — key/value in store_settings table.
  * Server: service_role. Public read via RLS for non-secret keys.
  */
+import { unstable_cache } from "next/cache";
 import {
   createServiceClient,
   hasServiceSupabase,
@@ -141,7 +142,7 @@ export async function getSetting<T>(key: string): Promise<T> {
   return raw as T;
 }
 
-export async function getAllPublicSettings() {
+async function loadAllPublicSettings() {
   const [site, social, legal, delivery, inventory] = await Promise.all([
     getSetting<SiteSettings>("site"),
     getSetting<SocialSettings>("social"),
@@ -151,6 +152,13 @@ export async function getAllPublicSettings() {
   ]);
   return { site, social, legal, delivery, inventory };
 }
+
+/** Footer/header settings — cache 2 min (phone/address rarely change). */
+export const getAllPublicSettings = unstable_cache(
+  loadAllPublicSettings,
+  ["store-public-settings-v1"],
+  { revalidate: 120, tags: ["store-settings"] }
+);
 
 /** Admin: all keys including secrets-ish (password hash never sent to client raw without care) */
 export async function adminGetAllSettings(): Promise<Record<string, unknown>> {
