@@ -64,6 +64,8 @@
   "catalog": {
     "title": "Каталог",
     "filters": "Параметры",
+    "closeFilters": "Закрыть параметры",
+    "showResults": "Показать товары",
     "brand": "Производитель",
     "deviceType": "Тип прибора",
     "resolution": "Разрешение матрицы",

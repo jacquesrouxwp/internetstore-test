@@ -64,6 +64,8 @@
   "catalog": {
     "title": "Каталог",
     "filters": "Параметри",
+    "closeFilters": "Закрити параметри",
+    "showResults": "Показати товари",
     "brand": "Виробник",
     "deviceType": "Тип приладу",
     "resolution": "Роздільна здатність матриці",
