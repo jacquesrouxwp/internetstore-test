@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 
 export function Analytics() {
   const ga = process.env.NEXT_PUBLIC_GA_ID;
@@ -38,6 +39,7 @@ export function Analytics() {
           `}
         </Script>
       )}
+      <VercelAnalytics />
     </>
   );
 }
