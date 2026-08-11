@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Thermal sandbox — deer-only, simple UI.
+ * Scene: fixed-FOV forest + hot deer on ground plane (sales-readable size).
+ * DRI numbers still come from Johnson optics (matrix / pitch / focal / NETD).
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ThermalCompareOption } from "@/lib/thermal/parse-product-thermal";
 import { netdContrast, netdNoiseAmp } from "@/lib/thermal/parse-product-thermal";
@@ -7,39 +13,38 @@ import {
   DIGI_ZOOM_STEPS,
   digitalZoomCrop,
   DIST_MIN_M,
-  deerFeetYFrac,
+  deerScreenRect,
   inspectDigiZoom,
   nextDigiZoom,
+  subjectHeightFrac,
+  atmosphericTransmission,
 } from "@/lib/thermal/zoom";
 import {
   INPUT_LIMITS,
   MATRIX_PRESETS,
   PITCH_OPTIONS,
   TARGET_SIZE_M,
-  TARGET_SUBJECT_SRC,
-  TARGET_VISUAL_HEIGHT_M,
-  calibrationRs75DetectM,
   clampSandboxInputs,
   computeSandbox,
   sandboxMatrixPixelWidth,
-  sandboxRenderHeightFrac,
-  sandboxRenderedCriticalGrain,
-  sandboxSubjectVisibility,
   statusFromPixels,
   type PixelPitchUm,
   type SandboxInputs,
   type SandboxMatrix,
-  type TargetKind,
 } from "@/lib/thermal/sandbox-physics";
 import { cn } from "@/lib/utils";
 
 type Palette = "whitehot" | "ironhot";
 
 const LOGIC_W = 480;
-const LOGIC_H = 360; // 4:3 thermal sensor
+const LOGIC_H = 360; // 4:3
 const SPRITE_S = 512;
-const FOREST_LUMA_SCALE = 0.32;
-const FOREST_LUMA_MAX = 0.38;
+const FOREST_SRC = "/thermal/forest_whitehot.jpg";
+const DEER_SRC = "/thermal/deer_subject_whitehot.jpg";
+
+/** Deer only — locked target for this sandbox. */
+const TARGET: SandboxInputs["target"] = "deer";
+const DEER_VISUAL_H_M = 1.3;
 
 const STATUS_UK = {
   identify: "Ідентифікація",
@@ -121,30 +126,7 @@ function lumaOf(r: number, g: number, b: number) {
   return 0.299 * r + 0.587 * g + 0.114 * b;
 }
 
-function applyThermalPalette(
-  data: Uint8ClampedArray,
-  palette: Palette,
-  mode: "cold" | "hot",
-  respectAlpha = false
-) {
-  for (let i = 0; i < data.length; i += 4) {
-    if (respectAlpha && data[i + 3] < 8) continue;
-    let L = lumaOf(data[i], data[i + 1], data[i + 2]) / 255;
-    if (mode === "cold") L = Math.min(FOREST_LUMA_MAX, L * FOREST_LUMA_SCALE);
-    if (mode === "hot") L = Math.pow(Math.max(0, Math.min(1, L)), 0.92);
-    if (palette === "whitehot") {
-      const y = Math.round(L * 255);
-      data[i] = data[i + 1] = data[i + 2] = y;
-    } else {
-      const [rr, gg, bb] = ironLut(L);
-      data[i] = rr;
-      data[i + 1] = gg;
-      data[i + 2] = bb;
-    }
-    if (!respectAlpha) data[i + 3] = 255;
-  }
-}
-
+/** Cover forest, bias crop slightly toward ground litter. */
 function drawForestCover(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -159,7 +141,7 @@ function drawForestCover(
   const sh = dh / scale;
   const sx = (iw - sw) / 2;
   const syMax = Math.max(0, ih - sh);
-  const sy = Math.min(syMax, syMax * 0.78);
+  const sy = Math.min(syMax, syMax * 0.72);
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
 }
 
@@ -172,6 +154,10 @@ type DeerSprite = {
   aspect: number;
 };
 
+/**
+ * Luma-key deer on black → solid RGBA sprite.
+ * Body alpha is pushed high so the animal reads as a clear hot mark.
+ */
 function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
   const c = document.createElement("canvas");
   c.width = SPRITE_S;
@@ -179,23 +165,30 @@ function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
   const ctx = c.getContext("2d", { willReadFrequently: true });
   if (!ctx) return null;
   ctx.clearRect(0, 0, SPRITE_S, SPRITE_S);
+  ctx.imageSmoothingEnabled = true;
   ctx.drawImage(img, 0, 0, SPRITE_S, SPRITE_S);
   const id = ctx.getImageData(0, 0, SPRITE_S, SPRITE_S);
   const d = id.data;
-  let minX = SPRITE_S,
-    maxX = 0,
-    minY = SPRITE_S,
-    maxY = 0;
+  const lo = 16;
+  const hi = 58;
+  let minX = SPRITE_S;
+  let maxX = 0;
+  let minY = SPRITE_S;
+  let maxY = 0;
   for (let y = 0; y < SPRITE_S; y++) {
     for (let x = 0; x < SPRITE_S; x++) {
       const i = (y * SPRITE_S + x) * 4;
       const l = lumaOf(d[i], d[i + 1], d[i + 2]);
-      let t = (l - 18) / 52;
+      let t = (l - lo) / (hi - lo);
       t = t < 0 ? 0 : t > 1 ? 1 : t;
-      const a = t * t * (3 - 2 * t);
-      d[i] = d[i + 1] = d[i + 2] = l;
+      // smoothstep, then body boost so mid-tones stay opaque
+      let a = t * t * (3 - 2 * t);
+      if (a > 0.12) a = Math.min(1, 0.22 + a * 0.95);
+      // mild heat stretch — keep hot spots hot
+      const L = Math.min(255, l * 1.08 + (a > 0.5 ? 8 : 0));
+      d[i] = d[i + 1] = d[i + 2] = L;
       d[i + 3] = Math.round(a * 255);
-      if (a > 0.45) {
+      if (a > 0.4) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
         if (y < minY) minY = y;
@@ -205,6 +198,7 @@ function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
   }
   ctx.putImageData(id, 0, 0);
   if (maxX <= minX || maxY <= minY) return null;
+
   let feetY = maxY;
   for (let y = maxY; y >= minY; y--) {
     let solid = 0;
@@ -228,13 +222,11 @@ function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
   };
 }
 
-/** Map catalog product → approximate sandbox inputs. */
 function presetFromCatalog(o: ThermalCompareOption): Partial<SandboxInputs> {
   const w = (o.matrix >= 640 ? 640 : o.matrix >= 384 ? 384 : 256) as SandboxMatrix;
-  // Infer focal from D roughly: D ≈ K*target*f/(2*pitch) → f ≈ D*2*pitch/(K*target)
   const pitch = 12;
   const k = INPUT_LIMITS.kDefault;
-  const target = 0.75;
+  const target = TARGET_SIZE_M.deer;
   const fEst =
     (o.detectionRangeM * 2 * (pitch / 1000)) / (k * target);
   return {
@@ -242,8 +234,8 @@ function presetFromCatalog(o: ThermalCompareOption): Partial<SandboxInputs> {
     pitchUm: 12,
     netdMk: o.netdMk,
     focalMm: Math.max(13, Math.min(100, Math.round(fEst))),
-    target: "human",
-    distanceM: Math.min(400, o.detectionRangeM),
+    target: TARGET,
+    distanceM: Math.min(250, Math.max(80, Math.round(o.detectionRangeM * 0.12))),
     fog: false,
     kCalib: INPUT_LIMITS.kDefault,
   };
@@ -257,15 +249,14 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       pitchUm: 12,
       netdMk: 25,
       focalMm: 35,
-      target: "deer",
-      distanceM: 300,
+      target: TARGET,
+      distanceM: 150,
       fog: false,
       kCalib: INPUT_LIMITS.kDefault,
     })
   );
   const [palette, setPalette] = useState<Palette>("whitehot");
   const [digiZoom, setDigiZoom] = useState(1);
-  const [hz, setHz] = useState<25 | 30 | 50>(50);
   const [ready, setReady] = useState(false);
   const [presetId, setPresetId] = useState("");
 
@@ -275,17 +266,27 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
     Math.round(computed.dri.detectM)
   );
 
-  // Keep distance within new D_detect when optics change
   useEffect(() => {
     setInputs((prev) => {
-      const next = clampSandboxInputs({ ...prev, distanceM: prev.distanceM });
-      if (next.distanceM !== prev.distanceM) return next;
+      const next = clampSandboxInputs({
+        ...prev,
+        target: TARGET,
+        distanceM: prev.distanceM,
+      });
+      if (
+        next.distanceM !== prev.distanceM ||
+        next.target !== prev.target
+      ) {
+        return next;
+      }
       return prev;
     });
-  }, [inputs.focalMm, inputs.pitchUm, inputs.matrixW, inputs.target, inputs.kCalib]);
+  }, [inputs.focalMm, inputs.pitchUm, inputs.matrixW, inputs.kCalib]);
 
   const patch = useCallback((p: Partial<SandboxInputs>) => {
-    setInputs((prev) => clampSandboxInputs({ ...prev, ...p }));
+    setInputs((prev) =>
+      clampSandboxInputs({ ...prev, ...p, target: TARGET })
+    );
   }, []);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -293,7 +294,6 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
   const deerImg = useRef<HTMLImageElement | null>(null);
   const deerSprite = useRef<DeerSprite | null>(null);
   const composeRef = useRef<HTMLCanvasElement | null>(null);
-  const subjectRef = useRef<HTMLCanvasElement | null>(null);
   const matrixRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -318,12 +318,12 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
     };
     setReady(false);
     deerSprite.current = null;
-    load("/thermal/forest_whitehot.jpg", forestImg);
-    load(TARGET_SUBJECT_SRC[inputs.target], deerImg);
+    load(FOREST_SRC, forestImg);
+    load(DEER_SRC, deerImg);
     return () => {
       cancelled = true;
     };
-  }, [inputs.target]);
+  }, []);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -342,163 +342,113 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
 
     const fog = inputs.fog;
     const detM = Math.max(200, computed.dri.detectM);
+    const dist = inputs.distanceM;
 
-    // Forest cold
+    // ── Layer 1: forest (fixed FOV plate) ──────────────────────────
     cctx.fillStyle = "#0a0b10";
     cctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
     cctx.imageSmoothingEnabled = true;
     if (forestImg.current?.complete && forestImg.current.naturalWidth > 0) {
       drawForestCover(cctx, forestImg.current, LOGIC_W, LOGIC_H);
     }
-    {
-      const fd = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
-      applyThermalPalette(fd.data, palette, "cold", false);
-      cctx.putImageData(fd, 0, 0);
-    }
 
+    // ── Layer 2: deer on ground plane (readable sales size) ────────
     const sprite = deerSprite.current;
     let focusX = 0.5;
-    let focusY = 0.75;
+    let focusY = 0.72;
     if (sprite) {
-      if (!subjectRef.current) subjectRef.current = document.createElement("canvas");
-      const sub = subjectRef.current;
-      sub.width = LOGIC_W;
-      sub.height = LOGIC_H;
-      const sctx = sub.getContext("2d", { willReadFrequently: true });
-      if (sctx) {
-        sctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
-        // FOV + detect floor inside band; 0 past D (no ghost pixels)
-        const hFrac = sandboxRenderHeightFrac(
-          TARGET_VISUAL_HEIGHT_M[inputs.target],
-          TARGET_SIZE_M[inputs.target],
-          inputs.distanceM,
-          inputs.matrixW,
-          inputs.matrixH,
-          inputs.pitchUm,
-          inputs.focalMm,
-          computed.pixelsOnTargetClear,
-          fog,
-          detM
+      // Past D_detect → no hot mark (honest “не видно”)
+      const pastDetect = dist > detM * (fog ? 0.6 : 1) * 1.08;
+      if (!pastDetect) {
+        const hFrac = subjectHeightFrac(DEER_VISUAL_H_M, dist);
+        const rect = deerScreenRect(
+          dist,
+          LOGIC_W,
+          LOGIC_H,
+          sprite.aspect,
+          DIST_MIN_M,
+          0,
+          hFrac
         );
-        const vis = sandboxSubjectVisibility(
-          inputs.distanceM,
-          detM,
-          fog
+        const trans = atmosphericTransmission(dist, detM, fog);
+        focusX = rect.cx / LOGIC_W;
+        focusY = rect.cy / LOGIC_H;
+
+        // Warm ground contact (planted, not pasted)
+        const feetY = rect.feetY ?? rect.y + rect.h;
+        const bloomR = Math.max(6, rect.w * 0.65);
+        cctx.save();
+        cctx.translate(rect.cx, feetY);
+        cctx.scale(1, 0.26);
+        const bloom = cctx.createRadialGradient(0, 0, 0, 0, 0, bloomR);
+        bloom.addColorStop(0, `rgba(255, 236, 190, ${0.42 * trans})`);
+        bloom.addColorStop(0.55, `rgba(255, 210, 140, ${0.16 * trans})`);
+        bloom.addColorStop(1, "rgba(255,220,160,0)");
+        cctx.fillStyle = bloom;
+        cctx.beginPath();
+        cctx.arc(0, 0, bloomR, 0, Math.PI * 2);
+        cctx.fill();
+        cctx.restore();
+
+        // Strong opacity — distant targets only wash slightly
+        cctx.globalAlpha = Math.max(0.55, 0.62 + 0.38 * trans);
+        cctx.imageSmoothingEnabled = rect.h > 6;
+        cctx.drawImage(
+          sprite.canvas,
+          sprite.cx,
+          sprite.cy,
+          sprite.cw,
+          sprite.ch,
+          rect.x,
+          rect.y,
+          rect.w,
+          rect.h
         );
-
-        if (hFrac > 0 && vis > 0.02) {
-          const h = Math.max(0.5, hFrac * LOGIC_H);
-          const w = Math.max(0.5, h * sprite.aspect);
-          const feetY = deerFeetYFrac(inputs.distanceM) * LOGIC_H + 1;
-          const cx = LOGIC_W * 0.5;
-          const x = cx - w / 2;
-          const y = feetY - h;
-          focusX = cx / LOGIC_W;
-          focusY = (y + h * 0.45) / LOGIC_H;
-
-          const t =
-            1 -
-            0.62 *
-              Math.min(
-                1,
-                Math.max(0, (inputs.distanceM - 50) / Math.max(1, detM - 50))
-              );
-          const trans = Math.max(0.38, t) * vis;
-
-          if (vis > 0.15) {
-            const rx = Math.max(3, w * 0.55);
-            const ry = Math.max(2, w * 0.14);
-            const shadow = cctx.createRadialGradient(
-              cx,
-              feetY,
-              0,
-              cx,
-              feetY,
-              rx
-            );
-            shadow.addColorStop(0, `rgba(4, 6, 10, ${0.75 * trans})`);
-            shadow.addColorStop(0.5, `rgba(8, 10, 14, ${0.32 * trans})`);
-            shadow.addColorStop(1, "rgba(0,0,0,0)");
-            cctx.fillStyle = shadow;
-            cctx.beginPath();
-            cctx.ellipse(cx, feetY + 1, rx, ry, 0, 0, Math.PI * 2);
-            cctx.fill();
-          }
-
-          sctx.globalAlpha = Math.max(0.05, 0.4 + 0.55 * trans) * vis;
-          sctx.imageSmoothingEnabled = h > 8;
-          sctx.drawImage(
-            sprite.canvas,
-            sprite.cx,
-            sprite.cy,
-            sprite.cw,
-            sprite.ch,
-            x,
-            y,
-            w,
-            h
-          );
-          sctx.globalAlpha = 1;
-          const sd = sctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
-          applyThermalPalette(sd.data, palette, "hot", true);
-          sctx.putImageData(sd, 0, 0);
-          cctx.drawImage(sub, 0, 0);
-        } else {
-          focusX = 0.5;
-          focusY = 0.78;
-        }
+        cctx.globalAlpha = 1;
       }
     }
 
-    // NETD noise
+    // ── Unified sensor FX: contrast + NETD noise + palette ─────────
     const seed = hashSeed(
       inputs.matrixW,
       inputs.pitchUm,
       inputs.focalMm,
       inputs.netdMk,
-      inputs.distanceM,
+      dist,
       fog,
       palette,
-      "sandbox-v1"
+      "sandbox-deer-v2"
     );
     const rand = mulberry32(seed);
     const imageData = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
     const d = imageData.data;
-    const noiseAmp = netdNoiseAmp(
-      inputs.netdMk,
-      fog,
-      inputs.distanceM,
-      detM
-    );
+    const noiseAmp = netdNoiseAmp(inputs.netdMk, fog, dist, detM);
     const contrast = netdContrast(inputs.netdMk, fog);
+    const fogLift = fog ? 18 : 0;
+
     for (let i = 0; i < d.length; i += 4) {
       let y = lumaOf(d[i], d[i + 1], d[i + 2]);
-      const n = (rand() - 0.5) * noiseAmp * 0.85;
+      // Lift very bright (deer) a touch so heat pops against forest
+      if (y > 140) y = Math.min(255, y * 1.06 + 6);
+      y = (y - 128) * (0.88 + 0.12 * contrast) + 128 + fogLift;
+      y += (rand() - 0.5) * noiseAmp * 0.9;
+      y = Math.max(0, Math.min(255, y));
+
       if (palette === "whitehot") {
-        y = (y - 128) * (0.92 + 0.08 * contrast) + 128 + (fog ? 8 : 0) + n;
-        y = Math.max(0, Math.min(255, y));
         d[i] = d[i + 1] = d[i + 2] = y;
       } else {
-        const wasCold = d[i] + d[i + 1] < 120 && y < 100;
-        y = Math.max(0, Math.min(255, y + n));
-        if (wasCold) {
-          const Lcold = Math.min(FOREST_LUMA_MAX, (y / 255) * 0.9);
-          const [rr, gg, bb] = ironLut(Lcold);
-          d[i] = rr;
-          d[i + 1] = gg;
-          d[i + 2] = bb;
-        } else {
-          d[i] = Math.max(0, Math.min(255, d[i] + n * 0.6));
-          d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n * 0.5));
-          d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n * 0.4));
-        }
+        const [rr, gg, bb] = ironLut(y / 255);
+        d[i] = rr;
+        d[i + 1] = gg;
+        d[i + 2] = bb;
       }
       d[i + 3] = 255;
     }
     cctx.putImageData(imageData, 0, 0);
 
+    // ── Matrix pixelation ──────────────────────────────────────────
     const pixW = sandboxMatrixPixelWidth(inputs.matrixW);
-    const pixH = Math.round(pixW * (3 / 4));
+    const pixH = Math.round(pixW * (LOGIC_H / LOGIC_W));
     if (!matrixRef.current) matrixRef.current = document.createElement("canvas");
     const mCan = matrixRef.current;
     mCan.width = pixW;
@@ -523,64 +473,49 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       LOGIC_H
     );
 
+    // Soft vignette
     const grd = ctx.createRadialGradient(
       LOGIC_W / 2,
       LOGIC_H / 2,
-      LOGIC_H * 0.28,
+      LOGIC_H * 0.3,
       LOGIC_W / 2,
       LOGIC_H / 2,
       LOGIC_H * 0.78
     );
     grd.addColorStop(0, "rgba(0,0,0,0)");
-    grd.addColorStop(1, "rgba(0,0,0,0.42)");
+    grd.addColorStop(1, "rgba(0,0,0,0.38)");
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
 
+    // HUD overlay
     ctx.fillStyle = "rgba(225,29,42,0.95)";
     ctx.font = "600 11px Manrope, system-ui, sans-serif";
     ctx.fillText(`${inputs.matrixW}×${inputs.matrixH}`, 12, 20);
-    ctx.fillStyle = "rgba(245,246,247,0.85)";
-    ctx.fillText(`${Math.round(inputs.distanceM)} m`, 12, 36);
+    ctx.fillStyle = "rgba(245,246,247,0.9)";
+    ctx.fillText(`${Math.round(dist)} m`, 12, 36);
     ctx.fillText(
       `${inputs.focalMm} mm · ${inputs.pitchUm} µm · NETD ${inputs.netdMk}`,
       12,
       52
     );
-    ctx.fillText(`${hz} Hz · FOV ${computed.fovDeg.toFixed(1)}°`, 12, 68);
     if (digiZoom > 1) {
       ctx.fillStyle = "rgba(225,29,42,0.95)";
       ctx.textAlign = "right";
       ctx.fillText(`DIGI ×${digiZoom}`, LOGIC_W - 12, 20);
       ctx.textAlign = "left";
     }
-  }, [ready, inputs, palette, digiZoom, hz, computed]);
+  }, [ready, inputs, palette, digiZoom, computed]);
 
   useEffect(() => {
     render();
   }, [render]);
 
-  // Status from rendered grain (FOV + detect floor) — matches picture
+  // Status from Johnson pixels (optics), not the boosted on-screen size
   const visualStatus = useMemo(() => {
     const detM = Math.max(200, computed.dri.detectM);
-    const vis = sandboxSubjectVisibility(
-      inputs.distanceM,
-      detM,
-      inputs.fog
-    );
-    if (vis <= 0) return "none" as const;
-    const critClear = sandboxRenderedCriticalGrain(
-      TARGET_VISUAL_HEIGHT_M[inputs.target],
-      TARGET_SIZE_M[inputs.target],
-      inputs.distanceM,
-      inputs.matrixW,
-      inputs.matrixH,
-      inputs.pitchUm,
-      inputs.focalMm,
-      computed.pixelsOnTargetClear,
-      false,
-      detM
-    );
-    return statusFromPixels(critClear, inputs.fog);
+    const deff = inputs.fog ? detM * 0.6 : detM;
+    if (inputs.distanceM > deff * 1.08) return "none" as const;
+    return statusFromPixels(computed.pixelsOnTargetClear, inputs.fog);
   }, [inputs, computed.pixelsOnTargetClear, computed.dri.detectM]);
 
   const statusLabel = isRu
@@ -596,9 +531,9 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
         pitchUm: 12,
         netdMk: 20,
         focalMm: 75,
-        target: "human",
+        target: TARGET,
         kCalib: INPUT_LIMITS.kDefault,
-        distanceM: 800,
+        distanceM: 250,
       });
       return;
     }
@@ -606,378 +541,317 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
     if (o) patch(presetFromCatalog(o));
   };
 
+  const hFracNow = subjectHeightFrac(DEER_VISUAL_H_M, inputs.distanceM);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px]">
-      {/* Main: canvas + digi controls */}
-      <div className="min-w-0 space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">
-              {isRu ? "Песочница тепловизора" : "Пісочниця тепловізора"}
-            </h1>
-            <p className="mt-1 text-sm text-secondary">
-              {isRu
-                ? "Экспертный конструктор: матрица, pitch, NETD, объектив → FOV, IFOV, DRI (Джонсон) и живая сцена."
-                : "Експертний конструктор: матриця, pitch, NETD, об'єктив → FOV, IFOV, DRI (Джонсон) і жива сцена."}
-            </p>
-          </div>
-          <span
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide",
-              STATUS_COLOR[visualStatus]
-            )}
-          >
-            {statusLabel}
-          </span>
-        </div>
-
-        <div
-          className="relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
-          style={{
-            boxShadow:
-              "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)",
-          }}
-        >
-          <canvas
-            ref={canvasRef}
-            width={LOGIC_W}
-            height={LOGIC_H}
-            className="block h-auto w-full"
-            style={{ aspectRatio: "4 / 3" }}
-          />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
-            <div className="pointer-events-auto flex items-center gap-1">
-              <button
-                type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
-                disabled={digiZoom <= 1}
-                onClick={() => setDigiZoom(nextDigiZoom(digiZoom, -1))}
-              >
-                −
-              </button>
-              <span className="min-w-[2.5rem] text-center text-[11px] font-semibold text-white">
-                ×{digiZoom}
-              </span>
-              <button
-                type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
-                disabled={digiZoom >= 32}
-                onClick={() => setDigiZoom(nextDigiZoom(digiZoom, 1))}
-              >
-                +
-              </button>
-            </div>
-            <button
-              type="button"
-              className="pointer-events-auto rounded-md border border-[var(--accent)]/80 bg-[rgba(225,29,42,0.85)] px-2.5 py-1.5 text-[11px] font-bold uppercase text-white"
-              onClick={() => {
-                const hf = sandboxRenderHeightFrac(
-                  TARGET_VISUAL_HEIGHT_M[inputs.target],
-                  TARGET_SIZE_M[inputs.target],
-                  inputs.distanceM,
-                  inputs.matrixW,
-                  inputs.matrixH,
-                  inputs.pitchUm,
-                  inputs.focalMm,
-                  computed.pixelsOnTargetClear,
-                  inputs.fog,
-                  Math.max(200, computed.dri.detectM)
-                );
-                const z = inspectDigiZoom(inputs.distanceM, DIST_MIN_M, hf);
-                setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);
-              }}
-            >
-              {digiZoom > 1
-                ? isRu
-                  ? "Сброс ×1"
-                  : "Скинути ×1"
-                : isRu
-                  ? "Увеличить цель"
-                  : "Збільшити ціль"}
-            </button>
-          </div>
-        </div>
-
-        {/* Live calc panel */}
-        <div className="grid gap-2 rounded-xl border border-white/10 bg-black/25 p-4 sm:grid-cols-2 lg:grid-cols-3">
-          <CalcItem
-            label="FOV H"
-            value={`${computed.fovDeg.toFixed(2)}°`}
-          />
-          <CalcItem
-            label="IFOV"
-            value={`${computed.ifovMrad.toFixed(3)} mrad`}
-          />
-          <CalcItem
-            label={isRu ? "Пикс. на цели" : "Пікс. на цілі"}
-            value={`${computed.pixelsOnTarget.toFixed(1)} px`}
-          />
-          <CalcItem
-            label={isRu ? "D выявл." : "D виявл."}
-            value={`${Math.round(computed.dri.detectM)} м`}
-            accent="amber"
-          />
-          <CalcItem
-            label={isRu ? "D распозн." : "D розпізн."}
-            value={`${Math.round(computed.dri.recognizeM)} м`}
-            accent="sky"
-          />
-          <CalcItem
-            label={isRu ? "D идент." : "D ідент."}
-            value={`${Math.round(computed.dri.identifyM)} м`}
-            accent="emerald"
-          />
-          <CalcItem
-            label={isRu ? "Ширина сенсора" : "Ширина сенсора"}
-            value={`${computed.sensorWidthMm.toFixed(2)} мм`}
-          />
-          <CalcItem label="K" value={inputs.kCalib.toFixed(2)} />
-          <CalcItem
-            label={isRu ? "Статус" : "Статус"}
-            value={statusLabel}
-          />
-        </div>
-
-        {computed.atypical && (
-          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-            {isRu
-              ? "⚠ Нетипичная конфигурация (очень высокая расчётная дальность). В реальных приборах атмосферы, ΔT и оптика ограничивают результат."
-              : "⚠ Нетипова конфігурація (дуже висока розрахункова дальність). У реальних приладах атмосфера, ΔT і оптика обмежують результат."}
-          </p>
-        )}
-
-        <p className="text-[11px] leading-relaxed text-faint">
+    <div className="space-y-5">
+      {/* Yellow disclaimer — approximate only */}
+      <div
+        role="note"
+        className="rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-3.5 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
+      >
+        <p className="text-sm font-semibold leading-snug text-amber-200 sm:text-[15px]">
           {isRu
-            ? "Упрощённая модель по критерию Джонсона. Не учитывает атмосферу, влажность и тепловой контраст цели (ΔT). Частота кадров и разрешение дисплея — справочно, на симуляцию не влияют. Цифровой зум не добавляет деталей. Симуляция приблизительная, не замена полевых испытаний."
-            : "Спрощена модель за критерієм Джонсона. Не враховує атмосферу, вологість і тепловий контраст цілі (ΔT). Частота кадрів і роздільність дисплея — довідково, на симуляцію не впливають. Цифровий зум не додає деталей. Симуляція приблизна, не заміна польових випробувань."}
+            ? "⚠ Симулятор — очень приблизительная оценка"
+            : "⚠ Симулятор — дуже приблизна оцінка"}
         </p>
-        <p className="text-[10px] text-faint">
+        <p className="mt-1.5 text-xs leading-relaxed text-amber-100/90 sm:text-[13px]">
           {isRu
-            ? `Калибровка K=${INPUT_LIMITS.kDefault}: RS75-класс 1280×1024 / 12µm / 75мм / человек 0.75м → D_det≈${Math.round(calibrationRs75DetectM())} м (паспорт ~3900 м).`
-            : `Калібрування K=${INPUT_LIMITS.kDefault}: RS75-клас 1280×1024 / 12µm / 75мм / людина 0.75м → D_det≈${Math.round(calibrationRs75DetectM())} м (паспорт ~3900 м).`}
+            ? "В реальности всё работает иначе: атмосфера, ΔT цели, оптика и электроника прибора. Это наглядная модель для понимания принципов, а не полевой тест. Уточняйте у нашего специалиста."
+            : "У реальності все працює інакше: атмосфера, ΔT цілі, оптика та електроніка приладу. Це наочна модель для розуміння принципів, а не польовий тест. Уточнюйте у нашого спеціаліста."}
         </p>
       </div>
 
-      {/* Controls */}
-      <aside className="space-y-4 rounded-xl border border-white/10 bg-[var(--surface)] p-4 sm:p-5">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-muted-ui">
-          {isRu ? "Параметры сенсора" : "Параметри сенсора"}
-        </h2>
-
-        <label className="block text-xs text-muted-ui">
-          {isRu ? "Пресет модели" : "Пресет моделі"}
-          <select
-            className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
-            value={presetId}
-            onChange={(e) => applyPreset(e.target.value)}
-          >
-            <option value="">
-              {isRu ? "— вручную —" : "— вручну —"}
-            </option>
-            <option value="rs75">
-              RS75-class · 1280×1024 · 12µm · 75mm (калибр.)
-            </option>
-            {catalogPresets.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} · {p.matrix} · D≈{p.detectionRangeM}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block text-xs text-muted-ui">
-          {isRu ? "Матрица" : "Матриця"}
-          <select
-            className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
-            value={inputs.matrixW}
-            onChange={(e) =>
-              patch({ matrixW: Number(e.target.value) as SandboxMatrix })
-            }
-          >
-            {MATRIX_PRESETS.map((m) => (
-              <option key={m.w} value={m.w}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block text-xs text-muted-ui">
-          Pixel pitch
-          <select
-            className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
-            value={inputs.pitchUm}
-            onChange={(e) =>
-              patch({ pitchUm: Number(e.target.value) as PixelPitchUm })
-            }
-          >
-            {PITCH_OPTIONS.map((p) => (
-              <option key={p} value={p}>
-                {p} µm
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="block text-xs text-muted-ui">
-          NETD: <strong className="text-primary">{inputs.netdMk} mK</strong>
-          <input
-            type="range"
-            min={INPUT_LIMITS.netdMin}
-            max={INPUT_LIMITS.netdMax}
-            step={1}
-            value={inputs.netdMk}
-            onChange={(e) => patch({ netdMk: Number(e.target.value) })}
-            className="mt-1 w-full accent-[var(--accent)]"
-          />
-        </label>
-
-        <label className="block text-xs text-muted-ui">
-          {isRu ? "Объектив (фокус)" : "Об'єктив (фокус)"}:{" "}
-          <strong className="text-primary">{inputs.focalMm} мм</strong>
-          <input
-            type="range"
-            min={INPUT_LIMITS.focalMin}
-            max={INPUT_LIMITS.focalMax}
-            step={1}
-            value={inputs.focalMm}
-            onChange={(e) => patch({ focalMm: Number(e.target.value) })}
-            className="mt-1 w-full accent-[var(--accent)]"
-          />
-        </label>
-
-        <label className="block text-xs text-muted-ui">
-          {isRu ? "Цель" : "Ціль"}
-          <select
-            className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
-            value={inputs.target}
-            onChange={(e) =>
-              patch({ target: e.target.value as TargetKind })
-            }
-          >
-            <option value="deer">
-              {isRu ? "Олень" : "Олень"} (~{TARGET_SIZE_M.deer} м)
-            </option>
-            <option value="boar">
-              {isRu ? "Кабан" : "Кабан"} (~{TARGET_SIZE_M.boar} м)
-            </option>
-            <option value="fox">
-              {isRu ? "Лисица" : "Лисиця"} (~{TARGET_SIZE_M.fox} м)
-            </option>
-            <option value="human">
-              {isRu ? "Человек" : "Людина"} (~{TARGET_SIZE_M.human} м)
-            </option>
-          </select>
-        </label>
-
-        <label className="block text-xs text-muted-ui">
-          {isRu ? "Дистанция" : "Дистанція"}:{" "}
-          <strong className="text-primary">
-            {Math.round(inputs.distanceM)} м
-          </strong>
-          <span className="text-faint"> / max {distMax} м</span>
-          <input
-            type="range"
-            min={DIST_MIN_M}
-            max={distMax}
-            step={10}
-            value={Math.min(inputs.distanceM, distMax)}
-            onChange={(e) => patch({ distanceM: Number(e.target.value) })}
-            className="mt-1 w-full accent-[var(--accent)]"
-          />
-        </label>
-
-        <div className="flex gap-2">
-          {(
-            [
-              ["clear", isRu ? "Ясно" : "Ясно"],
-              ["fog", isRu ? "Туман" : "Туман"],
-            ] as const
-          ).map(([k, lab]) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => patch({ fog: k === "fog" })}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
+        {/* Main: canvas */}
+        <div className="min-w-0 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">
+                {isRu
+                  ? "Симулятор тепловизора"
+                  : "Симулятор тепловізора"}
+              </h1>
+              <p className="mt-1 text-sm text-secondary">
+                {isRu
+                  ? "Олень в лесу · меняйте матрицу и объектив — смотрите, как меняется картинка и дальность DRI."
+                  : "Олень у лісі · змінюйте матрицю та об'єктив — дивіться, як змінюється картинка і дальність DRI."}
+              </p>
+            </div>
+            <span
               className={cn(
-                "flex-1 rounded-lg border px-2 py-2 text-xs font-medium",
-                (k === "fog") === inputs.fog
-                  ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
-                  : "border-white/10 text-secondary"
+                "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                STATUS_COLOR[visualStatus]
               )}
             >
-              {lab}
-            </button>
-          ))}
-        </div>
+              {statusLabel}
+            </span>
+          </div>
 
-        <div className="flex gap-2">
-          {(
-            [
-              ["whitehot", "White-hot"],
-              ["ironhot", "Red-hot"],
-            ] as const
-          ).map(([k, lab]) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setPalette(k)}
-              className={cn(
-                "flex-1 rounded-lg border px-2 py-2 text-xs font-medium",
-                palette === k
-                  ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
-                  : "border-white/10 text-secondary"
-              )}
-            >
-              {lab}
-            </button>
-          ))}
-        </div>
-
-        <label className="block text-xs text-muted-ui">
-          {isRu ? "Частота (подпись)" : "Частота (підпис)"}
-          <select
-            className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
-            value={hz}
-            onChange={(e) => setHz(Number(e.target.value) as 25 | 30 | 50)}
+          <div
+            className="relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
+            style={{
+              boxShadow:
+                "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)",
+            }}
           >
-            <option value={25}>25 Hz</option>
-            <option value={30}>30 Hz</option>
-            <option value={50}>50 Hz</option>
-          </select>
-        </label>
+            <canvas
+              ref={canvasRef}
+              width={LOGIC_W}
+              height={LOGIC_H}
+              className="block h-auto w-full"
+              style={{ aspectRatio: "4 / 3" }}
+            />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
+              <div className="pointer-events-auto flex items-center gap-1">
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
+                  disabled={digiZoom <= 1}
+                  onClick={() => setDigiZoom(nextDigiZoom(digiZoom, -1))}
+                  aria-label="Zoom out"
+                >
+                  −
+                </button>
+                <span className="min-w-[2.5rem] text-center text-[11px] font-semibold text-white">
+                  ×{digiZoom}
+                </span>
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
+                  disabled={digiZoom >= 32}
+                  onClick={() => setDigiZoom(nextDigiZoom(digiZoom, 1))}
+                  aria-label="Zoom in"
+                >
+                  +
+                </button>
+              </div>
+              <button
+                type="button"
+                className="pointer-events-auto rounded-md border border-[var(--accent)]/80 bg-[rgba(225,29,42,0.85)] px-2.5 py-1.5 text-[11px] font-bold uppercase text-white"
+                onClick={() => {
+                  const z = inspectDigiZoom(
+                    inputs.distanceM,
+                    DIST_MIN_M,
+                    hFracNow
+                  );
+                  setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);
+                }}
+              >
+                {digiZoom > 1
+                  ? isRu
+                    ? "Сброс ×1"
+                    : "Скинути ×1"
+                  : isRu
+                    ? "Увеличить оленя"
+                    : "Збільшити оленя"}
+              </button>
+            </div>
+          </div>
 
-        <label className="block text-xs text-muted-ui">
-          K ({isRu ? "калибровка DRI" : "калібрування DRI"}):{" "}
-          <strong className="text-primary">{inputs.kCalib.toFixed(2)}</strong>
-          <input
-            type="range"
-            min={INPUT_LIMITS.kMin}
-            max={INPUT_LIMITS.kMax}
-            step={0.01}
-            value={inputs.kCalib}
-            onChange={(e) => patch({ kCalib: Number(e.target.value) })}
-            className="mt-1 w-full accent-[var(--accent)]"
-          />
-        </label>
-
-        <div className="flex flex-wrap gap-1.5">
-          {DIGI_ZOOM_STEPS.map((z) => (
-            <button
-              key={z}
-              type="button"
-              onClick={() => setDigiZoom(z)}
-              className={cn(
-                "rounded border px-2 py-1 text-[11px] font-semibold",
-                digiZoom === z
-                  ? "border-[var(--accent)] text-primary"
-                  : "border-white/10 text-faint"
-              )}
-            >
-              ×{z}
-            </button>
-          ))}
+          {/* Compact DRI readout */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <CalcItem
+              label={isRu ? "D выявл." : "D виявл."}
+              value={`${Math.round(computed.dri.detectM)} м`}
+              accent="amber"
+            />
+            <CalcItem
+              label={isRu ? "D распозн." : "D розпізн."}
+              value={`${Math.round(computed.dri.recognizeM)} м`}
+              accent="sky"
+            />
+            <CalcItem
+              label={isRu ? "D идент." : "D ідент."}
+              value={`${Math.round(computed.dri.identifyM)} м`}
+              accent="emerald"
+            />
+            <CalcItem
+              label="FOV"
+              value={`${computed.fovDeg.toFixed(1)}°`}
+            />
+          </div>
         </div>
-      </aside>
+
+        {/* Controls — simple */}
+        <aside className="space-y-4 rounded-xl border border-white/10 bg-[var(--surface)] p-4 sm:p-5">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted-ui">
+            {isRu ? "Параметры" : "Параметри"}
+          </h2>
+
+          {catalogPresets.length > 0 && (
+            <label className="block text-xs text-muted-ui">
+              {isRu ? "Пресет из каталога" : "Пресет з каталогу"}
+              <select
+                className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
+                value={presetId}
+                onChange={(e) => applyPreset(e.target.value)}
+              >
+                <option value="">
+                  {isRu ? "— вручную —" : "— вручну —"}
+                </option>
+                <option value="rs75">
+                  RS75-class · 1280 · 75mm
+                </option>
+                {catalogPresets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {p.matrix}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <label className="block text-xs text-muted-ui">
+            {isRu ? "Матрица" : "Матриця"}
+            <select
+              className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
+              value={inputs.matrixW}
+              onChange={(e) =>
+                patch({ matrixW: Number(e.target.value) as SandboxMatrix })
+              }
+            >
+              {MATRIX_PRESETS.map((m) => (
+                <option key={m.w} value={m.w}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-xs text-muted-ui">
+            Pixel pitch
+            <select
+              className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
+              value={inputs.pitchUm}
+              onChange={(e) =>
+                patch({ pitchUm: Number(e.target.value) as PixelPitchUm })
+              }
+            >
+              {PITCH_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p} µm
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-xs text-muted-ui">
+            {isRu ? "Объектив" : "Об'єктив"}:{" "}
+            <strong className="text-primary">{inputs.focalMm} мм</strong>
+            <input
+              type="range"
+              min={INPUT_LIMITS.focalMin}
+              max={INPUT_LIMITS.focalMax}
+              step={1}
+              value={inputs.focalMm}
+              onChange={(e) => patch({ focalMm: Number(e.target.value) })}
+              className="mt-1 w-full accent-[var(--accent)]"
+            />
+          </label>
+
+          <label className="block text-xs text-muted-ui">
+            NETD:{" "}
+            <strong className="text-primary">{inputs.netdMk} mK</strong>
+            <input
+              type="range"
+              min={INPUT_LIMITS.netdMin}
+              max={INPUT_LIMITS.netdMax}
+              step={1}
+              value={inputs.netdMk}
+              onChange={(e) => patch({ netdMk: Number(e.target.value) })}
+              className="mt-1 w-full accent-[var(--accent)]"
+            />
+          </label>
+
+          <label className="block text-xs text-muted-ui">
+            {isRu ? "Дистанция" : "Дистанція"}:{" "}
+            <strong className="text-primary">
+              {Math.round(inputs.distanceM)} м
+            </strong>
+            <span className="text-faint"> / max {distMax} м</span>
+            <input
+              type="range"
+              min={DIST_MIN_M}
+              max={distMax}
+              step={10}
+              value={Math.min(inputs.distanceM, distMax)}
+              onChange={(e) => patch({ distanceM: Number(e.target.value) })}
+              className="mt-1 w-full accent-[var(--accent)]"
+            />
+          </label>
+
+          <div className="flex gap-2">
+            {(
+              [
+                ["clear", isRu ? "Ясно" : "Ясно"],
+                ["fog", isRu ? "Туман" : "Туман"],
+              ] as const
+            ).map(([k, lab]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => patch({ fog: k === "fog" })}
+                className={cn(
+                  "flex-1 rounded-lg border px-2 py-2 text-xs font-medium",
+                  (k === "fog") === inputs.fog
+                    ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+                    : "border-white/10 text-secondary"
+                )}
+              >
+                {lab}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            {(
+              [
+                ["whitehot", "White-hot"],
+                ["ironhot", "Red-hot"],
+              ] as const
+            ).map(([k, lab]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setPalette(k)}
+                className={cn(
+                  "flex-1 rounded-lg border px-2 py-2 text-xs font-medium",
+                  palette === k
+                    ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+                    : "border-white/10 text-secondary"
+                )}
+              >
+                {lab}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {DIGI_ZOOM_STEPS.map((z) => (
+              <button
+                key={z}
+                type="button"
+                onClick={() => setDigiZoom(z)}
+                className={cn(
+                  "rounded border px-2 py-1 text-[11px] font-semibold",
+                  digiZoom === z
+                    ? "border-[var(--accent)] text-primary"
+                    : "border-white/10 text-faint"
+                )}
+              >
+                ×{z}
+              </button>
+            ))}
+          </div>
+
+          <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[11px] leading-relaxed text-faint">
+            {isRu
+              ? "Цель: олень (~1 м по критерию Джонсона). Цифровой зум не добавляет деталей — только увеличивает пиксели."
+              : "Ціль: олень (~1 м за критерієм Джонсона). Цифровий зум не додає деталей — лише збільшує пікселі."}
+          </p>
+        </aside>
+      </div>
     </div>
   );
 }
