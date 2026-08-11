@@ -6,12 +6,15 @@
  * Desktop: no simulator in hero (catalog rails start under hero).
  */
 
+import { useEffect, useState } from "react";
 import NextLink from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowRight, Headphones, ScanEye } from "lucide-react";
+import { ArrowRight, Headphones, Phone, ScanEye, X } from "lucide-react";
 import { HeroBrandMarquee } from "@/components/home/HeroBrandMarquee";
 import { BrandMark } from "@/components/ui/BrandMark";
 import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
   STORE_PHONE_TELEGRAM,
   STORE_PHONE_WHATSAPP,
 } from "@/lib/contact";
@@ -26,34 +29,130 @@ const CONSULT_MSG = encodeURIComponent(
   "Доброго дня! Потрібна консультація щодо оптики / тепловізора."
 );
 
-function ConsultMessengers() {
+/** One red CTA → sheet: Telegram / WhatsApp / Call */
+function ConsultButton() {
   const t = useTranslations("home");
+  const [open, setOpen] = useState(false);
   const wa = `${STORE_PHONE_WHATSAPP}?text=${CONSULT_MSG}`;
   const tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="flex min-w-0 flex-1 gap-1.5 sm:flex-none">
-      <a
-        href={wa}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn-hero btn-hero-secondary hero-mobile__btn inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 !border-[#25d366]/40 sm:flex-none sm:!min-h-[2.6rem] sm:!px-4 sm:!text-sm"
-        title="WhatsApp"
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="btn-hero btn-hero-primary hero-mobile__btn min-w-0 flex-1 sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
       >
-        <BrandMark brand="whatsapp" size="sm" />
-        <span className="truncate text-[11px] sm:text-sm">{t("consultWa")}</span>
-      </a>
-      <a
-        href={tg}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn-hero btn-hero-secondary hero-mobile__btn inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 !border-[#229ed9]/40 sm:flex-none sm:!min-h-[2.6rem] sm:!px-4 sm:!text-sm"
-        title="Telegram"
-      >
-        <BrandMark brand="telegram" size="sm" />
-        <span className="truncate text-[11px] sm:text-sm">{t("consultTg")}</span>
-      </a>
-    </div>
+        <span className="truncate sm:hidden">{t("heroSecondaryMobile")}</span>
+        <span className="hidden truncate sm:inline">{t("heroSecondary")}</span>
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+            aria-label={t("consultClose")}
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("heroSecondary")}
+            className="relative z-10 w-full max-w-sm rounded-t-2xl border border-white/10 bg-[var(--surface-solid,#16181d)] p-5 shadow-2xl sm:rounded-2xl"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-base font-bold text-primary">
+                  {t("consultSheetTitle")}
+                </p>
+                <p className="mt-1 text-xs text-secondary">
+                  {t("consultSheetSub")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-full p-1.5 text-muted-ui transition hover:bg-white/10 hover:text-primary"
+                aria-label={t("consultClose")}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <a
+                href={tg}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition hover:border-[#229ed9]/50 hover:bg-white/[0.07]"
+              >
+                <BrandMark brand="telegram" size="md" />
+                <span className="flex-1 text-left">
+                  <span className="block text-sm font-semibold text-primary">
+                    Telegram
+                  </span>
+                  <span className="block text-xs text-secondary">
+                    {t("consultTgHint")}
+                  </span>
+                </span>
+              </a>
+
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition hover:border-[#25d366]/50 hover:bg-white/[0.07]"
+              >
+                <BrandMark brand="whatsapp" size="md" />
+                <span className="flex-1 text-left">
+                  <span className="block text-sm font-semibold text-primary">
+                    WhatsApp
+                  </span>
+                  <span className="block text-xs text-secondary">
+                    {t("consultWaHint")}
+                  </span>
+                </span>
+              </a>
+
+              <a
+                href={STORE_PHONE_TEL}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition hover:border-[var(--accent)]/50 hover:bg-white/[0.07]"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(225,29,42,0.18)] text-[var(--accent)]">
+                  <Phone className="h-5 w-5" strokeWidth={2} />
+                </span>
+                <span className="flex-1 text-left">
+                  <span className="block text-sm font-semibold text-primary">
+                    {t("consultCall")}
+                  </span>
+                  <span className="block text-xs text-secondary">
+                    {STORE_PHONE_DISPLAY}
+                  </span>
+                </span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -94,7 +193,7 @@ export function HeroCarousel({ brands }: Props) {
                   <span className="hidden truncate sm:inline">{t("heroCta")}</span>
                   <ArrowRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                 </NextLink>
-                <ConsultMessengers />
+                <ConsultButton />
               </div>
 
               <ul className="hero-mobile__perks mt-3 grid grid-cols-2 gap-1 border-t border-white/[0.1] pt-2.5 sm:mt-7 sm:gap-3 sm:pt-5">
