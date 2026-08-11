@@ -15,6 +15,7 @@ import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
+import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
 import { ProductDescriptionBody } from "@/components/product/ProductDescriptionBody";
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 import { ProductCard } from "@/components/ui/ProductCard";
@@ -178,7 +179,9 @@ export default async function ProductPage({ params }: Props) {
             />
           </div>
 
-          <PriceCompareSection compare={product.priceCompare} locale={locale} />
+          {PRICE_COMPARE_PUBLIC_UI && (
+            <PriceCompareSection compare={product.priceCompare} locale={locale} />
+          )}
           {/* Full text only in «Опис» below — not duplicated under cart */}
         </div>
       </div>

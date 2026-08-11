@@ -10,6 +10,7 @@ import { useCart } from "@/lib/cart-store";
 import { useContext, useState } from "react";
 import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
 import { LayoutModeContext } from "@/components/ui/animated-toggle-layout-container";
+import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
 
 /**
  * Desktop-only hover: only devices with real hover + fine pointer
@@ -249,7 +250,7 @@ export function ProductCard({
               </span>
             )}
         </div>
-        {product.priceCompare && !tight && (
+        {PRICE_COMPARE_PUBLIC_UI && product.priceCompare && !tight && (
           <div className="mb-3">
             <PriceCompareBadge compare={product.priceCompare} />
           </div>

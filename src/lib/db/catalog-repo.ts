@@ -22,6 +22,7 @@ import {
 } from "@/data/seed";
 import type { Review } from "@/types";
 import { getPriceCompareMap } from "@/lib/price-compare/repo";
+import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
 import { sortBrandsByPriority } from "@/lib/brand-priority";
 
 /**
@@ -32,6 +33,7 @@ const CATALOG_LIST_SELECT =
   "id, slug, sku, name_uk, name_ru, price, old_price, stock, brand_id, category_id, resolution, device_type, detection_range_m, rating, reviews_count, is_hit, is_new, is_top, is_sale, images, created_at, brands(slug, name), categories(slug)";
 
 async function attachPriceCompare(products: Product[]): Promise<Product[]> {
+  if (!PRICE_COMPARE_PUBLIC_UI) return products;
   if (!products.length || !hasServiceSupabase()) return products;
   try {
     const pricesById: Record<string, number> = {};
