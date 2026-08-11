@@ -6,7 +6,7 @@ import { listThermalCompareOptions } from "@/lib/thermal/list-thermal-products";
 
 // Feature flag: sandbox route disabled site-wide (kept in code, not
 // removed, per owner request 2026-08-01) -- 404s while off, even by direct URL.
-const SIMULATOR_ENABLED = false;
+const SIMULATOR_ENABLED = true;
 
 type Props = { params: Promise<{ locale: string }> };
 

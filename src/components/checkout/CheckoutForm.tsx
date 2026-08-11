@@ -323,10 +323,13 @@ export function CheckoutForm() {
                 required
                 type="tel"
                 className="input"
-                placeholder="063 789-76-99"
+                placeholder={
+                  locale === "ru" ? "Ваш номер телефона" : "Ваш номер телефону"
+                }
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
+                inputMode="tel"
               />
             </label>
             <label className="block text-sm">

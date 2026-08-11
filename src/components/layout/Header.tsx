@@ -21,7 +21,7 @@ import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
 
 // Feature flag: thermal simulator ("Пісочниця DRI") temporarily disabled
 // site-wide (kept in code, not removed, per owner request 2026-08-01).
-const SIMULATOR_LINK_ENABLED = false;
+const SIMULATOR_LINK_ENABLED = true;
 /** Temporarily hide blog in top nav (routes still exist). */
 const BLOG_NAV_ENABLED = false;
 

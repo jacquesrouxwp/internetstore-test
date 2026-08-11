@@ -21,7 +21,7 @@ const hoverDesk = "[@media(hover:hover)_and_(pointer:fine)]";
 // Feature flag: thermal simulator disabled site-wide (kept in code, not
 // removed, per owner request 2026-08-01) -- hides the dead #thermal-simulator
 // deep link that would otherwise sit on every product card.
-const SIMULATOR_LINK_ENABLED = false;
+const SIMULATOR_LINK_ENABLED = true;
 
 function ProductPlaceholder() {
   return (
