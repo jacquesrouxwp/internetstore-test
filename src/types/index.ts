@@ -1,7 +1,13 @@
 export type Locale = "uk" | "ru";
 
 export type DeviceType = "mono" | "scope" | "binocular" | "clipon";
-export type Resolution = "256x192" | "384x288" | "640x512" | "160x120" | string;
+export type Resolution =
+  | "256x192"
+  | "384x288"
+  | "640x512"
+  | "1024x768"
+  | "160x120"
+  | string;
 
 export type ProductBadge = "hit" | "new" | "top" | "sale";
 

@@ -13,6 +13,8 @@ const RESOLUTIONS = [
   { value: "256", label: "256×192" },
   { value: "384", label: "384×288" },
   { value: "640", label: "640×512" },
+  /** Class above 640 — common high-end thermal matrix */
+  { value: "1024", label: "1024×768" },
 ];
 
 export function CatalogFilters({
