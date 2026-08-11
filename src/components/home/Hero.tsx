@@ -7,7 +7,9 @@ import {
 } from "@/lib/brand-priority";
 
 /**
- * Hero: pitch + marquee. Simulator only via mobile side tab → /simulator.
+ * Hero: pitch + marquee.
+ * Desktop: live thermal sim in right column (no carousel).
+ * Mobile: side tab → /simulator.
  */
 export async function Hero() {
   const locale = await getLocale();

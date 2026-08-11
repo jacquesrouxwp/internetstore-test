@@ -4,9 +4,14 @@
  * Thermal sandbox — deer-only, simple UI.
  * Scene: fixed-FOV forest + hot deer on ground plane (sales-readable size).
  * DRI numbers still come from Johnson optics (matrix / pitch / focal / NETD).
+ *
+ * variant "hero" — compact desktop embed (no carousel / arrows).
+ * variant "full" — /simulator page.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import NextLink from "next/link";
+import { ArrowUpRight, ScanEye } from "lucide-react";
 import type { ThermalCompareOption } from "@/lib/thermal/parse-product-thermal";
 import { netdContrast, netdNoiseAmp } from "@/lib/thermal/parse-product-thermal";
 import {
@@ -69,6 +74,9 @@ const STATUS_COLOR = {
 type Props = {
   locale?: string;
   catalogPresets?: ThermalCompareOption[];
+  /** full = /simulator page; hero = desktop homepage embed */
+  variant?: "full" | "hero";
+  className?: string;
 };
 
 function mulberry32(seed: number) {
@@ -241,8 +249,14 @@ function presetFromCatalog(o: ThermalCompareOption): Partial<SandboxInputs> {
   };
 }
 
-export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
+export function ThermalSandbox({
+  locale = "uk",
+  catalogPresets = [],
+  variant = "full",
+  className,
+}: Props) {
   const isRu = locale === "ru";
+  const isHero = variant === "hero";
   const [inputs, setInputs] = useState<SandboxInputs>(() =>
     clampSandboxInputs({
       matrixW: 640,
@@ -250,7 +264,7 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       netdMk: 25,
       focalMm: 35,
       target: TARGET,
-      distanceM: 150,
+      distanceM: isHero ? 120 : 150,
       fog: false,
       kCalib: INPUT_LIMITS.kDefault,
     })
@@ -543,9 +557,190 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
 
   const hFracNow = subjectHeightFrac(DEER_VISUAL_H_M, inputs.distanceM);
 
+  const canvasBlock = (
+    <div
+      className={cn(
+        "relative overflow-hidden bg-black",
+        isHero
+          ? "rounded-lg border border-white/15 ring-1 ring-black/40"
+          : "rounded-xl border-2 border-zinc-700/80"
+      )}
+      style={
+        isHero
+          ? {
+              boxShadow:
+                "inset 0 0 30px rgba(0,0,0,0.45), 0 8px 28px rgba(0,0,0,0.35)",
+            }
+          : {
+              boxShadow:
+                "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)",
+            }
+      }
+    >
+      <canvas
+        ref={canvasRef}
+        width={LOGIC_W}
+        height={LOGIC_H}
+        className="block h-auto w-full"
+        style={{ aspectRatio: "4 / 3" }}
+      />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 pt-8">
+        <div className="pointer-events-auto flex items-center gap-1">
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
+            disabled={digiZoom <= 1}
+            onClick={() => setDigiZoom(nextDigiZoom(digiZoom, -1))}
+            aria-label="Zoom out"
+          >
+            −
+          </button>
+          <span className="min-w-[2.5rem] text-center text-[11px] font-semibold text-white">
+            ×{digiZoom}
+          </span>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
+            disabled={digiZoom >= 32}
+            onClick={() => setDigiZoom(nextDigiZoom(digiZoom, 1))}
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+        </div>
+        <button
+          type="button"
+          className="pointer-events-auto rounded-md border border-[var(--accent)]/80 bg-[rgba(225,29,42,0.85)] px-2.5 py-1.5 text-[11px] font-bold uppercase text-white"
+          onClick={() => {
+            const z = inspectDigiZoom(
+              inputs.distanceM,
+              DIST_MIN_M,
+              hFracNow
+            );
+            setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);
+          }}
+        >
+          {digiZoom > 1
+            ? isRu
+              ? "Сброс ×1"
+              : "Скинути ×1"
+            : isRu
+              ? "Увеличить"
+              : "Збільшити"}
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ── Desktop hero embed: always visible, no carousel ─────────── */
+  if (isHero) {
+    return (
+      <div
+        className={cn(
+          "hero-glass relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius-card)] p-4 sm:p-5",
+          className
+        )}
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[rgba(225,29,42,0.15)] ring-1 ring-[var(--accent)]/35">
+                <ScanEye
+                  className="h-4 w-4 text-[var(--accent)]"
+                  strokeWidth={2.25}
+                />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-ui">
+                  Live preview
+                </p>
+                <h2 className="truncate font-display text-lg font-bold tracking-tight text-primary">
+                  {isRu ? "Симулятор тепловизора" : "Симулятор тепловізора"}
+                </h2>
+              </div>
+            </div>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide",
+              STATUS_COLOR[visualStatus]
+            )}
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        <div
+          role="note"
+          className="mb-3 rounded-lg border border-amber-400/40 bg-amber-500/[0.12] px-3 py-2"
+        >
+          <p className="text-[11px] leading-snug text-amber-100/95">
+            {isRu
+              ? "⚠ Очень приблизительная оценка. В реальности — иначе. Уточняйте у специалиста."
+              : "⚠ Дуже приблизна оцінка. У реальності — інакше. Уточнюйте у спеціаліста."}
+          </p>
+        </div>
+
+        <div className="min-h-0 flex-1">{canvasBlock}</div>
+
+        <div className="mt-3 space-y-2.5">
+          <label className="block text-[11px] text-muted-ui">
+            {isRu ? "Дистанция" : "Дистанція"}:{" "}
+            <strong className="text-primary">
+              {Math.round(inputs.distanceM)} м
+            </strong>
+            <input
+              type="range"
+              min={DIST_MIN_M}
+              max={Math.min(distMax, 1200)}
+              step={10}
+              value={Math.min(inputs.distanceM, distMax, 1200)}
+              onChange={(e) => patch({ distanceM: Number(e.target.value) })}
+              className="mt-1 w-full accent-[var(--accent)]"
+            />
+          </label>
+
+          <div className="flex items-center gap-2">
+            {(
+              [
+                ["whitehot", "WH"],
+                ["ironhot", "RH"],
+              ] as const
+            ).map(([k, lab]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setPalette(k)}
+                className={cn(
+                  "rounded-md border px-2.5 py-1.5 text-[11px] font-semibold",
+                  palette === k
+                    ? "border-[var(--accent)] bg-[rgba(225,29,42,0.15)] text-primary"
+                    : "border-white/10 text-secondary hover:border-white/20"
+                )}
+              >
+                {lab}
+              </button>
+            ))}
+            <span className="ml-auto text-[11px] tabular-nums text-faint">
+              D≈{Math.round(computed.dri.detectM)} м
+            </span>
+          </div>
+
+          <NextLink
+            href="/simulator"
+            className="group flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--accent)]/50 bg-[rgba(225,29,42,0.14)] px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-[var(--accent)] hover:bg-[rgba(225,29,42,0.22)]"
+          >
+            {isRu ? "Полный симулятор" : "Повний симулятор"}
+            <ArrowUpRight className="h-4 w-4 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </NextLink>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Full /simulator page ────────────────────────────────────── */
   return (
-    <div className="space-y-5">
-      {/* Yellow disclaimer — approximate only */}
+    <div className={cn("space-y-5", className)}>
       <div
         role="note"
         className="rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-3.5 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
@@ -563,7 +758,6 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Main: canvas */}
         <div className="min-w-0 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -588,68 +782,8 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
             </span>
           </div>
 
-          <div
-            className="relative overflow-hidden rounded-xl border-2 border-zinc-700/80 bg-black"
-            style={{
-              boxShadow:
-                "0 0 0 3px #1a1d24, 0 12px 40px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.5)",
-            }}
-          >
-            <canvas
-              ref={canvasRef}
-              width={LOGIC_W}
-              height={LOGIC_H}
-              className="block h-auto w-full"
-              style={{ aspectRatio: "4 / 3" }}
-            />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8">
-              <div className="pointer-events-auto flex items-center gap-1">
-                <button
-                  type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
-                  disabled={digiZoom <= 1}
-                  onClick={() => setDigiZoom(nextDigiZoom(digiZoom, -1))}
-                  aria-label="Zoom out"
-                >
-                  −
-                </button>
-                <span className="min-w-[2.5rem] text-center text-[11px] font-semibold text-white">
-                  ×{digiZoom}
-                </span>
-                <button
-                  type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/70 text-sm font-bold text-white disabled:opacity-35"
-                  disabled={digiZoom >= 32}
-                  onClick={() => setDigiZoom(nextDigiZoom(digiZoom, 1))}
-                  aria-label="Zoom in"
-                >
-                  +
-                </button>
-              </div>
-              <button
-                type="button"
-                className="pointer-events-auto rounded-md border border-[var(--accent)]/80 bg-[rgba(225,29,42,0.85)] px-2.5 py-1.5 text-[11px] font-bold uppercase text-white"
-                onClick={() => {
-                  const z = inspectDigiZoom(
-                    inputs.distanceM,
-                    DIST_MIN_M,
-                    hFracNow
-                  );
-                  setDigiZoom(digiZoom >= z && digiZoom > 1 ? 1 : z);
-                }}
-              >
-                {digiZoom > 1
-                  ? isRu
-                    ? "Сброс ×1"
-                    : "Скинути ×1"
-                  : isRu
-                    ? "Увеличить оленя"
-                    : "Збільшити оленя"}
-              </button>
-            </div>
-          </div>
+          {canvasBlock}
 
-          {/* Compact DRI readout */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <CalcItem
               label={isRu ? "D выявл." : "D виявл."}
@@ -673,7 +807,6 @@ export function ThermalSandbox({ locale = "uk", catalogPresets = [] }: Props) {
           </div>
         </div>
 
-        {/* Controls — simple */}
         <aside className="space-y-4 rounded-xl border border-white/10 bg-[var(--surface)] p-4 sm:p-5">
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted-ui">
             {isRu ? "Параметры" : "Параметри"}

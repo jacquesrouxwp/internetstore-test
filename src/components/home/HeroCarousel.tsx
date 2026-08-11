@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Hero pitch card only.
- * Mobile: floating side tab → /simulator (full page).
- * Desktop: no simulator in hero (catalog rails start under hero).
+ * Hero: pitch card + live thermal sim on desktop (side-by-side, no carousel).
+ * Mobile: pitch only + floating side tab → /simulator.
  */
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import NextLink from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, Headphones, Phone, ScanEye, X } from "lucide-react";
 import { HeroBrandMarquee } from "@/components/home/HeroBrandMarquee";
 import { BrandMark } from "@/components/ui/BrandMark";
@@ -20,6 +20,23 @@ import {
 } from "@/lib/contact";
 import type { Brand } from "@/types";
 import { cn } from "@/lib/utils";
+
+/** Lazy so mobile never pays the canvas cost until needed. */
+const ThermalSandbox = dynamic(
+  () =>
+    import("@/components/simulator/ThermalSandbox").then((m) => m.ThermalSandbox),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="hero-glass flex h-full min-h-[22rem] items-center justify-center rounded-[var(--radius-card)] p-6">
+        <div className="flex flex-col items-center gap-2 text-secondary">
+          <ScanEye className="h-6 w-6 animate-pulse text-[var(--accent)]" />
+          <span className="text-xs font-medium">…</span>
+        </div>
+      </div>
+    ),
+  }
+);
 
 type Props = {
   brands: Brand[];
@@ -158,13 +175,14 @@ function ConsultButton() {
 
 export function HeroCarousel({ brands }: Props) {
   const t = useTranslations("home");
+  const locale = useLocale();
 
   return (
     <>
       <section className="hero-section relative z-10 overflow-x-hidden py-3 sm:py-10 lg:py-14">
         <div className="container-shop !px-3 sm:!px-6">
-          {/* Desktop: half-width pitch only (no sim column) */}
-          <div className="grid items-start gap-3 lg:grid-cols-2 lg:gap-6">
+          {/* Desktop: pitch | live sim (always visible — no arrows) */}
+          <div className="grid items-stretch gap-3 lg:grid-cols-2 lg:gap-6">
             <div className="hero-glass hero-mobile relative z-10 flex w-full max-w-full flex-col overflow-hidden rounded-[var(--radius-card)] px-3.5 py-3.5 sm:px-8 sm:py-9 lg:px-10 lg:py-11">
               <p className="hero-mobile__eyebrow mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-ui sm:mb-3 sm:text-[11px] sm:tracking-[0.2em] sm:text-xs">
                 Professional Optics · Ukraine
@@ -234,8 +252,10 @@ export function HeroCarousel({ brands }: Props) {
               />
             </div>
 
-            {/* Desktop empty half — keeps pitch card half-width */}
-            <div className="hidden lg:block" aria-hidden />
+            {/* Desktop: live thermal sim — fixed panel, no carousel */}
+            <div className="relative hidden min-h-0 lg:block">
+              <ThermalSandbox locale={locale} variant="hero" className="h-full" />
+            </div>
           </div>
         </div>
       </section>
