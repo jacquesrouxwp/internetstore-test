@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   createServiceClient,
   hasPublicSupabase,
@@ -11,29 +11,40 @@ export const revalidate = 0;
 
 /**
  * GET /api/health/db
- * Server health-check against Supabase.
+ * Public: minimal { ok } only (no counts / host leak).
+ * Detailed: header x-health-secret or ?secret= matching HEALTH_SECRET | CRON_SECRET | SEED_SECRET.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const env = supabaseEnvStatus();
+  const secret =
+    process.env.HEALTH_SECRET ||
+    process.env.CRON_SECRET ||
+    process.env.SEED_SECRET ||
+    "";
+  const provided =
+    req.headers.get("x-health-secret") ||
+    req.nextUrl.searchParams.get("secret") ||
+    "";
+  const detailed = Boolean(secret && provided && provided === secret);
 
   if (!hasPublicSupabase() && !hasServiceSupabase()) {
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Supabase env missing",
-        env,
-      },
+      detailed
+        ? { ok: false, error: "Supabase env missing", env }
+        : { ok: false },
       { status: 503 }
     );
   }
 
   if (!hasServiceSupabase()) {
     return NextResponse.json(
-      {
-        ok: false,
-        error: "SUPABASE_SERVICE_ROLE_KEY missing or empty",
-        env,
-      },
+      detailed
+        ? {
+            ok: false,
+            error: "SUPABASE_SERVICE_ROLE_KEY missing or empty",
+            env,
+          }
+        : { ok: false },
       { status: 503 }
     );
   }
@@ -51,15 +62,20 @@ export async function GET() {
       products.error || categories.error || brands.error || orders.error;
     if (err) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: err.message,
-          hint: "Run supabase/migrations/001_production.sql in Supabase SQL Editor, then POST /api/admin/seed",
-          env,
-          tablesReady: false,
-        },
+        detailed
+          ? {
+              ok: false,
+              error: err.message,
+              tablesReady: false,
+              env,
+            }
+          : { ok: false },
         { status: 500 }
       );
+    }
+
+    if (!detailed) {
+      return NextResponse.json({ ok: true });
     }
 
     const productsCount = products.count ?? 0;
@@ -80,11 +96,13 @@ export async function GET() {
     });
   } catch (e) {
     return NextResponse.json(
-      {
-        ok: false,
-        error: e instanceof Error ? e.message : "Unknown error",
-        env,
-      },
+      detailed
+        ? {
+            ok: false,
+            error: e instanceof Error ? e.message : "Unknown error",
+            env,
+          }
+        : { ok: false },
       { status: 500 }
     );
   }

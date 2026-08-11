@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // Storefront is indexable; admin only blocked (API is not content)
-      disallow: ["/admin", "/admin/"],
+      disallow: ["/admin", "/admin/", "/demo", "/demo/", "/api/"],
     },
     sitemap: `${base}/sitemap.xml`,
     host: base.replace(/^https?:\/\//, ""),

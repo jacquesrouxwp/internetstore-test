@@ -8,6 +8,7 @@ import {
 } from "@/lib/supabase/service";
 import { isUuid } from "@/lib/supabase/mappers";
 import { getSiteUrl } from "@/lib/site-url";
+import { clientIp, rateLimit } from "@/lib/admin/rate-limit";
 
 function createPaymentUrl(
   order: Order,
@@ -45,6 +46,18 @@ type RequestItem = {
  */
 export async function POST(req: NextRequest) {
   try {
+    const ip = clientIp(req);
+    // Soft anti-spam: max 15 checkout attempts / hour / IP (per instance)
+    const rl = rateLimit(`orders:${ip}`, 15, 60 * 60 * 1000);
+    if (!rl.ok) {
+      return NextResponse.json(
+        {
+          error: `Забагато замовлень. Спробуйте через ${rl.retryAfterSec} с.`,
+        },
+        { status: 429 }
+      );
+    }
+
     if (!hasServiceSupabase()) {
       return NextResponse.json(
         {
@@ -55,7 +68,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    }
     const {
       customerName,
       customerPhone,

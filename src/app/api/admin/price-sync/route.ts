@@ -4,17 +4,30 @@ import { hasServiceSupabase } from "@/lib/supabase/service";
 import { extractPriceFromUrl } from "@/lib/price-compare/extract-price";
 import { syncAllPrices, syncLinkPrice } from "@/lib/price-compare/repo";
 
+/**
+ * Cron auth: only when CRON_SECRET/SEED_SECRET is set AND matches header.
+ * Never treat "any Bearer" as cron (was an open door if secret missing).
+ * Vercel Cron: set CRON_SECRET in env; platform sends Authorization: Bearer <CRON_SECRET>.
+ */
 function isCronRequest(req: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET || process.env.SEED_SECRET;
-  if (!cronSecret) {
-    // Vercel Cron sends Authorization: Bearer <CRON_SECRET> when configured
-    const auth = req.headers.get("authorization");
-    return Boolean(auth?.startsWith("Bearer "));
-  }
-  const headerCron =
+  const cronSecret = (
+    process.env.CRON_SECRET ||
+    process.env.SEED_SECRET ||
+    ""
+  ).trim();
+  if (!cronSecret) return false;
+  const headerCron = (
     req.headers.get("x-cron-secret") ||
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return headerCron === cronSecret;
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
+    ""
+  ).trim();
+  if (!headerCron || headerCron.length !== cronSecret.length) return false;
+  // constant-time-ish compare
+  let out = 0;
+  for (let i = 0; i < cronSecret.length; i++) {
+    out |= cronSecret.charCodeAt(i) ^ headerCron.charCodeAt(i);
+  }
+  return out === 0;
 }
 
 async function runSync(body: {

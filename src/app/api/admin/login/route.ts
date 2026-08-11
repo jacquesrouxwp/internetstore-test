@@ -23,24 +23,42 @@ function serverSecretError() {
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
-  const rl = rateLimit(`admin-login:${ip}`, 5, 10 * 60 * 1000);
-  if (!rl.ok) {
+  // Per-IP + global soft caps (serverless: best-effort per instance)
+  const rlIp = rateLimit(`admin-login:ip:${ip}`, 5, 15 * 60 * 1000);
+  const rlGlobal = rateLimit(`admin-login:global`, 40, 15 * 60 * 1000);
+  if (!rlIp.ok || !rlGlobal.ok) {
+    const retry = !rlIp.ok ? rlIp.retryAfterSec : rlGlobal.retryAfterSec;
     return NextResponse.json(
       {
-        error: `Забагато спроб. Спробуйте через ${rl.retryAfterSec} с.`,
+        error: `Забагато спроб. Спробуйте через ${retry} с.`,
       },
       { status: 429 }
     );
   }
 
-  const body = await req.json();
-  const email = String(body.email || "").trim();
-  const password = String(body.password || "");
+  const body = await req.json().catch(() => ({}));
+  const email = String(body.email || "").trim().slice(0, 200);
+  const password = String(body.password || "").slice(0, 200);
 
   if (!email || !password) {
     return NextResponse.json(
       { error: "Вкажіть email і пароль" },
       { status: 400 }
+    );
+  }
+
+  // Extra throttle per email (brute force on one account)
+  const rlEmail = rateLimit(
+    `admin-login:email:${email.toLowerCase()}`,
+    8,
+    15 * 60 * 1000
+  );
+  if (!rlEmail.ok) {
+    return NextResponse.json(
+      {
+        error: `Забагато спроб. Спробуйте через ${rlEmail.retryAfterSec} с.`,
+      },
+      { status: 429 }
     );
   }
 
