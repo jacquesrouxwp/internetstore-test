@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import NextLink from "next/link";
 import { ArrowUpRight, ScanEye } from "lucide-react";
 import type { ThermalCompareOption } from "@/lib/thermal/parse-product-thermal";
-import { netdContrast, netdNoiseAmp } from "@/lib/thermal/parse-product-thermal";
+import { netdContrast } from "@/lib/thermal/parse-product-thermal";
 import {
   DIGI_ZOOM_STEPS,
   digitalZoomCrop,
@@ -31,18 +31,34 @@ import {
   TARGET_SIZE_M,
   clampSandboxInputs,
   computeSandbox,
-  sandboxMatrixPixelWidth,
   statusFromPixels,
   type PixelPitchUm,
   type SandboxInputs,
   type SandboxMatrix,
 } from "@/lib/thermal/sandbox-physics";
+import {
+  noiseAmpFromSnr,
+  opticalBlurSigmaPx,
+  renderedRowsOnSubject,
+  sensorGridForWindow,
+} from "@/lib/thermal/optics-render";
+import { SIM_FOV_VERT_DEG, DISPLAY_SIZE_BOOST } from "@/lib/thermal/zoom";
 import { cn } from "@/lib/utils";
 
 type Palette = "whitehot" | "ironhot";
 
-const LOGIC_W = 480;
-const LOGIC_H = 360; // 4:3
+// 4:3 backing store. Kept high so a long lens / fine pitch has somewhere to put
+// its extra detail — at 360 rows the sampling grid saturated by ~35 mm and the
+// objective knob stopped changing the picture.
+const LOGIC_W = 960;
+const LOGIC_H = 720;
+/** HUD scale relative to the original 480-wide layout. */
+const HUD_S = LOGIC_W / 480;
+/**
+ * Cap on the detector grid actually rasterised. Beyond this the per-detector
+ * pass costs more than the eye gains at this canvas size.
+ */
+const GRID_MAX_ROWS = 640;
 const SPRITE_S = 512;
 const FOREST_SRC = "/thermal/forest_whitehot.jpg";
 const DEER_SRC = "/thermal/deer_subject_whitehot.jpg";
@@ -357,6 +373,9 @@ export function ThermalSandbox({
     const fog = inputs.fog;
     const detM = Math.max(200, computed.dri.detectM);
     const dist = inputs.distanceM;
+    // Apparent thermal contrast left after the path — drives both the sprite
+    // wash and, through SNR, how loud the detector noise reads.
+    const trans = atmosphericTransmission(dist, detM, fog);
 
     // ── Layer 1: forest (fixed FOV plate) ──────────────────────────
     cctx.fillStyle = "#0a0b10";
@@ -384,7 +403,6 @@ export function ThermalSandbox({
           0,
           hFrac
         );
-        const trans = atmosphericTransmission(dist, detM, fog);
         focusX = rect.cx / LOGIC_W;
         focusY = rect.cy / LOGIC_H;
 
@@ -422,7 +440,39 @@ export function ThermalSandbox({
       }
     }
 
-    // ── Unified sensor FX: contrast + NETD noise + palette ─────────
+    // ── Detector sampling grid — this is what the objective changes ──
+    // IFOV = pitch/f, so a longer lens or finer pitch lays MORE detector rows
+    // across the same window ⇒ finer grain. Distance is absent here on purpose:
+    // it shrinks the subject inside the grid instead of changing the grid.
+    const grid = sensorGridForWindow({
+      pitchUm: inputs.pitchUm,
+      focalMm: inputs.focalMm,
+      matrixH: inputs.matrixH,
+      windowFovVertDeg: SIM_FOV_VERT_DEG,
+      aspect: LOGIC_W / LOGIC_H,
+      boost: DISPLAY_SIZE_BOOST,
+      maxRows: GRID_MAX_ROWS,
+    });
+
+    if (!matrixRef.current) matrixRef.current = document.createElement("canvas");
+    const gCan = matrixRef.current;
+    gCan.width = grid.cols;
+    gCan.height = grid.rows;
+    const gctx = gCan.getContext("2d", { willReadFrequently: true });
+    if (!gctx) return;
+
+    // Optical blur (diffraction + aperture + aberration) lands BEFORE sampling,
+    // in detector units — which is why an 8 µm pitch cannot simply buy detail.
+    const blurPx = opticalBlurSigmaPx({ pitchUm: inputs.pitchUm });
+    gctx.imageSmoothingEnabled = true;
+    gctx.imageSmoothingQuality = "high";
+    gctx.filter = `blur(${blurPx.toFixed(2)}px)`;
+    gctx.drawImage(compose, 0, 0, grid.cols, grid.rows);
+    gctx.filter = "none";
+
+    // ── Per-DETECTOR response: contrast + NETD noise + palette ──────
+    // Noise now lives on the sensor grid, so a coarse device shows coarse
+    // grain — the same physical cause as its blockiness.
     const seed = hashSeed(
       inputs.matrixW,
       inputs.pitchUm,
@@ -431,12 +481,16 @@ export function ThermalSandbox({
       dist,
       fog,
       palette,
-      "sandbox-deer-v2"
+      "sandbox-optics-v3"
     );
     const rand = mulberry32(seed);
-    const imageData = cctx.getImageData(0, 0, LOGIC_W, LOGIC_H);
+    const imageData = gctx.getImageData(0, 0, grid.cols, grid.rows);
     const d = imageData.data;
-    const noiseAmp = netdNoiseAmp(inputs.netdMk, fog, dist, detM);
+    const noiseAmp = noiseAmpFromSnr({
+      netdMk: inputs.netdMk,
+      transmission: trans,
+      fog,
+    });
     const contrast = netdContrast(inputs.netdMk, fog);
     const fogLift = fog ? 18 : 0;
 
@@ -445,7 +499,7 @@ export function ThermalSandbox({
       // Lift very bright (deer) a touch so heat pops against forest
       if (y > 140) y = Math.min(255, y * 1.06 + 6);
       y = (y - 128) * (0.88 + 0.12 * contrast) + 128 + fogLift;
-      y += (rand() - 0.5) * noiseAmp * 0.9;
+      y += (rand() - 0.5) * noiseAmp;
       y = Math.max(0, Math.min(255, y));
 
       if (palette === "whitehot") {
@@ -458,25 +512,16 @@ export function ThermalSandbox({
       }
       d[i + 3] = 255;
     }
-    cctx.putImageData(imageData, 0, 0);
+    gctx.putImageData(imageData, 0, 0);
 
-    // ── Matrix pixelation ──────────────────────────────────────────
-    const pixW = sandboxMatrixPixelWidth(inputs.matrixW);
-    const pixH = Math.round(pixW * (LOGIC_H / LOGIC_W));
-    if (!matrixRef.current) matrixRef.current = document.createElement("canvas");
-    const mCan = matrixRef.current;
-    mCan.width = pixW;
-    mCan.height = pixH;
-    const mctx = mCan.getContext("2d");
-    if (!mctx) return;
-    mctx.imageSmoothingEnabled = true;
-    mctx.drawImage(compose, 0, 0, pixW, pixH);
-
-    const crop = digitalZoomCrop(pixW, pixH, digiZoom, focusX, focusY);
+    // ── Display: crop for digital zoom, then hard-edged upscale ─────
+    // Cropping magnifies the detectors already captured — no new information,
+    // which is exactly why digital zoom exposes a weak lens.
+    const crop = digitalZoomCrop(grid.cols, grid.rows, digiZoom, focusX, focusY);
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, LOGIC_W, LOGIC_H);
     ctx.drawImage(
-      mCan,
+      gCan,
       crop.sx,
       crop.sy,
       crop.sw,
@@ -502,20 +547,41 @@ export function ThermalSandbox({
     ctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
 
     // HUD overlay
+    const px = (n: number) => n * HUD_S;
     ctx.fillStyle = "rgba(225,29,42,0.95)";
-    ctx.font = "600 11px Manrope, system-ui, sans-serif";
-    ctx.fillText(`${inputs.matrixW}×${inputs.matrixH}`, 12, 20);
+    ctx.font = `600 ${px(11)}px Manrope, system-ui, sans-serif`;
+    ctx.fillText(`${inputs.matrixW}×${inputs.matrixH}`, px(12), px(20));
     ctx.fillStyle = "rgba(245,246,247,0.9)";
-    ctx.fillText(`${Math.round(dist)} m`, 12, 36);
+    ctx.fillText(`${Math.round(dist)} m`, px(12), px(36));
     ctx.fillText(
       `${inputs.focalMm} mm · ${inputs.pitchUm} µm · NETD ${inputs.netdMk}`,
-      12,
-      52
+      px(12),
+      px(52)
     );
+    // Optics readout — the sampling the picture above was actually built from.
+    ctx.fillStyle = "rgba(245,246,247,0.62)";
+    ctx.fillText(
+      `IFOV ${grid.ifovMrad.toFixed(2)} mrad · ${grid.rows}p`,
+      px(12),
+      px(68)
+    );
+    const detailRows = renderedRowsOnSubject(
+      subjectHeightFrac(DEER_VISUAL_H_M, dist),
+      grid
+    );
+    ctx.fillText(`${detailRows.toFixed(1)} px on target`, px(12), px(84));
+    if (grid.matrixLimited || grid.displayLimited) {
+      ctx.fillStyle = "rgba(251,191,36,0.85)";
+      ctx.fillText(
+        grid.matrixLimited ? "MATRIX-LIMITED" : "DISPLAY-LIMITED",
+        px(12),
+        px(100)
+      );
+    }
     if (digiZoom > 1) {
       ctx.fillStyle = "rgba(225,29,42,0.95)";
       ctx.textAlign = "right";
-      ctx.fillText(`DIGI ×${digiZoom}`, LOGIC_W - 12, 20);
+      ctx.fillText(`DIGI ×${digiZoom}`, LOGIC_W - px(12), px(20));
       ctx.textAlign = "left";
     }
   }, [ready, inputs, palette, digiZoom, computed]);
