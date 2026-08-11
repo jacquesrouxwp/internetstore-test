@@ -26,11 +26,18 @@ export async function POST(req: NextRequest) {
   // Per-IP + global soft caps (serverless: best-effort per instance)
   const rlIp = rateLimit(`admin-login:ip:${ip}`, 5, 15 * 60 * 1000);
   const rlGlobal = rateLimit(`admin-login:global`, 40, 15 * 60 * 1000);
-  if (!rlIp.ok || !rlGlobal.ok) {
-    const retry = !rlIp.ok ? rlIp.retryAfterSec : rlGlobal.retryAfterSec;
+  if (!rlIp.ok) {
     return NextResponse.json(
       {
-        error: `Забагато спроб. Спробуйте через ${retry} с.`,
+        error: `Забагато спроб. Спробуйте через ${rlIp.retryAfterSec} с.`,
+      },
+      { status: 429 }
+    );
+  }
+  if (!rlGlobal.ok) {
+    return NextResponse.json(
+      {
+        error: `Забагато спроб. Спробуйте через ${rlGlobal.retryAfterSec} с.`,
       },
       { status: 429 }
     );
