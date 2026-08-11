@@ -12,7 +12,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import NextLink from "next/link";
 import { ArrowUpRight, ScanEye } from "lucide-react";
-import type { ThermalCompareOption } from "@/lib/thermal/parse-product-thermal";
 import { netdContrast } from "@/lib/thermal/parse-product-thermal";
 import {
   DIGI_ZOOM_STEPS,
@@ -28,7 +27,6 @@ import {
   INPUT_LIMITS,
   MATRIX_PRESETS,
   PITCH_OPTIONS,
-  TARGET_SIZE_M,
   clampSandboxInputs,
   computeSandbox,
   statusFromPixels,
@@ -89,7 +87,6 @@ const STATUS_COLOR = {
 
 type Props = {
   locale?: string;
-  catalogPresets?: ThermalCompareOption[];
   /** full = /simulator page; hero = desktop homepage embed */
   variant?: "full" | "hero";
   className?: string;
@@ -246,28 +243,8 @@ function buildDeerSprite(img: HTMLImageElement): DeerSprite | null {
   };
 }
 
-function presetFromCatalog(o: ThermalCompareOption): Partial<SandboxInputs> {
-  const w = (o.matrix >= 640 ? 640 : o.matrix >= 384 ? 384 : 256) as SandboxMatrix;
-  const pitch = 12;
-  const k = INPUT_LIMITS.kDefault;
-  const target = TARGET_SIZE_M.deer;
-  const fEst =
-    (o.detectionRangeM * 2 * (pitch / 1000)) / (k * target);
-  return {
-    matrixW: w,
-    pitchUm: 12,
-    netdMk: o.netdMk,
-    focalMm: Math.max(13, Math.min(100, Math.round(fEst))),
-    target: TARGET,
-    distanceM: Math.min(250, Math.max(80, Math.round(o.detectionRangeM * 0.12))),
-    fog: false,
-    kCalib: INPUT_LIMITS.kDefault,
-  };
-}
-
 export function ThermalSandbox({
   locale = "uk",
-  catalogPresets = [],
   variant = "full",
   className,
 }: Props) {
@@ -288,7 +265,6 @@ export function ThermalSandbox({
   const [palette, setPalette] = useState<Palette>("whitehot");
   const [digiZoom, setDigiZoom] = useState(1);
   const [ready, setReady] = useState(false);
-  const [presetId, setPresetId] = useState("");
 
   const computed = useMemo(() => computeSandbox(inputs), [inputs]);
   const distMax = Math.max(
@@ -602,25 +578,6 @@ export function ThermalSandbox({
     ? STATUS_RU[visualStatus]
     : STATUS_UK[visualStatus];
 
-  const applyPreset = (id: string) => {
-    setPresetId(id);
-    if (!id) return;
-    if (id === "rs75") {
-      patch({
-        matrixW: 1280,
-        pitchUm: 12,
-        netdMk: 20,
-        focalMm: 75,
-        target: TARGET,
-        kCalib: INPUT_LIMITS.kDefault,
-        distanceM: 250,
-      });
-      return;
-    }
-    const o = catalogPresets.find((p) => p.id === id);
-    if (o) patch(presetFromCatalog(o));
-  };
-
   const hFracNow = subjectHeightFrac(DEER_VISUAL_H_M, inputs.distanceM);
 
   const canvasBlock = (
@@ -877,29 +834,6 @@ export function ThermalSandbox({
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted-ui">
             {isRu ? "Параметры" : "Параметри"}
           </h2>
-
-          {catalogPresets.length > 0 && (
-            <label className="block text-xs text-muted-ui">
-              {isRu ? "Пресет из каталога" : "Пресет з каталогу"}
-              <select
-                className="mt-1 w-full rounded-lg border border-white/15 bg-[#12141a] px-2 py-2 text-sm text-primary"
-                value={presetId}
-                onChange={(e) => applyPreset(e.target.value)}
-              >
-                <option value="">
-                  {isRu ? "— вручную —" : "— вручну —"}
-                </option>
-                <option value="rs75">
-                  RS75-class · 1280 · 75mm
-                </option>
-                {catalogPresets.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} · {p.matrix}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
 
           <label className="block text-xs text-muted-ui">
             {isRu ? "Матрица" : "Матриця"}
