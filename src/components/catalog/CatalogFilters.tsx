@@ -8,6 +8,7 @@ import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { DualRangeSlider } from "@/components/ui/dual-range-slider";
 import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 
 const RESOLUTIONS = [
   { value: "256", label: "256×192" },
@@ -262,9 +263,14 @@ export function CatalogFilters({
         <p className="mt-1 text-xs leading-relaxed text-secondary">
           Підберемо тепловізор під ваші завдання
         </p>
-        <a href={STORE_PHONE_TEL} className="btn-secondary mt-4 w-full text-sm">
+        <ConsultTrackLink
+          channel="phone"
+          source="catalog"
+          href={STORE_PHONE_TEL}
+          className="btn-secondary mt-4 w-full text-sm"
+        >
           Подзвонити {STORE_PHONE_DISPLAY}
-        </a>
+        </ConsultTrackLink>
       </div>
     </aside>
   );

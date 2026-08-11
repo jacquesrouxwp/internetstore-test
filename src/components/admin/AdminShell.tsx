@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/categories", label: "Категорії", icon: "☰" },
   { href: "/admin/brands", label: "Бренди", icon: "◇" },
   { href: "/admin/orders", label: "Замовлення", icon: "▤" },
+  { href: "/admin/consult-stats", label: "Звернення", icon: "☎" },
   { href: "/admin/price-compare", label: "Ціни vs ринок", icon: "⇄" },
   { href: "/admin/news", label: "Блог / новини", icon: "✎" },
   { href: "/admin/import", label: "Імпорт Prom", icon: "↓" },

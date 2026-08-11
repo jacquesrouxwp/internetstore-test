@@ -18,6 +18,8 @@ import {
   STORE_PHONE_TELEGRAM,
   STORE_PHONE_WHATSAPP,
 } from "@/lib/contact";
+import { trackConsultClick } from "@/lib/analytics/consult";
+import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 import type { Brand } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -71,7 +73,10 @@ function ConsultButton() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          trackConsultClick("open_sheet", "hero");
+          setOpen(true);
+        }}
         className="btn-hero btn-hero-primary hero-mobile__btn min-w-0 flex-1 sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
       >
         <span className="truncate sm:hidden">{t("heroSecondaryMobile")}</span>
@@ -112,7 +117,9 @@ function ConsultButton() {
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <a
+              <ConsultTrackLink
+                channel="telegram"
+                source="hero"
                 href={tg}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -128,9 +135,11 @@ function ConsultButton() {
                     {t("consultTgHint")}
                   </span>
                 </span>
-              </a>
+              </ConsultTrackLink>
 
-              <a
+              <ConsultTrackLink
+                channel="whatsapp"
+                source="hero"
                 href={wa}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -146,9 +155,11 @@ function ConsultButton() {
                     {t("consultWaHint")}
                   </span>
                 </span>
-              </a>
+              </ConsultTrackLink>
 
-              <a
+              <ConsultTrackLink
+                channel="phone"
+                source="hero"
                 href={STORE_PHONE_TEL}
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition hover:border-[var(--accent)]/50 hover:bg-white/[0.07]"
@@ -164,7 +175,7 @@ function ConsultButton() {
                     {STORE_PHONE_DISPLAY}
                   </span>
                 </span>
-              </a>
+              </ConsultTrackLink>
             </div>
           </div>
         </div>

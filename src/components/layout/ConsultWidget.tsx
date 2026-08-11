@@ -22,6 +22,8 @@ import {
   STORE_PHONE_TELEGRAM,
   STORE_PHONE_WHATSAPP,
 } from "@/lib/contact";
+import { trackConsultClick } from "@/lib/analytics/consult";
+import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 
 const TG = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
 const WA =
@@ -95,7 +97,10 @@ export function ConsultWidget() {
   }, [messages, typing]);
 
   const toggleMain = () => {
-    setOpen((v) => !v);
+    setOpen((v) => {
+      if (!v) trackConsultClick("open_sheet", "widget");
+      return !v;
+    });
     setMode("menu");
     setTyping(false);
   };
@@ -384,9 +389,12 @@ function ChannelLink({
   title: string;
   hint: string;
 }) {
+  const channel = brand === "telegram" ? "telegram" : "whatsapp";
   return (
     <li>
-      <a
+      <ConsultTrackLink
+        channel={channel}
+        source="widget"
         href={href}
         target="_blank"
         rel="noreferrer"
@@ -398,7 +406,7 @@ function ChannelLink({
           <span className="block text-xs font-normal text-secondary">{hint}</span>
         </span>
         <ExternalLink className="h-3.5 w-3.5 text-muted-ui" />
-      </a>
+      </ConsultTrackLink>
     </li>
   );
 }

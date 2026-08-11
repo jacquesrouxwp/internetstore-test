@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Phone } from "lucide-react";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { SiteLogo } from "@/components/layout/SiteLogo";
+import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 import { getAllPublicSettings } from "@/lib/store-settings";
 import {
   STORE_PHONE_DISPLAY,
@@ -127,16 +128,20 @@ export async function Footer() {
           <ul className="space-y-3 text-sm text-secondary">
             <li>{address}</li>
             <li>
-              <a
+              <ConsultTrackLink
+                channel="phone"
+                source="footer"
                 href={STORE_PHONE_TEL}
                 className="inline-flex items-center gap-2 font-medium text-primary hover:text-[var(--accent)]"
               >
                 <Phone className="h-4 w-4" />
                 {phoneDisplay}
-              </a>
+              </ConsultTrackLink>
             </li>
             <li className="flex flex-wrap items-center gap-3 pt-1">
-              <a
+              <ConsultTrackLink
+                channel="telegram"
+                source="footer"
                 href={tg}
                 target="_blank"
                 rel="noreferrer"
@@ -144,8 +149,10 @@ export async function Footer() {
                 aria-label="Telegram"
               >
                 <BrandMark brand="telegram" size="lg" />
-              </a>
-              <a
+              </ConsultTrackLink>
+              <ConsultTrackLink
+                channel="whatsapp"
+                source="footer"
                 href={wa}
                 target="_blank"
                 rel="noreferrer"
@@ -153,7 +160,7 @@ export async function Footer() {
                 aria-label="WhatsApp"
               >
                 <BrandMark brand="whatsapp" size="lg" />
-              </a>
+              </ConsultTrackLink>
             </li>
           </ul>
         </div>
