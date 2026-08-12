@@ -73,6 +73,8 @@ export function matchBrand(
   if (!donorBrandName) return null;
   const key = normalizeBrandKey(donorBrandName);
   if (!key) return null;
+  // Rix is permanently out of assortment
+  if (/\brix\b/.test(key)) return null;
 
   const aliasKey = BRAND_ALIASES[key];
   for (const b of ourBrands) {
@@ -99,6 +101,8 @@ export function matchBrandFromName(
 ): Brand | null {
   const key = normalizeBrandKey(productName);
   if (!key) return null;
+  // Rix is permanently out of assortment
+  if (/\brix\b/.test(key)) return null;
   const words = new Set(key.split(" "));
   for (const b of ourBrands) {
     const slugKey = normalizeBrandKey(b.slug);
