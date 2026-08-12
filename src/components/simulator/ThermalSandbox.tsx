@@ -770,21 +770,16 @@ export function ThermalSandbox({
     <div className={cn("space-y-5", className)}>
       <div
         role="note"
-        className="rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-3.5 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
+        className="rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-2.5 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold leading-snug text-amber-200 sm:text-[15px]">
-              {isRu
-                ? "⚠ Симулятор — очень приблизительная оценка"
-                : "⚠ Симулятор — дуже приблизна оцінка"}
-            </p>
-            <p className="mt-1.5 text-xs leading-relaxed text-amber-100/90 sm:text-[13px]">
-              {isRu
-                ? "В реальности всё работает иначе: атмосфера, ΔT цели, оптика и электроника прибора. Это наглядная модель для понимания принципов, а не полевой тест. Уточняйте у нашего специалиста."
-                : "У реальності все працює інакше: атмосфера, ΔT цілі, оптика та електроніка приладу. Це наочна модель для розуміння принципів, а не польовий тест. Уточнюйте у нашого спеціаліста."}
-            </p>
-          </div>
+        {/* Headline + trigger only — the full explanation lives in the popover,
+            so the block stays a compact strip instead of a wall of text. */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="min-w-0 text-sm font-semibold leading-snug text-amber-200 sm:text-[15px]">
+            {isRu
+              ? "⚠ Симулятор — очень приблизительная оценка"
+              : "⚠ Симулятор — дуже приблизна оцінка"}
+          </p>
           <SimulatorInfoPopover isRu={isRu} />
         </div>
       </div>
