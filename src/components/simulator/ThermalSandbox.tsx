@@ -41,6 +41,7 @@ import {
   sensorGridForWindow,
 } from "@/lib/thermal/optics-render";
 import { SIM_FOV_VERT_DEG, DISPLAY_SIZE_BOOST } from "@/lib/thermal/zoom";
+import { SimulatorInfoPopover } from "@/components/simulator/SimulatorInfoPopover";
 import { cn } from "@/lib/utils";
 
 type Palette = "whitehot" | "ironhot";
@@ -771,16 +772,21 @@ export function ThermalSandbox({
         role="note"
         className="rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 px-4 py-3.5 shadow-[0_0_0_1px_rgba(251,191,36,0.12)]"
       >
-        <p className="text-sm font-semibold leading-snug text-amber-200 sm:text-[15px]">
-          {isRu
-            ? "⚠ Симулятор — очень приблизительная оценка"
-            : "⚠ Симулятор — дуже приблизна оцінка"}
-        </p>
-        <p className="mt-1.5 text-xs leading-relaxed text-amber-100/90 sm:text-[13px]">
-          {isRu
-            ? "В реальности всё работает иначе: атмосфера, ΔT цели, оптика и электроника прибора. Это наглядная модель для понимания принципов, а не полевой тест. Уточняйте у нашего специалиста."
-            : "У реальності все працює інакше: атмосфера, ΔT цілі, оптика та електроніка приладу. Це наочна модель для розуміння принципів, а не польовий тест. Уточнюйте у нашого спеціаліста."}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-snug text-amber-200 sm:text-[15px]">
+              {isRu
+                ? "⚠ Симулятор — очень приблизительная оценка"
+                : "⚠ Симулятор — дуже приблизна оцінка"}
+            </p>
+            <p className="mt-1.5 text-xs leading-relaxed text-amber-100/90 sm:text-[13px]">
+              {isRu
+                ? "В реальности всё работает иначе: атмосфера, ΔT цели, оптика и электроника прибора. Это наглядная модель для понимания принципов, а не полевой тест. Уточняйте у нашего специалиста."
+                : "У реальності все працює інакше: атмосфера, ΔT цілі, оптика та електроніка приладу. Це наочна модель для розуміння принципів, а не польовий тест. Уточнюйте у нашого спеціаліста."}
+            </p>
+          </div>
+          <SimulatorInfoPopover isRu={isRu} />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
