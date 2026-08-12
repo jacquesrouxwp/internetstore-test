@@ -70,8 +70,14 @@ export type SensorGrid = {
   /** Detector columns (square detectors, so derived from the aspect). */
   cols: number;
   ifovMrad: number;
-  /** True when the matrix ran out of rows before the optics did. */
+  /** Detectors the lens + window would allow, before the array is consulted. */
+  opticalRows: number;
+  /** Detectors the array actually delivers into the window. */
+  sensorRows: number;
+  /** The array ran out first — a BIGGER MATRIX is what buys more detail. */
   matrixLimited: boolean;
+  /** The lens ran out first — a longer lens / finer pitch is the only fix. */
+  opticsLimited: boolean;
   /** True when the device out-resolves the display at ×1 (zoom to inspect). */
   displayLimited: boolean;
 };
@@ -111,23 +117,35 @@ export function sensorGridForWindow(opts: {
   const ifovRad = ifov / 1000;
   const windowRad = degToRad(Math.max(1, windowFovVertDeg));
 
-  // Rows the optics could lay across the window…
-  const opticalRows = windowRad / ifovRad / Math.max(0.1, boost);
-  // …but the detector array only has matrixH of them.
-  const availableRows = Math.min(opticalRows, Math.max(1, matrixH));
+  // Rows the lens + window would allow, at the device's TRUE angular scale…
+  const opticalRows = windowRad / ifovRad;
+  // …but a device can never lay down more rows than its array physically has.
+  // This min MUST happen at true scale: folding the display magnification in
+  // first would shrink the optical term below matrixH and mask the array
+  // entirely — which is why 640×512, 1024×768 and 1280×1024 once rendered
+  // identically.
+  const sensorRows = Math.min(opticalRows, Math.max(1, matrixH));
+
+  // Only now apply the sprite's display magnification: the window we actually
+  // show is narrower than the device FOV by `boost`.
+  const magnifiedRows = sensorRows / Math.max(0.1, boost);
 
   // Digital zoom crops the grid, so the visible slice carries fewer detectors
   // spread over the same canvas — magnification without new information.
   const z = Math.max(1, digitalZoom);
-  const visibleRows = availableRows / z;
+  const visibleRows = magnifiedRows / z;
 
   const rows = clamp(Math.round(visibleRows), MIN_GRID_ROWS, maxRows);
+  const matrixLimited = matrixH < opticalRows;
 
   return {
     rows,
     cols: Math.max(MIN_GRID_ROWS, Math.round(rows * Math.max(0.2, aspect))),
     ifovMrad: ifov,
-    matrixLimited: opticalRows > matrixH,
+    opticalRows,
+    sensorRows,
+    matrixLimited,
+    opticsLimited: !matrixLimited,
     displayLimited: visibleRows > maxRows,
   };
 }

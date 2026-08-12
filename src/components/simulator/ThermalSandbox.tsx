@@ -53,10 +53,11 @@ const LOGIC_H = 720;
 /** HUD scale relative to the original 480-wide layout. */
 const HUD_S = LOGIC_W / 480;
 /**
- * Cap on the detector grid actually rasterised. Beyond this the per-detector
- * pass costs more than the eye gains at this canvas size.
+ * Cap on the detector grid actually rasterised. Matched to the canvas so the
+ * biggest array (1280×1024 → 1024/1.5 ≈ 683 rows) is never clipped before the
+ * display itself runs out.
  */
-const GRID_MAX_ROWS = 640;
+const GRID_MAX_ROWS = LOGIC_H;
 const SPRITE_S = 512;
 const FOREST_SRC = "/thermal/forest_whitehot.jpg";
 const DEER_SRC = "/thermal/deer_subject_whitehot.jpg";
@@ -546,14 +547,16 @@ export function ThermalSandbox({
       grid
     );
     ctx.fillText(`${detailRows.toFixed(1)} px on target`, px(12), px(84));
-    if (grid.matrixLimited || grid.displayLimited) {
-      ctx.fillStyle = "rgba(251,191,36,0.85)";
-      ctx.fillText(
-        grid.matrixLimited ? "MATRIX-LIMITED" : "DISPLAY-LIMITED",
-        px(12),
-        px(100)
-      );
-    }
+    // Name the actual bottleneck, so a knob that stops helping explains itself
+    // instead of looking broken.
+    ctx.fillStyle = "rgba(251,191,36,0.85)";
+    ctx.fillText(
+      grid.matrixLimited
+        ? `MATRIX-LIMITED · ${inputs.matrixW}px`
+        : `OPTICS-LIMITED · ${inputs.focalMm}mm/${inputs.pitchUm}µm`,
+      px(12),
+      px(100)
+    );
     if (digiZoom > 1) {
       ctx.fillStyle = "rgba(225,29,42,0.95)";
       ctx.textAlign = "right";

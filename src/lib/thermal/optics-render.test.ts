@@ -78,16 +78,83 @@ describe("sampling grid — what the objective actually changes", () => {
     assert.ok(g.rows > 0);
   });
 
-  it("saturates at matrixH when the array runs out of detectors", () => {
+  it("saturates at the array when the detectors run out", () => {
     const g = grid({ pitchUm: 12, focalMm: 100, matrixH: 120 });
-    assert.equal(g.rows, 120);
+    // min() is taken at true scale, then the display magnification applies.
+    assert.equal(g.sensorRows, 120);
+    assert.equal(g.rows, Math.round(120 / DISPLAY_SIZE_BOOST));
     assert.equal(g.matrixLimited, true);
+    assert.equal(g.opticsLimited, false);
   });
 
-  it("a bigger matrix resolves more when the device FOV is the limit", () => {
+  it("a bigger matrix resolves more when the array is the limit", () => {
     const small = grid({ pitchUm: 12, focalMm: 100, matrixH: 120 });
     const big = grid({ pitchUm: 12, focalMm: 100, matrixH: 1024 });
     assert.ok(big.rows > small.rows);
+  });
+
+  it("names the real bottleneck", () => {
+    // Short lens in a wide window: plenty of detectors, the lens is the wall.
+    const lensBound = grid({ pitchUm: 12, focalMm: 19, matrixH: 1024 });
+    assert.equal(lensBound.opticsLimited, true);
+    assert.equal(lensBound.matrixLimited, false);
+    // Long lens on a small array: the array is the wall.
+    const arrayBound = grid({ pitchUm: 12, focalMm: 100, matrixH: 288 });
+    assert.equal(arrayBound.matrixLimited, true);
+  });
+});
+
+describe("high-resolution matrices must actually pay off", () => {
+  // The regression this suite exists for: 640×512, 1024×768 and 1280×1024 all
+  // rendered identically because the display magnification was folded in
+  // before the array cap, hiding the array completely.
+  const LADDER: [string, number][] = [
+    ["640×512", 512],
+    ["1024×768", 768],
+    ["1280×1024", 1024],
+  ];
+
+  for (const focalMm of [50, 75, 100]) {
+    it(`each step up the ladder adds detail at ${focalMm} mm`, () => {
+      const rows = LADDER.map(([, h]) =>
+        grid({ pitchUm: 12, focalMm, matrixH: h }).rows
+      );
+      for (let i = 1; i < rows.length; i++) {
+        assert.ok(
+          rows[i] > rows[i - 1],
+          `${LADDER[i][0]} (${rows[i]}) must beat ${LADDER[i - 1][0]} (${rows[i - 1]}) at ${focalMm}mm`
+        );
+      }
+    });
+  }
+
+  it("1280×1024 is a large, visible gain over 640×512 at 75 mm", () => {
+    const small = grid({ pitchUm: 12, focalMm: 75, matrixH: 512 });
+    const large = grid({ pitchUm: 12, focalMm: 75, matrixH: 1024 });
+    assert.ok(
+      large.rows / small.rows > 1.9,
+      `expected ~2× more rows, got ${small.rows} → ${large.rows}`
+    );
+  });
+
+  it("a fine pitch lets big arrays pay off even on a short lens", () => {
+    const at12 = LADDER.map(([, h]) =>
+      grid({ pitchUm: 12, focalMm: 35, matrixH: h }).rows
+    );
+    const at8 = LADDER.map(([, h]) =>
+      grid({ pitchUm: 8, focalMm: 35, matrixH: h }).rows
+    );
+    // 12 µm / 35 mm cannot feed 1024 rows, so the top two tie…
+    assert.equal(at12[1], at12[2]);
+    // …while a finer pitch pushes the optical ceiling past the array.
+    assert.ok(at8[2] > at8[1]);
+  });
+
+  it("stays honest: no array beats what the lens can deliver", () => {
+    const huge = grid({ pitchUm: 17, focalMm: 13, matrixH: 4096 });
+    const modest = grid({ pitchUm: 17, focalMm: 13, matrixH: 512 });
+    assert.equal(huge.rows, modest.rows);
+    assert.equal(huge.opticsLimited, true);
   });
 
   it("flags display-limited when the device out-resolves the canvas", () => {
