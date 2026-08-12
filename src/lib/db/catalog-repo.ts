@@ -27,6 +27,7 @@ import {
   filterHiddenBrandProducts,
   filterHiddenBrands,
   isBrandHidden,
+  isRixProduct,
   sortBrandsByPriority,
 } from "@/lib/brand-priority";
 
@@ -248,7 +249,7 @@ export async function dbGetProductBySlug(
       .maybeSingle();
     if (error || !data) return null;
     const product = mapDbProduct(data as Record<string, unknown>);
-    if (isBrandHidden(product.brandSlug)) return null;
+    if (isBrandHidden(product.brandSlug) || isRixProduct(product)) return null;
     const [withCompare] = await attachPriceCompare([product]);
     return withCompare;
   } catch {
@@ -419,8 +420,8 @@ export async function dbGetBrands(): Promise<Brand[] | null> {
 /** Cross-request cache — brands rarely change (admin edits). */
 export const dbGetBrandsCached = unstable_cache(
   async () => dbGetBrands(),
-  ["db-brands-v2-no-rix"],
-  { revalidate: 120, tags: ["brands"] }
+  ["db-brands-v3-no-rix"],
+  { revalidate: 60, tags: ["brands"] }
 );
 
 export async function dbGetCategories(): Promise<Category[] | null> {
@@ -502,8 +503,8 @@ async function dbGetCategoryBrandsMapUncached(): Promise<Record<
 /** Cached — layout hits this on every navigation */
 export const dbGetCategoryBrandsMap = unstable_cache(
   async () => dbGetCategoryBrandsMapUncached(),
-  ["db-category-brands-map-v1"],
-  { revalidate: 120, tags: ["category-brands"] }
+  ["db-category-brands-map-v2-no-rix"],
+  { revalidate: 60, tags: ["category-brands"] }
 );
 
 /** Min/max detection range with 2 index-friendly LIMIT 1 queries (not full table). */
