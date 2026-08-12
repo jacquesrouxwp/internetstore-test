@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  filterHiddenBrands,
+  isBrandHidden,
   sortBrandsByPriority,
   visibleBrandGridBrands,
 } from "./brand-priority";
@@ -29,22 +31,34 @@ describe("sortBrandsByPriority", () => {
       sorted.slice(0, 7).map((x) => x.slug),
       ["agm", "hikmicro", "infiray", "pulsar", "thermtec", "pard", "guide"]
     );
+    assert.ok(!sorted.some((x) => x.slug === "rix"));
   });
 
-  it("keeps non-priority brands after, alphabetically", () => {
+  it("keeps non-priority brands after, alphabetically; drops hidden brands", () => {
     const input = [b("rix", "Rix"), b("konus", "KONUS"), b("agm", "AGM")];
     const sorted = sortBrandsByPriority(input);
     assert.deepEqual(
       sorted.map((x) => x.slug),
-      ["agm", "konus", "rix"]
+      ["agm", "konus"]
     );
   });
 
   it("does not mutate the input array", () => {
-    const input = [b("rix", "Rix"), b("agm", "AGM")];
+    const input = [b("konus", "KONUS"), b("agm", "AGM")];
     const copy = [...input];
     sortBrandsByPriority(input);
     assert.deepEqual(input, copy);
+  });
+});
+
+describe("isBrandHidden / filterHiddenBrands", () => {
+  it("hides rix", () => {
+    assert.equal(isBrandHidden("rix"), true);
+    assert.equal(isBrandHidden("hikmicro"), false);
+    assert.deepEqual(
+      filterHiddenBrands([b("rix", "Rix"), b("agm", "AGM")]).map((x) => x.slug),
+      ["agm"]
+    );
   });
 });
 

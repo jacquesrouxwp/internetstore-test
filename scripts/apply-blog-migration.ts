@@ -51,15 +51,15 @@ const SEED = [
     meta_title_ru: "Как выбрать тепловизор — гид Pro-Optics",
   },
   {
-    slug: "rix-vs-hikmicro",
-    title_uk: "Rix чи HikMicro: порівняння популярних моделей",
-    title_ru: "Rix или HikMicro: сравнение популярных моделей",
+    slug: "hikmicro-lineup-guide",
+    title_uk: "HikMicro: огляд популярних лінійок",
+    title_ru: "HikMicro: обзор популярных линеек",
     excerpt_uk: "Короткий розбір для бюджету 25–60 тис. грн.",
     excerpt_ru: "Короткий разбор для бюджета 25–60 тыс. грн.",
     body_uk:
-      "HikMicro сильний сервісом і лінійкою LYNX / FALCON. Rix часто пропонує цікавіше співвідношення ціна/функції.",
+      "HikMicro сильний сервісом і лінійкою LYNX / FALCON / CONDOR. Нижче — орієнтири по сегментах.",
     body_ru:
-      "HikMicro силён сервисом и линейкой LYNX / FALCON. Rix часто предлагает более интересное соотношение цена/функции.",
+      "HikMicro силён сервисом и линейкой LYNX / FALCON / CONDOR. Ниже — ориентиры по сегментам.",
     category: "Огляди",
     published: true,
     published_at: new Date(Date.now() - 20 * 864e5).toISOString(),

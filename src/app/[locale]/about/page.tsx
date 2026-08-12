@@ -21,7 +21,7 @@ export default async function AboutPage({
         {isRu ? (
           <>
             <p>
-              Работаем с брендами HikMicro, Pulsar, Rix, INFIRAY, PARD, ATN и
+              Работаем с брендами HikMicro, Pulsar, INFIRAY, PARD, ATN и
               другими. Каждый прибор проходит проверку перед отправкой.
             </p>
             <p>
@@ -32,7 +32,7 @@ export default async function AboutPage({
         ) : (
           <>
             <p>
-              Працюємо з брендами HikMicro, Pulsar, Rix, INFIRAY, PARD, ATN та
+              Працюємо з брендами HikMicro, Pulsar, INFIRAY, PARD, ATN та
               іншими. Кожен прилад проходить перевірку перед відправкою.
             </p>
             <p>

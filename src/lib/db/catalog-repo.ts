@@ -23,7 +23,12 @@ import {
 import type { Review } from "@/types";
 import { getPriceCompareMap } from "@/lib/price-compare/repo";
 import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
-import { sortBrandsByPriority } from "@/lib/brand-priority";
+import {
+  filterHiddenBrandProducts,
+  filterHiddenBrands,
+  isBrandHidden,
+  sortBrandsByPriority,
+} from "@/lib/brand-priority";
 
 /**
  * Catalog card fields only — skip heavy description/specs/meta payloads.
@@ -197,7 +202,9 @@ export async function dbGetCatalog(
     }
 
     const products = await attachPriceCompare(
-      (data || []).map((r) => mapDbProduct(r as Record<string, unknown>))
+      filterHiddenBrandProducts(
+        (data || []).map((r) => mapDbProduct(r as Record<string, unknown>))
+      )
     );
 
     return {
@@ -205,7 +212,7 @@ export async function dbGetCatalog(
       total: count ?? 0,
       page,
       limit,
-      brands: sortBrandsByPriority(brands || []),
+      brands: sortBrandsByPriority(filterHiddenBrands(brands || [])),
       categories: categories || [],
       detectionRangeBounds,
     };
@@ -241,6 +248,7 @@ export async function dbGetProductBySlug(
       .maybeSingle();
     if (error || !data) return null;
     const product = mapDbProduct(data as Record<string, unknown>);
+    if (isBrandHidden(product.brandSlug)) return null;
     const [withCompare] = await attachPriceCompare([product]);
     return withCompare;
   } catch {
@@ -275,8 +283,8 @@ export async function dbGetProductsByFlag(
       .order("rating", { ascending: false })
       .limit(limit);
     if (error) throw error;
-    const products = (data || []).map((r) =>
-      mapDbProduct(r as Record<string, unknown>)
+    const products = filterHiddenBrandProducts(
+      (data || []).map((r) => mapDbProduct(r as Record<string, unknown>))
     );
     // Homepage wants badges; PDP secondary rails skip the extra query
     if (opts?.priceCompare === false) return products;
@@ -346,9 +354,11 @@ export async function dbGetRelatedProducts(
     }
 
     // No price-compare on related rails — keeps PDP TTFB lower
-    return rows
-      .slice(0, limit)
-      .map((r) => mapDbProduct(r as Record<string, unknown>));
+    return filterHiddenBrandProducts(
+      rows
+        .slice(0, limit + 4)
+        .map((r) => mapDbProduct(r as Record<string, unknown>))
+    ).slice(0, limit);
   } catch (e) {
     console.error("[related]", e);
     return null;
@@ -398,7 +408,9 @@ export async function dbGetBrands(): Promise<Brand[] | null> {
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
     if (error) throw error;
-    return (data || []).map((b) => mapDbBrand(b as Record<string, unknown>));
+    return filterHiddenBrands(
+      (data || []).map((b) => mapDbBrand(b as Record<string, unknown>))
+    );
   } catch {
     return null;
   }
@@ -407,7 +419,7 @@ export async function dbGetBrands(): Promise<Brand[] | null> {
 /** Cross-request cache — brands rarely change (admin edits). */
 export const dbGetBrandsCached = unstable_cache(
   async () => dbGetBrands(),
-  ["db-brands-v1"],
+  ["db-brands-v2-no-rix"],
   { revalidate: 120, tags: ["brands"] }
 );
 
@@ -439,7 +451,7 @@ export const dbGetCategoriesCached = unstable_cache(
 /**
  * Brands that actually have at least one published product per category --
  * powers the category hover menu (e.g. hovering "ПНБ" lists only ATN,
- * HikMicro, Rix... the brands stocked there, not every brand in the DB).
+ * HikMicro… the brands stocked there, not every brand in the DB).
  */
 async function dbGetCategoryBrandsMapUncached(): Promise<Record<
   string,
@@ -475,9 +487,11 @@ async function dbGetCategoryBrandsMapUncached(): Promise<Record<
 
     const map: Record<string, Brand[]> = {};
     for (const [catSlug, brandIds] of Array.from(seen)) {
-      map[catSlug] = Array.from(brandIds)
-        .map((id) => brandById.get(id)!)
-        .sort((a, b) => a.name.localeCompare(b.name));
+      map[catSlug] = filterHiddenBrands(
+        Array.from(brandIds)
+          .map((id) => brandById.get(id)!)
+          .filter(Boolean)
+      ).sort((a, b) => a.name.localeCompare(b.name));
     }
     return map;
   } catch {
@@ -530,7 +544,9 @@ export async function getCatalogWithFallback(
   if (db) return db;
 
   // memory fallback (dev without Supabase)
-  let list = getRuntimeProducts().filter((p) => p.published);
+  let list = filterHiddenBrandProducts(
+    getRuntimeProducts().filter((p) => p.published)
+  );
   if (categorySlug) list = list.filter((p) => p.categorySlug === categorySlug);
   if (filters.q) {
     const q = filters.q.toLowerCase();
@@ -564,7 +580,9 @@ export async function getCatalogWithFallback(
     brands: sortBrandsByPriority(getRuntimeBrands()),
     categories: getRuntimeCategories(),
     detectionRangeBounds: getDetectionRangeBounds(
-      getRuntimeProducts().filter((p) => p.published),
+      filterHiddenBrandProducts(
+        getRuntimeProducts().filter((p) => p.published)
+      ),
       categorySlug
     ),
   };
