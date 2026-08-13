@@ -1,5 +1,14 @@
 /**
- * Optional alias: same pure XML as /sitemap.xml
- * (kept for manual checks; public URL is always /sitemap.xml)
+ * Pure XML sitemap alias — never HTML, never <script>.
+ * Public canonical URL: /sitemap.xml (Next Metadata app/sitemap.ts).
+ * This path is for manual checks / monitoring with hard strip.
  */
-export { GET, dynamic, runtime, revalidate } from "@/app/sitemap.xml/route";
+import { sitemapXmlResponse } from "@/lib/sitemap-xml-response";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const revalidate = 3600;
+
+export async function GET() {
+  return sitemapXmlResponse();
+}

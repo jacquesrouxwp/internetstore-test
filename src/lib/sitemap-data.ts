@@ -1,6 +1,6 @@
 /**
- * Data for /sitemap.xml — shared by the pure XML route handler.
- * No React / metadata pipeline — keeps the body free of HTML/script.
+ * Data for /sitemap.xml — pure data + XML string builders.
+ * No React components. Prefer service-role client (no cookies/HTML).
  */
 
 import { SEED_PRODUCTS, SEED_CATEGORIES } from "@/data/seed";
@@ -9,7 +9,6 @@ import {
   hasServiceSupabase,
   hasPublicSupabase,
 } from "@/lib/supabase/service";
-import { createClient } from "@/lib/supabase/server";
 
 export type SitemapEntry = {
   loc: string;
@@ -22,6 +21,7 @@ type SlugRow = { slug: string; lastModified?: Date };
 
 async function loadCategorySlugs(): Promise<SlugRow[]> {
   try {
+    // Service role only — avoids cookie/server client (no HTML path)
     if (hasServiceSupabase()) {
       const supabase = createServiceClient();
       const { data } = await supabase.from("categories").select("slug");
@@ -31,17 +31,30 @@ async function loadCategorySlugs(): Promise<SlugRow[]> {
           .filter((e) => e.slug);
       }
     }
-    if (hasPublicSupabase()) {
-      const supabase = await createClient();
-      const { data } = await supabase.from("categories").select("slug");
-      if (data?.length) {
-        return data
-          .map((r) => ({ slug: String((r as { slug: string }).slug) }))
-          .filter((e) => e.slug);
-      }
-    }
   } catch (e) {
     console.error("[sitemap] categories", e);
+  }
+  // Public anon client only if service missing (still no React)
+  if (hasPublicSupabase()) {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const url =
+        process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.SUPABASE_URL ||
+        "";
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+      if (url && key) {
+        const supabase = createClient(url, key);
+        const { data } = await supabase.from("categories").select("slug");
+        if (data?.length) {
+          return data
+            .map((r) => ({ slug: String((r as { slug: string }).slug) }))
+            .filter((e) => e.slug);
+        }
+      }
+    } catch (e) {
+      console.error("[sitemap] categories public", e);
+    }
   }
   return SEED_CATEGORIES.map((c) => ({ slug: c.slug }));
 }
@@ -74,35 +87,47 @@ async function loadProductEntries(): Promise<SlugRow[]> {
           .filter(Boolean) as SlugRow[];
       }
     }
-    if (hasPublicSupabase()) {
-      const supabase = await createClient();
-      const { data } = await supabase
-        .from("products")
-        .select("slug, updated_at, created_at")
-        .eq("published", true);
-      if (data?.length) {
-        return data
-          .map((r) => {
-            const row = r as {
-              slug?: string;
-              updated_at?: string;
-              created_at?: string;
-            };
-            const slug = String(row.slug || "");
-            if (!slug) return null;
-            const ts = row.updated_at || row.created_at;
-            return {
-              slug,
-              lastModified: ts ? new Date(ts) : undefined,
-            };
-          })
-          .filter(Boolean) as SlugRow[];
-      }
-    }
   } catch (e) {
     console.error("[sitemap] products", e);
   }
-  return SEED_PRODUCTS.map((p) => ({
+  if (hasPublicSupabase()) {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const url =
+        process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.SUPABASE_URL ||
+        "";
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+      if (url && key) {
+        const supabase = createClient(url, key);
+        const { data } = await supabase
+          .from("products")
+          .select("slug, updated_at, created_at")
+          .eq("published", true);
+        if (data?.length) {
+          return data
+            .map((r) => {
+              const row = r as {
+                slug?: string;
+                updated_at?: string;
+                created_at?: string;
+              };
+              const slug = String(row.slug || "");
+              if (!slug) return null;
+              const ts = row.updated_at || row.created_at;
+              return {
+                slug,
+                lastModified: ts ? new Date(ts) : undefined,
+              };
+            })
+            .filter(Boolean) as SlugRow[];
+        }
+      }
+    } catch (e) {
+      console.error("[sitemap] products public", e);
+    }
+  }
+  return SEED_PRODUCTS.filter((p) => p.published !== false).map((p) => ({
     slug: p.slug,
     lastModified: new Date(p.createdAt),
   }));
