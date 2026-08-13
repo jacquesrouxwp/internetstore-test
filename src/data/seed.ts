@@ -97,6 +97,8 @@ function p(
   partial: Omit<Product, "published" | "createdAt" | "images" | "specs"> & {
     images?: string[];
     specs?: Record<string, string>;
+    /** Default true; set false to hide (e.g. uncertain product photo). */
+    published?: boolean;
   }
 ): Product {
   const detectionRangeM =
@@ -135,7 +137,7 @@ function p(
       ...baseSpecs,
       "Дальність виявлення людини, м": String(detectionRangeM),
     },
-    published: true,
+    published: partial.published !== false,
     createdAt: partial.isNew
       ? new Date().toISOString()
       : "2025-11-01T10:00:00.000Z",
@@ -660,9 +662,11 @@ export const SEED_PRODUCTS: Product[] = [
     rating: 4.5,
     reviewsCount: 7,
     isHit: false,
-    isNew: true,
+    isNew: false,
     isTop: false,
     isSale: false,
+    // Uncertain photo (substitute N-14) — hidden until real image
+    published: false,
   }),
   p({
     id: "24",
@@ -802,9 +806,11 @@ export const SEED_PRODUCTS: Product[] = [
     rating: 4.4,
     reviewsCount: 5,
     isHit: false,
-    isNew: true,
+    isNew: false,
     isTop: false,
-    isSale: true,
+    isSale: false,
+    // No verified competitor photo — hidden until real image
+    published: false,
   }),
 ];
 
