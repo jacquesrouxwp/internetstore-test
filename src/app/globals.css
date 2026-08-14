@@ -889,8 +889,13 @@ body {
     }
 
     .hero-mobile__marquee {
-      margin-top: 0.55rem !important;
+      margin-top: 0.65rem !important;
       padding-top: 0.5rem !important;
+    }
+
+    .hero-tradein {
+      margin-top: 0.55rem !important;
+      padding: 0.45rem 0.55rem !important;
     }
 
     .hero-mobile__marquee > p {

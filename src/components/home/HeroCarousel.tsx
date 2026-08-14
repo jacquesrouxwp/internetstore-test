@@ -9,7 +9,14 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowRight, Headphones, Phone, ScanEye, X } from "lucide-react";
+import {
+  ArrowRight,
+  Headphones,
+  Phone,
+  RefreshCw,
+  ScanEye,
+  X,
+} from "lucide-react";
 import { HeroBrandMarquee } from "@/components/home/HeroBrandMarquee";
 import { BrandMark } from "@/components/ui/BrandMark";
 import {
@@ -194,7 +201,7 @@ export function HeroCarousel({ brands }: Props) {
         <div className="container-shop !px-3 sm:!px-6">
           {/* Desktop: pitch | live sim (always visible — no arrows) */}
           <div className="grid items-stretch gap-3 lg:grid-cols-2 lg:gap-6">
-            <div className="hero-glass hero-mobile relative z-10 flex w-full max-w-full flex-col overflow-hidden rounded-[var(--radius-card)] px-3.5 py-3.5 sm:px-8 sm:py-9 lg:px-10 lg:py-11">
+            <div className="hero-glass hero-mobile relative z-10 flex h-full w-full max-w-full flex-col overflow-hidden rounded-[var(--radius-card)] px-3.5 py-3.5 sm:px-8 sm:py-9 lg:px-10 lg:py-11">
               <p className="hero-mobile__eyebrow mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-ui sm:mb-3 sm:text-[11px] sm:tracking-[0.2em] sm:text-xs">
                 Professional Optics · Ukraine
               </p>
@@ -213,7 +220,27 @@ export function HeroCarousel({ brands }: Props) {
                 {t("heroSubtitle")}
               </p>
 
-              <div className="hero-mobile__cta mt-3 flex flex-row flex-wrap gap-1.5 sm:mt-7 sm:gap-2.5">
+              {/* Trade-in / buy-used — fills free space; marquee stays at bottom */}
+              <div className="hero-tradein mt-3 rounded-xl border border-[var(--accent)]/25 bg-[rgba(225,29,42,0.08)] px-3 py-2.5 sm:mt-5 sm:px-4 sm:py-3.5">
+                <div className="flex items-start gap-2.5 sm:gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(225,29,42,0.18)] text-[var(--accent)] sm:h-9 sm:w-9">
+                    <RefreshCw
+                      className="h-3.5 w-3.5 sm:h-4 sm:w-4"
+                      strokeWidth={2.25}
+                    />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--accent)] sm:text-xs">
+                      {t("heroTradeInTitle")}
+                    </p>
+                    <p className="mt-1 text-[0.7rem] leading-snug text-primary/95 sm:mt-1.5 sm:text-[0.9375rem] sm:leading-relaxed">
+                      {t("heroTradeInBody")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hero-mobile__cta mt-3 flex flex-row flex-wrap gap-1.5 sm:mt-6 sm:gap-2.5">
                 <NextLink
                   href="/catalog/teplovizori"
                   className="btn-hero btn-hero-primary hero-mobile__btn min-w-0 flex-1 sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
@@ -225,7 +252,7 @@ export function HeroCarousel({ brands }: Props) {
                 <ConsultButton />
               </div>
 
-              <ul className="hero-mobile__perks mt-3 grid grid-cols-2 gap-1 border-t border-white/[0.1] pt-2.5 sm:mt-7 sm:gap-3 sm:pt-5">
+              <ul className="hero-mobile__perks mt-3 grid grid-cols-2 gap-1 border-t border-white/[0.1] pt-2.5 sm:mt-6 sm:gap-3 sm:pt-5">
                 <li className="hero-perk flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 sm:gap-2.5 sm:rounded-xl sm:px-3.5 sm:py-2.5">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white/15 sm:h-9 sm:w-9">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -256,10 +283,11 @@ export function HeroCarousel({ brands }: Props) {
                 </li>
               </ul>
 
+              {/* Brands marquee pinned to bottom of glass card */}
               <HeroBrandMarquee
                 brands={brands}
                 title={t("heroTrustBrandsTitle")}
-                className="hero-mobile__marquee mt-2.5 border-t border-white/[0.1] pt-2.5 sm:mt-6 sm:pt-5"
+                className="hero-mobile__marquee mt-auto border-t border-white/[0.1] pt-2.5 sm:pt-5"
               />
             </div>
 
