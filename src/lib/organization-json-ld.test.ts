@@ -12,15 +12,25 @@ describe("buildOrganizationJsonLd", () => {
         facebook: "https://facebook.com/prooptics",
       },
     });
-    assert.equal(data["@type"], "Organization");
+    assert.ok(
+      Array.isArray(data["@type"])
+        ? (data["@type"] as string[]).includes("LocalBusiness")
+        : data["@type"] === "LocalBusiness"
+    );
     assert.equal(data.name, "Pro-Optics");
     assert.equal(data.url, "https://pro-optics.com.ua");
-    assert.equal(data.logo, "https://pro-optics.com.ua/logo.png");
+    const logo = data.logo as Record<string, unknown>;
+    assert.equal(logo["@type"], "ImageObject");
+    assert.equal(logo.url, "https://pro-optics.com.ua/logo.png");
+    assert.equal(logo.width, 512);
+    assert.equal(logo.height, 512);
     assert.ok(Array.isArray(data.sameAs));
     assert.ok((data.sameAs as string[]).includes("https://t.me/prooptics"));
     assert.ok(
       (data.sameAs as string[]).includes("https://facebook.com/prooptics")
     );
+    assert.ok(data.address);
+    assert.ok(data.telephone);
   });
 
   it("omits sameAs when no valid https urls", () => {

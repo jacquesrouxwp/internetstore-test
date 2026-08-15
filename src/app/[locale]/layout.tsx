@@ -10,6 +10,8 @@ import { LogoIntro } from "@/components/layout/LogoIntro";
 import { getCategories, getCategoryBrandsMap } from "@/lib/catalog";
 import { Analytics as SiteAnalytics } from "@/components/Analytics";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
+import { OrganizationJsonLd } from "@/components/seo/OrganizationJsonLd";
+import { getAllPublicSettings } from "@/lib/store-settings";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -28,13 +30,23 @@ export default async function LocaleLayout({
   }
   setRequestLocale(locale);
   const messages = await getMessages();
-  const [categories, categoryBrandsMap] = await Promise.all([
+  const [categories, categoryBrandsMap, settings] = await Promise.all([
     getCategories(),
     getCategoryBrandsMap(),
+    getAllPublicSettings(),
   ]);
 
   return (
     <NextIntlClientProvider messages={messages}>
+      {/* Sitewide LocalBusiness + logo for Google Search / Maps association */}
+      <OrganizationJsonLd
+        name={settings.site.siteName || "Pro-Optics"}
+        social={settings.social}
+        phone={settings.site.phones?.[0] || null}
+        email={settings.site.email || null}
+        address={settings.site.address || null}
+        hours={settings.site.hours || null}
+      />
       <SiteBackground />
       <LogoIntro />
       {/* min-h-dvh keeps footer at viewport bottom on short pages without

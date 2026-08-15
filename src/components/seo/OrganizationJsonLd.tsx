@@ -2,18 +2,30 @@ import { buildOrganizationJsonLd } from "@/lib/organization-json-ld";
 import type { OrganizationSocial } from "@/lib/organization-json-ld";
 import { getSiteUrl } from "@/lib/site-url";
 
-/** Homepage Organization JSON-LD for Google brand / logo in search. */
+/** Organization + LocalBusiness JSON-LD (logo, NAP) for Google. */
 export function OrganizationJsonLd({
   name = "Pro-Optics",
   social,
+  phone,
+  email,
+  address,
+  hours,
 }: {
   name?: string;
   social?: OrganizationSocial | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  hours?: string | null;
 }) {
   const data = buildOrganizationJsonLd({
     siteUrl: getSiteUrl(),
     name,
     social,
+    phone,
+    email,
+    address,
+    hours,
   });
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   return (
