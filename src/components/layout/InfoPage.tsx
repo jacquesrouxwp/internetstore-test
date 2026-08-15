@@ -34,12 +34,14 @@ export function InfoPage({
 export function InfoPanel({
   children,
   className,
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
-    <div className={cn("info-page__panel", className)}>
+    <div id={id} className={cn("info-page__panel", className)}>
       <div className="info-page__body">{children}</div>
     </div>
   );

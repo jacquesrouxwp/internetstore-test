@@ -124,6 +124,13 @@ export default async function ProductPage({ params }: Props) {
               {product.isTop === true && !product.isHit && t("top") ? (
                 <span className="label-badge badge-hit">{t("top")}</span>
               ) : null}
+              <Link
+                href="/about#military-support"
+                className="label-badge badge-military transition hover:brightness-110"
+                title={t("militaryBadgeHint")}
+              >
+                {t("militaryBadge")}
+              </Link>
             </>
           }
         />
@@ -139,6 +146,13 @@ export default async function ProductPage({ params }: Props) {
           </h1>
 
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+            <Link
+              href="/about#military-support"
+              className="label-badge badge-military !static transition hover:brightness-110"
+              title={t("militaryBadgeHint")}
+            >
+              {t("militaryBadge")}
+            </Link>
             <span className="inline-flex items-center gap-1">
               <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
               <strong>{product.rating.toFixed(1)}</strong>
@@ -220,10 +234,6 @@ export default async function ProductPage({ params }: Props) {
           <ProductDescriptionBody
             text={desc || productShort(product, loc) || ""}
           />
-          {/* SEO + UX: military discount note under every product description */}
-          <p className="mt-5 border-t border-white/10 pt-4 text-sm leading-relaxed text-secondary">
-            {t("militaryDiscountNote")}
-          </p>
         </section>
       </div>
 

@@ -53,15 +53,8 @@ export function productJsonLdDescription(
         : "Професійна оптика. Доставка Новою Поштою по Україні.";
     desc = [desc || name, extras.join(", "), tail].filter(Boolean).join(". ");
   }
-  // Soft military discount mention for SEO (not spammy, once at end)
-  const mil =
-    locale === "ru"
-      ? " Для военнослужащих ВСУ — специальные условия и скидки на тепловизоры: уточните у консультанта."
-      : " Для військовослужбовців ЗСУ — спеціальні умови та знижки на тепловізори: уточніть у консультанта.";
-  if (!/військ|военн|ЗСУ|ВСУ|military/i.test(desc)) {
-    desc = `${desc.trim()}${mil}`;
-  }
   // Cap for JSON-LD (Google reads ~5k; keep readable)
+  // Military discount lives only on /about — do not boilerplate into product descriptions.
   if (desc.length > 5000) desc = desc.slice(0, 4997) + "...";
   return desc.replace(/\s+/g, " ").trim();
 }

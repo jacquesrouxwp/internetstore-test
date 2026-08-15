@@ -11,11 +11,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params;
   const isRu = locale === "ru";
   const title = isRu
-    ? "О нас — скидки на тепловизоры для военных | Pro-Optics"
-    : "Про нас — знижки на тепловізори для військових | Pro-Optics";
+    ? "О нас — поддержка защитников Украины | Pro-Optics"
+    : "Про нас — підтримка захисників України | Pro-Optics";
   const description = isRu
-    ? "Pro-Optics: профессиональная оптика, тепловизоры и прицелы. Специальные условия и скидки на тепловизоры для военнослужащих ВСУ. Консультация и доставка по Украине."
-    : "Pro-Optics: професійна оптика, тепловізори та приціли. Спеціальні умови та знижки на тепловізори для військовослужбовців ЗСУ. Консультація та доставка по Україні.";
+    ? "Pro-Optics: профессиональная оптика. Специальные условия и скидка для военнослужащих ВСУ, НГУ, ГПСУ и ТрО на тепловизоры, ПНВ и прицелы. Консультация и доставка по Украине."
+    : "Pro-Optics: професійна оптика. Спеціальні умови та знижка для військовослужбовців ЗСУ, НГУ, ДПСУ та ТрО на тепловізори, ПНБ і приціли. Консультація та доставка по Україні.";
   const path = isRu ? "/ru/about" : "/about";
   return {
     title,
@@ -61,32 +61,49 @@ export default async function AboutPage({ params }: Props) {
         )}
       </InfoPanel>
 
-      {/* SEO: military discounts on thermal optics */}
-      <InfoPanel className="mt-5 sm:mt-6">
-        <div className="mb-3 flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(225,29,42,0.15)] text-[var(--accent)]">
-            <Shield className="h-5 w-5" strokeWidth={2} aria-hidden />
+      {/* Anchor for product badges: /about#military-support */}
+      <InfoPanel
+        id="military-support"
+        className="mt-5 scroll-mt-24 sm:mt-6 sm:scroll-mt-28"
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[rgba(225,29,42,0.16)] text-[var(--accent)] ring-1 ring-[var(--accent)]/30">
+            <Shield className="h-5 w-5" strokeWidth={2.25} aria-hidden />
           </span>
-          <div>
-            <h2 className="font-display text-lg font-bold tracking-tight text-primary sm:text-xl">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">
+              {isRu ? "Специальные условия" : "Спеціальні умови"}
+            </p>
+            <h2
+              id="military-support-heading"
+              className="font-display text-xl font-bold tracking-tight text-primary sm:text-2xl"
+            >
               {t("aboutMilitaryTitle")}
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-secondary sm:text-[0.9375rem]">
-              {t("aboutMilitaryLead")}
-            </p>
           </div>
         </div>
-        <p className="text-sm leading-relaxed text-secondary sm:text-[0.9375rem]">
-          {t("aboutMilitaryBody")}
-        </p>
-        <p className="mt-4">
+
+        <div className="space-y-4 text-sm leading-relaxed text-secondary sm:text-[0.9375rem] sm:leading-relaxed">
+          <p className="text-primary/95">{t("aboutMilitaryP1")}</p>
+          <p>{t("aboutMilitaryP2")}</p>
+          <p>{t("aboutMilitaryP3")}</p>
+          <p className="font-semibold text-primary">{t("aboutMilitaryGlory")}</p>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href="/contacts"
-            className="inline-flex text-sm font-semibold text-[var(--accent)] underline-offset-4 hover:underline"
+            className="inline-flex items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover,#c41824)]"
           >
-            {t("aboutMilitaryCta")} →
+            {t("aboutMilitaryCta")}
           </Link>
-        </p>
+          <Link
+            href="/catalog/teplovizori"
+            className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-white/25 hover:bg-white/[0.07]"
+          >
+            {isRu ? "Каталог тепловизоров" : "Каталог тепловізорів"}
+          </Link>
+        </div>
       </InfoPanel>
     </InfoPage>
   );

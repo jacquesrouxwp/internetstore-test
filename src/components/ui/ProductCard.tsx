@@ -135,6 +135,22 @@ export function ProductCard({
         </div>
       </Link>
 
+      {/* Outside product link — no nested <a>; bottom-left so it never stacks on sale/hit */}
+      {!ultraTight ? (
+        <Link
+          href="/about#military-support"
+          className={cn(
+            "absolute bottom-2 left-2 z-[25] label-badge badge-military max-w-[8.5rem] truncate transition hover:brightness-110",
+            tight && "text-[9px] sm:text-[10px]",
+            `${hoverDesk}:group-hover:pointer-events-none`,
+            `${hoverDesk}:group-hover:opacity-0`
+          )}
+          title={t("militaryBadgeHint")}
+        >
+          {t("militaryBadge")}
+        </Link>
+      ) : null}
+
       {/* Meta fades under photo hover; price plate is sibling (z-30) so popover stays opaque */}
       <div
         className={cn(
