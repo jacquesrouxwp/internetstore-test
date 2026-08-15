@@ -33,14 +33,15 @@ export const metadata: Metadata = {
   },
   description:
     "Інтернет-магазин тепловізорів, тепловізійних прицілів та ПНБ в Україні.",
-  // Explicit icons for Google SERP + browsers (also file-based app/icon.png)
+  // Google SERP favicon + browsers. Stable paths on same domain.
+  // View-source should show rel=icon → /favicon.ico, /icon.png, apple-touch-icon.
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-48.png", sizes: "48x48", type: "image/png" },
-      { url: "/favicon-96.png", sizes: "96x96", type: "image/png" },
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon.png", type: "image/png", sizes: "96x96" },
+      { url: "/favicon-48.png", type: "image/png", sizes: "48x48" },
+      { url: "/favicon-96.png", type: "image/png", sizes: "96x96" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     shortcut: ["/favicon.ico"],
@@ -71,6 +72,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uk" suppressHydrationWarning>
+      {/* Explicit head links as fallback if metadata merge omits any */}
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" href="/icon.png" sizes="96x96" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+      </head>
       <body
         className={`${inter.variable} ${manrope.variable} font-sans antialiased`}
       >
