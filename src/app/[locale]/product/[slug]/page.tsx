@@ -220,6 +220,10 @@ export default async function ProductPage({ params }: Props) {
           <ProductDescriptionBody
             text={desc || productShort(product, loc) || ""}
           />
+          {/* SEO + UX: military discount note under every product description */}
+          <p className="mt-5 border-t border-white/10 pt-4 text-sm leading-relaxed text-secondary">
+            {t("militaryDiscountNote")}
+          </p>
         </section>
       </div>
 
