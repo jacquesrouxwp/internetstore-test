@@ -1,11 +1,13 @@
 import { Hero } from "@/components/home/Hero";
 import { ProductRail } from "@/components/ui/ProductRail";
 import { BrandGrid } from "@/components/ui/BrandGrid";
+import { OrganizationJsonLd } from "@/components/seo/OrganizationJsonLd";
 import {
   getProductsByFlag,
   getReviews,
   getBrands,
 } from "@/lib/catalog";
+import { getAllPublicSettings } from "@/lib/store-settings";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star } from "lucide-react";
 import { visibleBrandGridBrands } from "@/lib/brand-priority";
@@ -23,17 +25,22 @@ export default async function HomePage({
   const t = await getTranslations("home");
   const tc = await getTranslations("catalog");
 
-  const [top, hits, news, sale, reviews, brands] = await Promise.all([
+  const [top, hits, news, sale, reviews, brands, settings] = await Promise.all([
     getProductsByFlag("top", 8),
     getProductsByFlag("hit", 8),
     getProductsByFlag("new", 8),
     getProductsByFlag("sale", 8),
     Promise.resolve(getReviews()),
     getBrands(),
+    getAllPublicSettings(),
   ]);
 
   return (
     <>
+      <OrganizationJsonLd
+        name={settings.site.siteName || "Pro-Optics"}
+        social={settings.social}
+      />
       <Hero />
 
       <ProductRail
