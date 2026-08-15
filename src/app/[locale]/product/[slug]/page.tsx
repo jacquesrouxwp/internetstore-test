@@ -12,6 +12,10 @@ import {
 } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
+import {
+  absoluteProductImageUrl,
+  resolveProductImageAlt,
+} from "@/lib/product-image-alt";
 import { getAllPublicSettings } from "@/lib/store-settings";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
@@ -47,6 +51,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const path =
     locale === "ru" ? `/ru/product/${slug}` : `/product/${slug}`;
   const url = absoluteUrl(path);
+  const siteUrl = getSiteUrl();
+  const ogSrc = product.images[0]
+    ? absoluteProductImageUrl(product.images[0], siteUrl)
+    : "";
+  const ogAlt = resolveProductImageAlt(
+    name,
+    product.imageAlts,
+    0
+  );
   return {
     title: name,
     description: desc,
@@ -55,7 +68,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: name,
       description: desc,
       url,
-      images: product.images[0] ? [product.images[0]] : undefined,
+      images: ogSrc
+        ? [{ url: ogSrc, alt: ogAlt }]
+        : undefined,
     },
   };
 }
@@ -109,7 +124,7 @@ export default async function ProductPage({ params }: Props) {
       <div className="grid gap-10 lg:grid-cols-2">
         <ProductImageGallery
           images={product.images}
-          alt={name}
+          alt={resolveProductImageAlt(name, product.imageAlts, 0)}
           badges={
             <>
               {sale != null && sale > 0 && (

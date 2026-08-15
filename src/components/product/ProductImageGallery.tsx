@@ -19,7 +19,7 @@ type Props = {
 
 export function ProductImageGallery({
   images,
-  alt,
+  alt: altProp,
   badges,
   maxThumbs = 8,
 }: Props) {
@@ -29,6 +29,8 @@ export function ProductImageGallery({
   const active = total > 0 ? Math.min(index, total - 1) : 0;
   const src = total > 0 ? list[active] : null;
   const multi = total > 1;
+  // Never emit empty alt on product photos (SEO + a11y)
+  const alt = String(altProp || "").trim() || "Товар";
 
   const go = useCallback(
     (i: number) => {
@@ -134,7 +136,13 @@ export function ProductImageGallery({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={thumb}
-                  alt=""
+                  alt={
+                    alt
+                      ? total > 1
+                        ? `${alt} — фото ${i + 1}`
+                        : alt
+                      : `Фото ${i + 1}`
+                  }
                   className="h-full w-full object-contain"
                   loading="lazy"
                   decoding="async"

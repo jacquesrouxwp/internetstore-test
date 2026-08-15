@@ -11,6 +11,7 @@ import { useContext, useState } from "react";
 import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
 import { LayoutModeContext } from "@/components/ui/animated-toggle-layout-container";
 import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
+import { resolveProductImageAlt } from "@/lib/product-image-alt";
 
 /**
  * Desktop-only hover: only devices with real hover + fine pointer
@@ -86,7 +87,7 @@ export function ProductCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={product.images[0]}
-              alt={name}
+              alt={resolveProductImageAlt(name, product.imageAlts, 0)}
               loading="lazy"
               decoding="async"
               className={cn(

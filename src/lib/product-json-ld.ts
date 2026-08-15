@@ -11,6 +11,7 @@ import {
 } from "@/types";
 import type { DeliverySettings } from "@/lib/store-settings";
 import { absoluteUrl } from "@/lib/site-url";
+import { absoluteProductImageUrls } from "@/lib/product-image-alt";
 
 export type ProductJsonLdInput = {
   product: Product;
@@ -59,19 +60,8 @@ export function productJsonLdDescription(
   return desc.replace(/\s+/g, " ").trim();
 }
 
-function absImage(src: string, siteUrl: string): string {
-  const s = String(src || "").trim();
-  if (!s) return "";
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-  if (s.startsWith("//")) return `https:${s}`;
-  const base = siteUrl.replace(/\/$/, "");
-  return s.startsWith("/") ? `${base}${s}` : `${base}/${s}`;
-}
-
 function productImages(product: Product, siteUrl: string): string[] {
-  const list = (product.images || [])
-    .map((u) => absImage(u, siteUrl))
-    .filter(Boolean);
+  const list = absoluteProductImageUrls(product.images || [], siteUrl);
   // Google wants at least one image when possible
   if (!list.length) {
     list.push(`${siteUrl.replace(/\/$/, "")}/favicon.ico`);

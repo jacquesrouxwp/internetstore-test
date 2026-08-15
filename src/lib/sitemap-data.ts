@@ -1,5 +1,6 @@
 /**
  * Data for /sitemap.xml — pure data + XML string builders.
+ * Includes Google image sitemap tags for published products.
  * No React components. Prefer service-role client (no cookies/HTML).
  */
 
@@ -9,15 +10,44 @@ import {
   hasServiceSupabase,
   hasPublicSupabase,
 } from "@/lib/supabase/service";
+import { absoluteProductImageUrls } from "@/lib/product-image-alt";
 
 export type SitemapEntry = {
   loc: string;
   lastmod?: string;
-  changefreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
+  changefreq?:
+    | "always"
+    | "hourly"
+    | "daily"
+    | "weekly"
+    | "monthly"
+    | "yearly"
+    | "never";
   priority?: number;
+  /** Absolute image URLs for Google image sitemap (product pages). */
+  images?: string[];
+};
+
+type ProductRow = {
+  slug: string;
+  lastModified?: Date;
+  images: string[];
 };
 
 type SlugRow = { slug: string; lastModified?: Date };
+
+function parseImagesField(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+    } catch {
+      /* ignore */
+    }
+  }
+  return [];
+}
 
 async function loadCategorySlugs(): Promise<SlugRow[]> {
   try {
@@ -59,32 +89,41 @@ async function loadCategorySlugs(): Promise<SlugRow[]> {
   return SEED_CATEGORIES.map((c) => ({ slug: c.slug }));
 }
 
-async function loadProductEntries(): Promise<SlugRow[]> {
+function mapProductRows(
+  data: unknown[],
+  siteUrl: string
+): ProductRow[] {
+  return data
+    .map((r) => {
+      const row = r as {
+        slug?: string;
+        updated_at?: string;
+        created_at?: string;
+        images?: unknown;
+      };
+      const slug = String(row.slug || "");
+      if (!slug) return null;
+      const ts = row.updated_at || row.created_at;
+      return {
+        slug,
+        lastModified: ts ? new Date(ts) : undefined,
+        images: absoluteProductImageUrls(parseImagesField(row.images), siteUrl),
+      };
+    })
+    .filter(Boolean) as ProductRow[];
+}
+
+async function loadProductEntries(siteUrl: string): Promise<ProductRow[]> {
   try {
     if (hasServiceSupabase()) {
       const supabase = createServiceClient();
       const { data } = await supabase
         .from("products")
-        .select("slug, updated_at, created_at")
+        .select("slug, updated_at, created_at, images")
         .eq("published", true)
         .order("created_at", { ascending: false });
       if (data?.length) {
-        return data
-          .map((r) => {
-            const row = r as {
-              slug?: string;
-              updated_at?: string;
-              created_at?: string;
-            };
-            const slug = String(row.slug || "");
-            if (!slug) return null;
-            const ts = row.updated_at || row.created_at;
-            return {
-              slug,
-              lastModified: ts ? new Date(ts) : undefined,
-            };
-          })
-          .filter(Boolean) as SlugRow[];
+        return mapProductRows(data, siteUrl);
       }
     }
   } catch (e) {
@@ -102,25 +141,10 @@ async function loadProductEntries(): Promise<SlugRow[]> {
         const supabase = createClient(url, key);
         const { data } = await supabase
           .from("products")
-          .select("slug, updated_at, created_at")
+          .select("slug, updated_at, created_at, images")
           .eq("published", true);
         if (data?.length) {
-          return data
-            .map((r) => {
-              const row = r as {
-                slug?: string;
-                updated_at?: string;
-                created_at?: string;
-              };
-              const slug = String(row.slug || "");
-              if (!slug) return null;
-              const ts = row.updated_at || row.created_at;
-              return {
-                slug,
-                lastModified: ts ? new Date(ts) : undefined,
-              };
-            })
-            .filter(Boolean) as SlugRow[];
+          return mapProductRows(data, siteUrl);
         }
       }
     } catch (e) {
@@ -130,6 +154,7 @@ async function loadProductEntries(): Promise<SlugRow[]> {
   return SEED_PRODUCTS.filter((p) => p.published !== false).map((p) => ({
     slug: p.slug,
     lastModified: new Date(p.createdAt),
+    images: absoluteProductImageUrls(p.images || [], siteUrl),
   }));
 }
 
@@ -138,7 +163,9 @@ function iso(d: Date): string {
 }
 
 /** Build flat entry list for the canonical site origin. */
-export async function buildSitemapEntries(base: string): Promise<SitemapEntry[]> {
+export async function buildSitemapEntries(
+  base: string
+): Promise<SitemapEntry[]> {
   const now = new Date();
   const nowIso = iso(now);
   const out: SitemapEntry[] = [];
@@ -149,6 +176,7 @@ export async function buildSitemapEntries(base: string): Promise<SitemapEntry[]>
       lastmod?: string;
       changefreq?: SitemapEntry["changefreq"];
       priority?: number;
+      images?: string[];
     } = {}
   ) => {
     out.push({
@@ -156,6 +184,7 @@ export async function buildSitemapEntries(base: string): Promise<SitemapEntry[]>
       lastmod: opts.lastmod || nowIso,
       changefreq: opts.changefreq || "weekly",
       priority: opts.priority ?? 0.5,
+      images: opts.images?.length ? opts.images : undefined,
     });
   };
 
@@ -181,7 +210,7 @@ export async function buildSitemapEntries(base: string): Promise<SitemapEntry[]>
 
   const [cats, products] = await Promise.all([
     loadCategorySlugs(),
-    loadProductEntries(),
+    loadProductEntries(base),
   ]);
 
   for (const c of cats) {
@@ -191,15 +220,18 @@ export async function buildSitemapEntries(base: string): Promise<SitemapEntry[]>
 
   for (const p of products) {
     const lm = p.lastModified ? iso(p.lastModified) : nowIso;
+    const images = p.images?.length ? p.images : undefined;
     push(`/product/${p.slug}`, {
       lastmod: lm,
       changefreq: "weekly",
       priority: 0.7,
+      images,
     });
     push(`/ru/product/${p.slug}`, {
       lastmod: lm,
       changefreq: "weekly",
       priority: 0.6,
+      images,
     });
   }
 
@@ -218,13 +250,15 @@ export function escapeXml(s: string): string {
 
 /**
  * Serialize a pure urlset document — only urlset + url children.
+ * Includes Google image sitemap namespace when any entry has images.
  * Never injects HTML, script, or comments.
  */
 export function renderSitemapXml(entries: SitemapEntry[]): string {
-  // Only sitemap protocol elements — never HTML/script/comments
+  const hasImages = entries.some((e) => e.images && e.images.length > 0);
+
   const body = entries
     .map((e) => {
-      // Sanitize loc: absolute https URL only, no angle brackets
+      // Sanitize loc: absolute URL only, no angle brackets
       const loc = escapeXml(e.loc.replace(/[<>]/g, ""));
       const parts = ["  <url>", `    <loc>${loc}</loc>`];
       if (e.lastmod) {
@@ -240,14 +274,28 @@ export function renderSitemapXml(entries: SitemapEntry[]): string {
           `    <priority>${Math.min(1, Math.max(0, Number(e.priority))).toFixed(1)}</priority>`
         );
       }
+      if (e.images?.length) {
+        for (const img of e.images) {
+          const abs = String(img || "").trim();
+          if (!abs || !/^https?:\/\//i.test(abs)) continue;
+          const safe = escapeXml(abs.replace(/[<>]/g, ""));
+          parts.push("    <image:image>");
+          parts.push(`      <image:loc>${safe}</image:loc>`);
+          parts.push("    </image:image>");
+        }
+      }
       parts.push("  </url>");
       return parts.join("\n");
     })
     .join("\n");
 
+  const ns = hasImages
+    ? 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
+    : 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"';
+
   return (
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    `<urlset ${ns}>\n` +
     body +
     "\n</urlset>\n"
   );
