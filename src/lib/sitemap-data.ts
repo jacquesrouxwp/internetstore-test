@@ -113,16 +113,38 @@ function mapProductRows(
     .filter(Boolean) as ProductRow[];
 }
 
+/** Supabase returns max 1000 rows per request — page through all published products. */
+async function fetchAllPublishedProducts(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: { from: (t: string) => any }
+): Promise<unknown[]> {
+  const pageSize = 1000;
+  const all: unknown[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("products")
+      .select("slug, updated_at, created_at, images")
+      .eq("published", true)
+      .order("created_at", { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+    // Safety cap (~50k products)
+    if (from > 50000) break;
+  }
+  return all;
+}
+
 async function loadProductEntries(siteUrl: string): Promise<ProductRow[]> {
   try {
     if (hasServiceSupabase()) {
       const supabase = createServiceClient();
-      const { data } = await supabase
-        .from("products")
-        .select("slug, updated_at, created_at, images")
-        .eq("published", true)
-        .order("created_at", { ascending: false });
-      if (data?.length) {
+      const data = await fetchAllPublishedProducts(supabase);
+      if (data.length) {
         return mapProductRows(data, siteUrl);
       }
     }
@@ -139,11 +161,8 @@ async function loadProductEntries(siteUrl: string): Promise<ProductRow[]> {
       const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
       if (url && key) {
         const supabase = createClient(url, key);
-        const { data } = await supabase
-          .from("products")
-          .select("slug, updated_at, created_at, images")
-          .eq("published", true);
-        if (data?.length) {
+        const data = await fetchAllPublishedProducts(supabase);
+        if (data.length) {
           return mapProductRows(data, siteUrl);
         }
       }
