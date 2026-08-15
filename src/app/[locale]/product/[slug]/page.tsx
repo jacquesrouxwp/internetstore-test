@@ -12,6 +12,7 @@ import {
 } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
+import { getAllPublicSettings } from "@/lib/store-settings";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
@@ -73,16 +74,25 @@ export default async function ProductPage({ params }: Props) {
   const sale = salePercent(product.price, product.oldPrice);
 
   // Parallel I/O — no price-compare on secondary rails (faster PDP)
-  const [related, hitProducts] = await Promise.all([
+  const [related, hitProducts, settings] = await Promise.all([
     getRelatedProducts(product, 4),
     getProductsByFlag("hit", 4, { priceCompare: false }),
+    getAllPublicSettings(),
   ]);
   const boughtWith = hitProducts.filter((p) => p.id !== product.id);
   const siteUrl = getSiteUrl();
 
   return (
     <div className="container-shop py-6 sm:py-10">
-      <ProductJsonLd product={product} locale={loc} siteUrl={siteUrl} />
+      <ProductJsonLd
+        product={product}
+        locale={loc}
+        siteUrl={siteUrl}
+        delivery={settings.delivery}
+        // Seed/marketing rating fields are NOT real reviews — omit AggregateRating
+        // until a real review source exists (Google policy).
+        realReviews={null}
+      />
 
       <nav className="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted">
         <Link href="/" className="hover:text-accent">
