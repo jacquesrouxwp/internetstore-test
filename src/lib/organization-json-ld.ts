@@ -38,7 +38,7 @@ export function buildOrganizationJsonLd(input?: {
     .filter((u) => /^https?:\/\//i.test(u));
 
   // Deduplicate
-  const uniqueSameAs = [...new Set(sameAs)];
+  const uniqueSameAs = Array.from(new Set(sameAs));
 
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
