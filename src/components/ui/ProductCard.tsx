@@ -133,24 +133,24 @@ export function ProductCard({
               <span className="label-badge badge-hit">{t("top")}</span>
             ) : null}
           </div>
+
+          {/* Military badge on the PHOTO only (not whole card) — fixes green text over price on mobile */}
+          {!ultraTight ? (
+            <span
+              className={cn(
+                "pointer-events-none absolute bottom-2 left-2 z-[2] label-badge badge-military max-w-[calc(100%-1rem)] truncate",
+                tight ? "text-[9px] sm:text-[10px]" : "text-[10px] sm:text-[11px]",
+                "transition-all duration-250 ease-premium",
+                `${hoverDesk}:group-hover:pointer-events-none`,
+                `${hoverDesk}:group-hover:opacity-0`
+              )}
+              title={t("militaryBadgeHint")}
+            >
+              {t("militaryBadge")}
+            </span>
+          ) : null}
         </div>
       </Link>
-
-      {/* Outside product link — no nested <a>; bottom-left so it never stacks on sale/hit */}
-      {!ultraTight ? (
-        <Link
-          href="/about#military-support"
-          className={cn(
-            "absolute bottom-2 left-2 z-[25] label-badge badge-military max-w-[8.5rem] truncate transition hover:brightness-110",
-            tight && "text-[9px] sm:text-[10px]",
-            `${hoverDesk}:group-hover:pointer-events-none`,
-            `${hoverDesk}:group-hover:opacity-0`
-          )}
-          title={t("militaryBadgeHint")}
-        >
-          {t("militaryBadge")}
-        </Link>
-      ) : null}
 
       {/* Meta fades under photo hover; price plate is sibling (z-30) so popover stays opaque */}
       <div
