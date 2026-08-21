@@ -212,6 +212,7 @@ export async function buildSitemapEntries(
     "/about",
     "/delivery",
     "/warranty",
+    "/returns",
     "/contacts",
     "/blog",
   ];

@@ -178,7 +178,7 @@ describe("buildProductJsonLd", () => {
     });
   });
 
-  it("return policy is UA 14 days", () => {
+  it("return policy is UA 14 days and links to /returns", () => {
     const data = buildProductJsonLd({
       product: baseProduct(),
       locale: "ru",
@@ -188,5 +188,14 @@ describe("buildProductJsonLd", () => {
     const ret = offers.hasMerchantReturnPolicy as Record<string, unknown>;
     assert.equal(ret.applicableCountry, "UA");
     assert.equal(ret.merchantReturnDays, 14);
+    assert.equal(
+      ret.returnPolicyCategory,
+      "https://schema.org/MerchantReturnFiniteReturnWindow"
+    );
+    assert.equal(ret.returnMethod, "https://schema.org/ReturnByMail");
+    assert.equal(
+      ret.merchantReturnLink,
+      "https://pro-optics.com.ua/ru/returns"
+    );
   });
 });

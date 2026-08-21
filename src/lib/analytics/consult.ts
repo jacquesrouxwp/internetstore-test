@@ -12,6 +12,7 @@ export type ConsultSource =
   | "footer"
   | "header"
   | "catalog"
+  | "returns"
   | "other";
 
 export type ConsultTrackPayload = {

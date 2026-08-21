@@ -108,6 +108,11 @@ export async function Footer() {
                 {tn("warranty")}
               </Link>
             </li>
+            <li>
+              <Link href="/returns" className="hover:text-[var(--accent)]">
+                {tn("returns")}
+              </Link>
+            </li>
             {BLOG_NAV_ENABLED && (
               <li>
                 <Link href="/blog" className="hover:text-[var(--accent)]">

@@ -162,9 +162,9 @@ export function buildProductJsonLd(input: ProductJsonLdInput): Record<string, un
       merchantReturnDays: 14,
       returnMethod: "https://schema.org/ReturnByMail",
       returnFees: "https://schema.org/ReturnShippingFees",
-      // Domestic UA returns via Nova Poshta
+      // Domestic UA returns via Nova Poshta — policy page /returns
       merchantReturnLink: absoluteUrl(
-        locale === "ru" ? "/ru/warranty" : "/warranty"
+        locale === "ru" ? "/ru/returns" : "/returns"
       ),
     },
     shippingDetails: {
