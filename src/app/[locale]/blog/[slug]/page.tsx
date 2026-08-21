@@ -104,45 +104,48 @@ export default async function BlogPostPage({ params }: Props) {
         {backLabel}
       </Link>
 
-      <header className="mx-auto max-w-3xl">
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-          {post.category ? (
-            <span className="rounded-full bg-[rgba(225,29,42,0.16)] px-2.5 py-0.5 font-semibold uppercase tracking-wide text-[var(--accent)]">
-              {post.category}
-            </span>
+      {/* Same horizontal width for title / cover / body — image no wider than text */}
+      <div className="mx-auto max-w-3xl">
+        <header>
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+            {post.category ? (
+              <span className="rounded-full bg-[rgba(225,29,42,0.16)] px-2.5 py-0.5 font-semibold uppercase tracking-wide text-[var(--accent)]">
+                {post.category}
+              </span>
+            ) : null}
+            {date ? (
+              <time className="text-muted-ui" dateTime={post.publishedAt || ""}>
+                {date}
+              </time>
+            ) : null}
+          </div>
+          <h1 className="font-display text-3xl font-bold leading-tight tracking-tight text-primary sm:text-4xl">
+            {title}
+          </h1>
+          {postExcerpt(post, loc) ? (
+            <p className="mt-4 text-lg leading-relaxed text-secondary">
+              {postExcerpt(post, loc)}
+            </p>
           ) : null}
-          {date ? (
-            <time className="text-muted-ui" dateTime={post.publishedAt || ""}>
-              {date}
-            </time>
-          ) : null}
-        </div>
-        <h1 className="font-display text-3xl font-bold leading-tight tracking-tight text-primary sm:text-4xl">
-          {title}
-        </h1>
-        {postExcerpt(post, loc) ? (
-          <p className="mt-4 text-lg leading-relaxed text-secondary">
-            {postExcerpt(post, loc)}
-          </p>
-        ) : null}
-      </header>
+        </header>
 
-      {post.coverUrl ? (
-        <div className="mx-auto mt-8 max-w-4xl overflow-hidden rounded-[var(--radius-card)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={post.coverUrl}
-            alt=""
-            className="aspect-[21/9] w-full object-cover"
+        {post.coverUrl ? (
+          <div className="mt-8 overflow-hidden rounded-[var(--radius-card)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={post.coverUrl}
+              alt={title}
+              className="aspect-[16/9] w-full object-cover"
+            />
+          </div>
+        ) : null}
+
+        <div className="hero-glass mt-8 rounded-[var(--radius-card)] px-6 py-8 sm:px-10 sm:py-10">
+          <div
+            className="blog-prose space-y-4 text-[0.975rem] leading-relaxed text-secondary"
+            dangerouslySetInnerHTML={{ __html: bodyHtml }}
           />
         </div>
-      ) : null}
-
-      <div className="hero-glass mx-auto mt-8 max-w-3xl rounded-[var(--radius-card)] px-6 py-8 sm:px-10 sm:py-10">
-        <div
-          className="blog-prose space-y-4 text-[0.975rem] leading-relaxed text-secondary"
-          dangerouslySetInnerHTML={{ __html: bodyHtml }}
-        />
       </div>
 
       {related.length > 0 && (
