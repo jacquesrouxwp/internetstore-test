@@ -30,6 +30,27 @@ export function postExcerpt(p: BlogPost, locale: string): string {
   return e || "";
 }
 
+/**
+ * Card/hero teaser: excerpt, or first plain-text sentences from body.
+ * Keeps enough copy to fill the card and invite a click.
+ */
+export function postTeaser(
+  p: BlogPost,
+  locale: string,
+  maxChars = 280
+): string {
+  const fromExcerpt = postExcerpt(p, locale).trim();
+  const plain = stripHtml(postBody(p, locale));
+  const source =
+    fromExcerpt.length >= 40 ? fromExcerpt : plain || fromExcerpt;
+  if (!source) return "";
+  if (source.length <= maxChars) return source;
+  const cut = source.slice(0, maxChars);
+  const lastSpace = cut.lastIndexOf(" ");
+  const trimmed = (lastSpace > 80 ? cut.slice(0, lastSpace) : cut).trim();
+  return trimmed.replace(/[.,;:!?…]*$/, "") + "…";
+}
+
 export function postBody(p: BlogPost, locale: string): string {
   return locale === "ru"
     ? p.bodyRu || p.bodyUk || ""
