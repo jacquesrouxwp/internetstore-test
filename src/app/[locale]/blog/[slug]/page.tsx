@@ -213,6 +213,32 @@ export default async function BlogPostPage({ params }: Props) {
           font-style: italic;
         }
         .blog-prose img { max-width: 100%; border-radius: 0.75rem; margin: 1rem 0; }
+        .blog-prose video {
+          display: block;
+          width: 100%;
+          max-width: 100%;
+          border-radius: 0.75rem;
+          margin: 1rem 0;
+          background: #0a0b0e;
+        }
+        .blog-prose table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1rem 0 1.25rem;
+          font-size: 0.9rem;
+        }
+        .blog-prose th, .blog-prose td {
+          border: 1px solid rgba(255,255,255,0.1);
+          padding: 0.55rem 0.75rem;
+          text-align: left;
+          vertical-align: top;
+        }
+        .blog-prose th {
+          background: rgba(225,29,42,0.12);
+          color: var(--text-primary);
+          font-weight: 600;
+        }
+        .blog-prose tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
         .blog-prose strong { color: var(--text-primary); }
       `,
         }}
