@@ -113,7 +113,7 @@ export default async function BlogPage({ params, searchParams }: Props) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={p.coverUrl}
-                      alt=""
+                      alt={postTitle(p, loc)}
                       className="aspect-[16/10] w-full object-cover"
                     />
                   ) : (

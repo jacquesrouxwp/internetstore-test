@@ -8,7 +8,6 @@ import {
   ShoppingCart,
   Phone,
   X,
-  ScanEye,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { useEffect, useRef, useState } from "react";
@@ -20,11 +19,10 @@ import { SiteLogo } from "@/components/layout/SiteLogo";
 import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
 import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 
-// Feature flag: thermal simulator ("Пісочниця DRI") temporarily disabled
-// site-wide (kept in code, not removed, per owner request 2026-08-01).
+/** Simulator entry: nav item only (no separate header CTA). */
 const SIMULATOR_LINK_ENABLED = true;
-/** Temporarily hide blog in top nav (routes still exist). */
-const BLOG_NAV_ENABLED = false;
+/** Blog in top / mobile nav for SEO internal linking. */
+const BLOG_NAV_ENABLED = true;
 
 export function Header({
   categories,
@@ -165,16 +163,6 @@ export function Header({
           </form>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            {SIMULATOR_LINK_ENABLED && (
-              <Link
-                href="/simulator"
-                className="inline-flex items-center gap-1.5 rounded-[10px] border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-2.5 py-2 text-xs font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] sm:px-3 sm:text-sm"
-                title={t("simulator")}
-              >
-                <ScanEye className="h-4 w-4 shrink-0 text-[var(--accent)]" strokeWidth={2.25} />
-                <span className="hidden sm:inline">{t("simulator")}</span>
-              </Link>
-            )}
             <Link
               href="/cart"
               className="relative inline-flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium text-primary transition"

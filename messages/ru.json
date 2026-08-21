@@ -9,12 +9,12 @@
     "catalog": "Каталог",
     "thermal": "Тепловизоры",
     "scopes": "Прицелы",
-    "simulator": "Песочница DRI",
+    "simulator": "Симулятор тепловизора",
     "about": "О нас",
     "delivery": "Доставка и оплата",
     "warranty": "Сервис",
     "contacts": "Контакты",
-    "blog": "Новости",
+    "blog": "Статьи",
     "cart": "Корзина",
     "checkout": "Оформление",
     "searchPlaceholder": "Я ищу, например, pulsar helion",
@@ -71,7 +71,11 @@
     "why3": "Консультация экспертов",
     "why4": "Оплата онлайн или при получении",
     "reviews": "Последние отзывы",
-    "viewAll": "Смотреть все"
+    "viewAll": "Смотреть все",
+    "articlesTitle": "Статьи и советы",
+    "articlesReadMore": "Читать далее →",
+    "articlesViewAll": "Все статьи →",
+    "articlesEmpty": "Скоро здесь появятся статьи."
   },
   "catalog": {
     "title": "Каталог",

@@ -1,4 +1,3 @@
-import { getLocale } from "next-intl/server";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { getBrands } from "@/lib/catalog";
 import {
@@ -8,12 +7,9 @@ import {
 
 /**
  * Hero: pitch + marquee.
- * Desktop: live thermal sim in right column (no carousel).
- * Mobile: side tab → /simulator.
+ * Simulator entry points: nav «Симулятор тепловізора» → /simulator, product pages.
  */
 export async function Hero() {
-  const locale = await getLocale();
-  void locale;
   const allBrands = await getBrands();
   const brands = sortBrandsByPriority(visibleBrandGridBrands(allBrands));
   return <HeroCarousel brands={brands} />;
