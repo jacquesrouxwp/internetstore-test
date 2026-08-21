@@ -30,27 +30,6 @@ export function postExcerpt(p: BlogPost, locale: string): string {
   return e || "";
 }
 
-/**
- * Card/hero teaser: excerpt, or first plain-text sentences from body.
- * Keeps enough copy to fill the card and invite a click.
- */
-export function postTeaser(
-  p: BlogPost,
-  locale: string,
-  maxChars = 280
-): string {
-  const fromExcerpt = postExcerpt(p, locale).trim();
-  const plain = stripHtml(postBody(p, locale));
-  const source =
-    fromExcerpt.length >= 40 ? fromExcerpt : plain || fromExcerpt;
-  if (!source) return "";
-  if (source.length <= maxChars) return source;
-  const cut = source.slice(0, maxChars);
-  const lastSpace = cut.lastIndexOf(" ");
-  const trimmed = (lastSpace > 80 ? cut.slice(0, lastSpace) : cut).trim();
-  return trimmed.replace(/[.,;:!?…]*$/, "") + "…";
-}
-
 export function postBody(p: BlogPost, locale: string): string {
   return locale === "ru"
     ? p.bodyRu || p.bodyUk || ""
@@ -74,6 +53,41 @@ export function stripHtml(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * Prefer the first <p> of the article body (hook paragraph),
+ * then excerpt, then plain body start.
+ */
+export function postLeadParagraph(p: BlogPost, locale: string): string {
+  const html = postBody(p, locale);
+  if (html) {
+    const m = html.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
+    if (m?.[1]) {
+      const lead = stripHtml(m[1]);
+      if (lead.length >= 40) return lead;
+    }
+  }
+  const excerpt = postExcerpt(p, locale).trim();
+  if (excerpt) return excerpt;
+  return stripHtml(html);
+}
+
+/**
+ * Card/hero teaser — full lead paragraph, soft-trimmed only if huge.
+ */
+export function postTeaser(
+  p: BlogPost,
+  locale: string,
+  maxChars = 520
+): string {
+  const source = postLeadParagraph(p, locale).trim();
+  if (!source) return "";
+  if (source.length <= maxChars) return source;
+  const cut = source.slice(0, maxChars);
+  const lastSpace = cut.lastIndexOf(" ");
+  const trimmed = (lastSpace > 120 ? cut.slice(0, lastSpace) : cut).trim();
+  return trimmed.replace(/[.,;:!?…]*$/, "") + "…";
 }
 
 export function mapDbPost(row: Record<string, unknown>): BlogPost {

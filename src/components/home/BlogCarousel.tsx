@@ -59,7 +59,8 @@ export function BlogCarousel({
 
   const post = posts[i];
   const title = postTitle(post, locale);
-  const teaser = postTeaser(post, locale, 320);
+  // Full first paragraph of the article (hook), not the short meta excerpt
+  const teaser = postTeaser(post, locale, 600);
   const date = post.publishedAt
     ? new Date(post.publishedAt).toLocaleDateString(
         locale === "ru" ? "ru-UA" : "uk-UA"
@@ -73,18 +74,18 @@ export function BlogCarousel({
       onMouseLeave={() => setPaused(false)}
     >
       {post.coverUrl ? (
-        <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden sm:aspect-[2/1]">
+        <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden sm:aspect-[2.2/1]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={post.coverUrl}
             alt={title}
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[rgba(12,14,20,0.92)] via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[rgba(12,14,20,0.88)] via-[rgba(12,14,20,0.15)] to-transparent" />
         </div>
       ) : (
         <div
-          className="aspect-[16/10] w-full shrink-0 sm:aspect-[2/1]"
+          className="aspect-[16/9] w-full shrink-0 sm:aspect-[2.2/1]"
           style={{
             background:
               "linear-gradient(135deg, rgba(225,29,42,0.25), rgba(18,20,26,0.9))",
@@ -92,7 +93,7 @@ export function BlogCarousel({
         />
       )}
 
-      <div className="flex flex-1 flex-col px-5 pb-5 pt-3.5 sm:px-6 sm:pb-6 sm:pt-4">
+      <div className="flex min-h-0 flex-1 flex-col px-5 pb-5 pt-3.5 sm:px-6 sm:pb-6 sm:pt-4">
         <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
           {post.category ? (
             <span className="rounded-full bg-[rgba(225,29,42,0.18)] px-2 py-0.5 font-semibold uppercase tracking-wide text-[var(--accent)]">
@@ -106,7 +107,7 @@ export function BlogCarousel({
           ) : null}
         </div>
 
-        <h2 className="font-display text-lg font-bold leading-snug tracking-tight text-primary sm:text-xl">
+        <h2 className="font-display text-lg font-bold leading-snug tracking-tight text-primary sm:text-[1.35rem] sm:leading-snug">
           <Link
             href={`/blog/${post.slug}`}
             className="hover:text-[var(--accent)]"
@@ -116,30 +117,30 @@ export function BlogCarousel({
         </h2>
 
         {teaser ? (
-          <p className="mt-2.5 flex-1 text-sm leading-relaxed text-secondary sm:mt-3 sm:text-[0.9375rem] sm:leading-[1.55] line-clamp-5 sm:line-clamp-6">
+          <p className="mt-3 flex-1 text-[0.875rem] leading-[1.6] text-secondary sm:mt-3.5 sm:text-[0.95rem] sm:leading-[1.65]">
             {teaser}
           </p>
         ) : (
           <div className="flex-1" />
         )}
 
-        <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/[0.08] pt-3.5">
+        <div className="mt-5 flex shrink-0 items-center justify-between gap-3 border-t border-white/[0.08] pt-4">
           <Link
             href={`/blog/${post.slug}`}
-            className="text-sm font-semibold text-[var(--accent)] hover:underline"
+            className="inline-flex items-center rounded-lg bg-[rgba(225,29,42,0.14)] px-3.5 py-2 text-sm font-semibold text-[var(--accent)] transition hover:bg-[rgba(225,29,42,0.22)]"
           >
             {locale === "ru" ? "Читать далее →" : "Читати далі →"}
           </Link>
           <Link
             href="/blog"
-            className="text-xs font-medium text-muted-ui hover:text-primary"
+            className="text-xs font-medium text-muted-ui transition hover:text-primary"
           >
             {locale === "ru" ? "Все статьи →" : "Всі статті →"}
           </Link>
         </div>
 
         {n > 1 && (
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex shrink-0 items-center justify-between">
             <div className="flex gap-1.5">
               {posts.map((_, idx) => (
                 <button
