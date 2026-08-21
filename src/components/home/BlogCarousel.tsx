@@ -77,7 +77,7 @@ export function BlogCarousel({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={post.coverUrl}
-            alt=""
+            alt={title}
             className="h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[rgba(12,14,20,0.92)] via-transparent to-transparent" />

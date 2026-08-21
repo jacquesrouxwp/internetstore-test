@@ -1,5 +1,4 @@
 import { Hero } from "@/components/home/Hero";
-import { HomeBlogSection } from "@/components/home/HomeBlogSection";
 import { ProductRail } from "@/components/ui/ProductRail";
 import { BrandGrid } from "@/components/ui/BrandGrid";
 import {
@@ -7,12 +6,11 @@ import {
   getReviews,
   getBrands,
 } from "@/lib/catalog";
-import { listPublishedPosts } from "@/lib/blog/repo";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star } from "lucide-react";
 import { visibleBrandGridBrands } from "@/lib/brand-priority";
 
-/** Refresh catalog rails + blog block periodically */
+/** Refresh catalog rails periodically */
 export const revalidate = 60;
 
 export default async function HomePage({
@@ -25,28 +23,18 @@ export default async function HomePage({
   const t = await getTranslations("home");
   const tc = await getTranslations("catalog");
 
-  const [top, hits, news, sale, reviews, brands, blog] = await Promise.all([
+  const [top, hits, news, sale, reviews, brands] = await Promise.all([
     getProductsByFlag("top", 8),
     getProductsByFlag("hit", 8),
     getProductsByFlag("new", 8),
     getProductsByFlag("sale", 8),
     Promise.resolve(getReviews()),
     getBrands(),
-    listPublishedPosts({ limit: 4, page: 1 }),
   ]);
 
   return (
     <>
       <Hero />
-
-      <HomeBlogSection
-        posts={blog.posts}
-        locale={locale}
-        title={t("articlesTitle")}
-        readMore={t("articlesReadMore")}
-        viewAll={t("articlesViewAll")}
-        emptyHint={t("articlesEmpty")}
-      />
 
       <ProductRail
         title={t("bestsellers")}
