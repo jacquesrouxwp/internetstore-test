@@ -200,7 +200,7 @@ export function HeroCarousel({ brands, posts = [] }: Props) {
               Professional Optics · Ukraine
             </p>
 
-            <h1 className="hero-mobile__title font-display font-bold tracking-tight text-primary sm:hidden">
+            <h1 className="hero-mobile__title font-display font-bold tracking-tight text-primary sm:hidden break-words hyphens-auto">
               {t("heroTitleMobile")}
             </h1>
             <h1 className="hidden font-display text-3xl font-bold leading-[1.15] tracking-tight text-primary sm:block lg:text-[2.15rem]">
@@ -283,8 +283,8 @@ export function HeroCarousel({ brands, posts = [] }: Props) {
             />
           </div>
 
-          {/* Featured article — same square column as old simulator */}
-          <div className="relative min-h-0">
+          {/* Featured article — desktop only (mobile: header «Статті» button → /blog) */}
+          <div className="relative hidden min-h-0 lg:block">
             <BlogCarousel posts={posts} locale={locale} />
           </div>
         </div>

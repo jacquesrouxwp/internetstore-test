@@ -856,9 +856,12 @@ body {
     }
 
     .hero-mobile__title {
-      font-size: 1.125rem !important;
-      line-height: 1.22 !important;
+      font-size: 1.05rem !important;
+      line-height: 1.28 !important;
       margin: 0;
+      overflow: visible;
+      max-width: 100%;
+      word-break: break-word;
     }
 
     .hero-mobile__sub {

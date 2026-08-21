@@ -9,6 +9,7 @@ import {
   Phone,
   X,
   ScanEye,
+  BookOpen,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { useEffect, useRef, useState } from "react";
@@ -163,12 +164,27 @@ export function Header({
             </button>
           </form>
 
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+            {BLOG_NAV_ENABLED && (
+              <Link
+                href="/blog"
+                className="inline-flex items-center gap-1.5 rounded-[10px] border border-white/20 bg-white/[0.04] px-2.5 py-2 text-xs font-bold tracking-wide text-primary transition hover:border-[var(--accent)]/40 hover:bg-white/[0.08] sm:px-3 sm:text-sm"
+                title={t("blog")}
+                aria-label={t("blog")}
+              >
+                <BookOpen
+                  className="h-4 w-4 shrink-0 text-[var(--accent)]"
+                  strokeWidth={2.25}
+                />
+                <span className="hidden sm:inline">{t("blog")}</span>
+              </Link>
+            )}
             {SIMULATOR_LINK_ENABLED && (
               <Link
                 href="/simulator"
                 className="inline-flex items-center gap-1.5 rounded-[10px] border-2 border-[var(--accent)] bg-[rgba(225,29,42,0.12)] px-2.5 py-2 text-xs font-bold tracking-wide text-primary transition hover:bg-[rgba(225,29,42,0.22)] sm:px-3 sm:text-sm"
                 title={t("simulator")}
+                aria-label={t("simulator")}
               >
                 <ScanEye
                   className="h-4 w-4 shrink-0 text-[var(--accent)]"
