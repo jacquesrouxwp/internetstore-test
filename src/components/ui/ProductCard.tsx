@@ -4,7 +4,12 @@ import { Link } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
 import { ScanEye, ShoppingCart, Star } from "lucide-react";
 import type { Product } from "@/types";
-import { productName, productShort, salePercent } from "@/types";
+import {
+  productCardTitle,
+  productName,
+  productShort,
+  salePercent,
+} from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-store";
 import { useContext, useState } from "react";
@@ -46,6 +51,7 @@ export function ProductCard({
   const [toast, setToast] = useState(false);
   const sale = salePercent(product.price, product.oldPrice);
   const name = productName(product, locale);
+  const cardTitle = productCardTitle(product, locale);
   const short = productShort(product, locale);
   const layoutMode = useContext(LayoutModeContext);
   /** 6-up → slightly tighter cards */
@@ -80,7 +86,7 @@ export function ProductCard({
           `${hoverDesk}:group-hover:absolute ${hoverDesk}:group-hover:inset-0`,
           `${hoverDesk}:group-hover:z-20 ${hoverDesk}:group-hover:aspect-auto ${hoverDesk}:group-hover:h-full`
         )}
-        aria-label={name}
+        aria-label={cardTitle}
       >
         <div className="photo-plate relative h-full w-full">
           {product.images[0] ? (
@@ -186,7 +192,7 @@ export function ProductCard({
                   : "min-h-[2.5rem] text-sm"
             )}
           >
-            {name}
+            {cardTitle}
           </h3>
         </Link>
         {short && !compact && !tight && (

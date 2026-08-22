@@ -191,6 +191,74 @@ export function productName(p: Product, locale: Locale): string {
   return locale === "ru" ? p.nameRu : p.nameUk;
 }
 
+/**
+ * Card/list title: put brand+model first, device type at the end.
+ * So line-clamp shows the model, not only «Тепловізор…».
+ * Full `productName` stays for PDP / SEO / feeds.
+ */
+const DEVICE_TYPE_PREFIXES_UK = [
+  "тепловізійний бінокль",
+  "тепловізійний приціл",
+  "тепловізійна насадка",
+  "приціл нічного бачення",
+  "монокуляр нічного бачення",
+  "прилад нічного бачення",
+  "нічна насадка на оптичний приціл",
+  "нічна насадка",
+  "біспектральний бінокуляр",
+  "мультиспектральний приціл",
+  "інфрачервоний ліхтар",
+  "тепловізор",
+  "монокуляр",
+  "бінокль",
+  "приціл",
+  "насадка",
+];
+
+const DEVICE_TYPE_PREFIXES_RU = [
+  "тепловизионный бинокль",
+  "тепловизионный прицел",
+  "тепловизионная насадка",
+  "прицел ночного видения",
+  "монокуляр ночного видения",
+  "прибор ночного видения",
+  "ночная насадка на оптический прицел",
+  "ночная насадка",
+  "биспектральный бинокуляр",
+  "мультиспектральный прицел",
+  "инфракрасный фонарь",
+  "тепловизор",
+  "монокуляр",
+  "бинокль",
+  "прицел",
+  "насадка",
+];
+
+export function formatProductCardTitle(fullName: string): string {
+  const raw = String(fullName || "").replace(/\s+/g, " ").trim();
+  if (!raw) return raw;
+  const lower = raw.toLowerCase();
+  const prefixes =
+    /[ыъё]|тепловизор|прицел|бинокль|ночного/i.test(raw)
+      ? DEVICE_TYPE_PREFIXES_RU
+      : DEVICE_TYPE_PREFIXES_UK;
+
+  for (const prefix of prefixes) {
+    if (!lower.startsWith(prefix)) continue;
+    // require boundary after prefix (space or end)
+    const after = raw.slice(prefix.length).trim();
+    if (!after) return raw;
+    // Keep original casing of the type word from the start of the name
+    const typeLabel = raw.slice(0, prefix.length).trim();
+    return `${after} — ${typeLabel}`;
+  }
+  return raw;
+}
+
+export function productCardTitle(p: Product, locale: Locale): string {
+  return formatProductCardTitle(productName(p, locale));
+}
+
 export function productShort(p: Product, locale: Locale): string {
   return (locale === "ru" ? p.shortRu : p.shortUk) || "";
 }
