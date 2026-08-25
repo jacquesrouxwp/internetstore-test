@@ -2,6 +2,7 @@ import { Hero } from "@/components/home/Hero";
 import { ProductRail } from "@/components/ui/ProductRail";
 import { BrandGrid } from "@/components/ui/BrandGrid";
 import {
+  getProductBySlug,
   getProductsByFlag,
   getReviews,
   getBrands,
@@ -9,9 +10,28 @@ import {
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star } from "lucide-react";
 import { visibleBrandGridBrands } from "@/lib/brand-priority";
+import {
+  dedupeRails,
+  RAIL_FETCH_MULTIPLIER,
+  uniqueById,
+} from "@/lib/home-rails";
 
 /** Refresh catalog rails periodically */
 export const revalidate = 60;
+
+const RAIL_SIZE = 8;
+
+/**
+ * Hand-picked models for the top of the homepage. Slugs, not flags, so the
+ * selection is explicit and cannot be shuffled by marketing flags on other
+ * products. Anything that fails to resolve is simply skipped.
+ */
+const FEATURED_SLUGS = [
+  "agm-teploviziynyy-prytsil-agm-rattler-v2-35-384-314204550205r331",
+  "agm-teploviziynyy-prytsil-agm-rattler-v2-19-256-314218550203r921",
+  "agm-prylad-nichnoho-bachennia-agm-pvs-7-nw1-pvs-7-nw1",
+  "agm-prylad-nichnoho-bachennia-agm-pvs-14-nw1-pvs-14-nw1",
+] as const;
 
 export default async function HomePage({
   params,
@@ -23,18 +43,40 @@ export default async function HomePage({
   const t = await getTranslations("home");
   const tc = await getTranslations("catalog");
 
-  const [top, hits, news, sale, reviews, brands] = await Promise.all([
-    getProductsByFlag("top", 8),
-    getProductsByFlag("hit", 8),
-    getProductsByFlag("new", 8),
-    getProductsByFlag("sale", 8),
-    Promise.resolve(getReviews()),
-    getBrands(),
-  ]);
+  // Over-fetch: a rail must still fill up after items claimed by earlier rails
+  // are dropped, otherwise de-duplication would leave gaps.
+  const fetchSize = RAIL_SIZE * RAIL_FETCH_MULTIPLIER;
+  const [topRaw, hitsRaw, newsRaw, saleRaw, reviews, brands, featuredRaw] =
+    await Promise.all([
+      getProductsByFlag("top", fetchSize),
+      getProductsByFlag("hit", fetchSize),
+      getProductsByFlag("new", fetchSize),
+      getProductsByFlag("sale", fetchSize),
+      Promise.resolve(getReviews()),
+      getBrands(),
+      Promise.all(FEATURED_SLUGS.map((s) => getProductBySlug(s))),
+    ]);
+
+  const featured = uniqueById(featuredRaw).filter((p) => p.published !== false);
+  // One product, one slot on the page — see home-rails.ts for the bug this fixes.
+  const [top, hits, news, sale] = dedupeRails(
+    [topRaw, hitsRaw, newsRaw, saleRaw],
+    RAIL_SIZE,
+    featured.map((p) => p.id)
+  );
 
   return (
     <>
       <Hero />
+
+      {featured.length > 0 && (
+        <ProductRail
+          title={t("featured")}
+          products={featured}
+          href="/catalog/teplovizori"
+          viewAllLabel={t("viewAll")}
+        />
+      )}
 
       <ProductRail
         title={t("bestsellers")}
