@@ -85,7 +85,7 @@ let skipped = 0;
 for (const [seedSlug, keepSlug] of PAIRS) {
   const { data: rows, error } = await sb
     .from("products")
-    .select("id, slug, published")
+    .select("id, slug, published, is_top, is_hit, is_new, is_sale")
     .in("slug", [seedSlug, keepSlug]);
 
   if (error) {
@@ -124,6 +124,22 @@ for (const [seedSlug, keepSlug] of PAIRS) {
     continue;
   }
 
+  // Move marketing flags from seed → keep so homepage rails stay filled
+  const flagPatch = {
+    is_top: Boolean(keep.is_top || seed.is_top),
+    is_hit: Boolean(keep.is_hit || seed.is_hit),
+    is_new: Boolean(keep.is_new || seed.is_new),
+    is_sale: Boolean(keep.is_sale || seed.is_sale),
+    updated_at: new Date().toISOString(),
+  };
+  const { error: keepErr } = await sb
+    .from("products")
+    .update(flagPatch)
+    .eq("id", keep.id);
+  if (keepErr) {
+    console.log(`ERROR  flag-transfer ${keepSlug}: ${keepErr.message}`);
+  }
+
   const { error: upErr } = await sb
     .from("products")
     .update({
@@ -131,6 +147,7 @@ for (const [seedSlug, keepSlug] of PAIRS) {
       is_top: false,
       is_hit: false,
       is_new: false,
+      is_sale: false,
       updated_at: new Date().toISOString(),
     })
     .eq("id", seed.id);
@@ -139,7 +156,7 @@ for (const [seedSlug, keepSlug] of PAIRS) {
     console.log(`ERROR  ${seedSlug}: ${upErr.message}`);
     skipped++;
   } else {
-    console.log(`DONE   unpublished ${seedSlug}`);
+    console.log(`DONE   unpublished ${seedSlug} → flags on ${keepSlug}`);
     retired++;
   }
 }
