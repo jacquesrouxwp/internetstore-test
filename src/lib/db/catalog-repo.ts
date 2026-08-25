@@ -134,10 +134,40 @@ export async function dbGetCatalog(
       if (conds) query = query.or(conds);
     }
     if (filters.q) {
-      const q = filters.q.replace(/%/g, "");
-      query = query.or(
-        `name_uk.ilike.%${q}%,name_ru.ilike.%${q}%,sku.ilike.%${q}%`
-      );
+      // Global text search across ALL categories: name, SKU, slug, brand
+      const raw = filters.q.replace(/[%_,()]/g, " ").trim();
+      const tokens = raw
+        .split(/\s+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 2)
+        .slice(0, 6);
+      const terms = tokens.length ? tokens : raw ? [raw] : [];
+
+      // Brand match only for single-token queries ("pulsar", "hikmicro")
+      // so multi-word "pulsar merger" still requires "merger" in the name/slug.
+      let brandIdsFromQ: string[] = [];
+      if (terms.length === 1) {
+        const t = terms[0];
+        const { data: brandHits } = await supabase
+          .from("brands")
+          .select("id")
+          .or(`name.ilike.%${t}%,slug.ilike.%${t}%`);
+        brandIdsFromQ = (brandHits || []).map((b) => String(b.id));
+      }
+
+      // AND across tokens: each must hit name / sku / slug (or brand if 1 token)
+      for (const t of terms) {
+        const parts = [
+          `name_uk.ilike.%${t}%`,
+          `name_ru.ilike.%${t}%`,
+          `sku.ilike.%${t}%`,
+          `slug.ilike.%${t}%`,
+        ];
+        if (brandIdsFromQ.length) {
+          parts.push(`brand_id.in.(${brandIdsFromQ.join(",")})`);
+        }
+        query = query.or(parts.join(","));
+      }
     }
     if (filters.flags?.length) {
       for (const f of filters.flags) {
@@ -550,12 +580,26 @@ export async function getCatalogWithFallback(
   );
   if (categorySlug) list = list.filter((p) => p.categorySlug === categorySlug);
   if (filters.q) {
-    const q = filters.q.toLowerCase();
-    list = list.filter(
-      (p) =>
-        p.nameUk.toLowerCase().includes(q) ||
-        p.nameRu.toLowerCase().includes(q) ||
-        (p.sku || "").toLowerCase().includes(q)
+    const tokens = filters.q
+      .toLowerCase()
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 2);
+    const terms = tokens.length ? tokens : [filters.q.toLowerCase().trim()];
+    list = list.filter((p) =>
+      terms.every((t) => {
+        const hay = [
+          p.nameUk,
+          p.nameRu,
+          p.sku || "",
+          p.slug,
+          p.brandName || "",
+          p.brandSlug || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(t);
+      })
     );
   }
   if (filters.flags?.length) {

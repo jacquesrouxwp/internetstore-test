@@ -50,6 +50,23 @@ export function CatalogCategoryTabs({
         role="tablist"
         aria-label="Categories"
       >
+        {/* «Усі» chip when on global /search */}
+        {!currentSlug ? (
+          <Link
+            ref={activeRef}
+            href="/search"
+            prefetch
+            role="tab"
+            aria-selected
+            className={cn(
+              "shrink-0 rounded-full border px-3.5 py-2 text-[12px] font-semibold tracking-wide transition sm:px-4 sm:text-sm",
+              "whitespace-nowrap touch-manipulation",
+              "border-[var(--accent)] bg-[rgba(225,29,42,0.16)] text-primary shadow-[0_0_0_1px_rgba(225,29,42,0.25)]"
+            )}
+          >
+            {locale === "ru" ? "Все" : "Усі"}
+          </Link>
+        ) : null}
         {categories.map((c) => {
           const active = c.slug === currentSlug;
           const label = categoryName(c, locale);

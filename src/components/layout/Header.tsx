@@ -71,8 +71,11 @@ export function Header({
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
-    router.push(`/catalog/teplovizori${params}`);
+    const query = q.trim();
+    // Global search across all categories (not only тепловізори)
+    router.push(
+      query ? `/search?q=${encodeURIComponent(query)}` : "/search"
+    );
     setOpen(false);
   };
 
