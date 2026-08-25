@@ -13,6 +13,7 @@ import { visibleBrandGridBrands } from "@/lib/brand-priority";
 import {
   dedupeRails,
   RAIL_FETCH_MULTIPLIER,
+  railIsWorthShowing,
   uniqueById,
 } from "@/lib/home-rails";
 
@@ -78,31 +79,39 @@ export default async function HomePage({
         />
       )}
 
-      <ProductRail
-        title={t("bestsellers")}
-        products={top}
-        href="/catalog/teplovizori"
-        viewAllLabel={t("viewAll")}
-      />
+      {railIsWorthShowing(top) && (
+        <ProductRail
+          title={t("bestsellers")}
+          products={top}
+          href="/catalog/teplovizori"
+          viewAllLabel={t("viewAll")}
+        />
+      )}
 
-      <ProductRail
-        title={t("hits")}
-        products={hits}
-        href="/catalog/teplovizori"
-        viewAllLabel={t("viewAll")}
-      />
-      <ProductRail
-        title={t("new")}
-        products={news}
-        href="/catalog/teplovizori?sort=newest"
-        viewAllLabel={t("viewAll")}
-      />
-      <ProductRail
-        title={t("sale")}
-        products={sale}
-        href="/catalog/teplovizori"
-        viewAllLabel={t("viewAll")}
-      />
+      {railIsWorthShowing(hits) && (
+        <ProductRail
+          title={t("hits")}
+          products={hits}
+          href="/catalog/teplovizori"
+          viewAllLabel={t("viewAll")}
+        />
+      )}
+      {railIsWorthShowing(news) && (
+        <ProductRail
+          title={t("new")}
+          products={news}
+          href="/catalog/teplovizori?sort=newest"
+          viewAllLabel={t("viewAll")}
+        />
+      )}
+      {railIsWorthShowing(sale) && (
+        <ProductRail
+          title={t("sale")}
+          products={sale}
+          href="/catalog/teplovizori"
+          viewAllLabel={t("viewAll")}
+        />
+      )}
 
       <BrandGrid
         brands={visibleBrandGridBrands(brands)}

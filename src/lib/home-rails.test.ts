@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { dedupeRails, uniqueById } from "./home-rails";
+import { dedupeRails, railIsWorthShowing, uniqueById } from "./home-rails";
 
 const p = (id: string) => ({ id });
 const ids = (list: { id: string }[]) => list.map((x) => x.id);
@@ -74,5 +74,16 @@ describe("uniqueById", () => {
 
   it("drops repeats, keeping first order", () => {
     assert.deepEqual(ids(uniqueById([p("a"), p("b"), p("a")])), ["a", "b"]);
+  });
+});
+
+describe("railIsWorthShowing", () => {
+  it("hides a rail that would render as a broken row", () => {
+    assert.equal(railIsWorthShowing([p("a"), p("b")]), false);
+    assert.equal(railIsWorthShowing([]), false);
+  });
+
+  it("shows a rail once it has enough products", () => {
+    assert.equal(railIsWorthShowing([p("a"), p("b"), p("c")]), true);
   });
 });

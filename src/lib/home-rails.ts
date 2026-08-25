@@ -14,6 +14,18 @@
 /** Fetch this many per rail so a rail can still fill up after de-duplication. */
 export const RAIL_FETCH_MULTIPLIER = 3;
 
+/**
+ * Below this a rail reads as a broken row rather than a section, so it is
+ * dropped entirely. Only bites when a marketing flag is applied to very few
+ * products — flag more of them and the rail returns on its own.
+ */
+export const MIN_RAIL_SIZE = 3;
+
+/** True when a rail has enough products to be worth rendering. */
+export function railIsWorthShowing<T>(rail: T[]): boolean {
+  return rail.length >= MIN_RAIL_SIZE;
+}
+
 type HasId = { id: string };
 
 /**
