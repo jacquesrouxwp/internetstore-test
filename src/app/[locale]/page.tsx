@@ -20,18 +20,23 @@ import {
 /** Refresh catalog rails periodically */
 export const revalidate = 60;
 
-const RAIL_SIZE = 8;
+const RAIL_SIZE = 10;
 
 /**
  * Hand-picked models for the top of the homepage. Slugs, not flags, so the
  * selection is explicit and cannot be shuffled by marketing flags on other
  * products. Anything that fails to resolve is simply skipped.
+ * AGM-first showcase of popular Rattler / Adder / PVS / Asp.
  */
 const FEATURED_SLUGS = [
   "agm-teploviziynyy-prytsil-agm-rattler-v2-35-384-314204550205r331",
   "agm-teploviziynyy-prytsil-agm-rattler-v2-19-256-314218550203r921",
-  "agm-prylad-nichnoho-bachennia-agm-pvs-7-nw1-pvs-7-nw1",
+  "agm-teploviziynyy-prytsil-agm-rattler-v2-25-384-314204550204r231",
+  "agm-teploviziynyy-prytsil-agm-rattler-v2-35-640-314205550205r361",
+  "agm-teploviziynyy-prytsil-agm-adder-v2-35-384-agm-adder-v2-35-384",
   "agm-prylad-nichnoho-bachennia-agm-pvs-14-nw1-pvs-14-nw1",
+  "agm-prylad-nichnoho-bachennia-agm-pvs-7-nw1-pvs-7-nw1",
+  "agm-teplovizor-agm-asp-micro-tm160-tm160",
 ] as const;
 
 export default async function HomePage({
