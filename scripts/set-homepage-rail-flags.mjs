@@ -38,6 +38,8 @@ const sb = createClient(
 
 /** Bestsellers — flagship / mid-premium that move. Overlaps featured are fine (deduped on page). */
 const TOP = [
+  // Flagship first
+  "pulsar-teploviziynyy-binokl-pulsar-merger-lrf-xl50-merger-lrf-xl50",
   // AGM
   "agm-teploviziynyy-prytsil-agm-rattler-v2-50-640-314205550206r561",
   "agm-teploviziynyy-prytsil-agm-rattler-v3-lrf-35-640-ratt35-640-v3",
