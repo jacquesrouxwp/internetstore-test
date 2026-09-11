@@ -2,6 +2,7 @@ import { setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 import { absoluteUrl } from "@/lib/site-url";
+import { pageAlternates } from "@/lib/seo-alternates";
 import {
   STORE_PHONE_DISPLAY,
   STORE_PHONE_TEL,
@@ -21,9 +22,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : "Умови повернення та обміну в Pro-Optics: 14 днів для товару належної якості, брак за гарантією, оформлення через Нову Пошту. Тел. 063 789 76 99.";
   const path = isRu ? "/ru/returns" : "/returns";
   return {
-    title,
+    // `absolute`: the title already ends in "| Pro-Optics"; the root template
+    // would append it a second time.
+    title: { absolute: title },
     description,
-    alternates: { canonical: absoluteUrl(path) },
+    alternates: pageAlternates(locale, "/returns"),
     openGraph: { title, description, url: absoluteUrl(path) },
   };
 }

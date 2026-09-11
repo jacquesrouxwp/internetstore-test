@@ -2,8 +2,23 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 import { BrandMark } from "@/components/ui/BrandMark";
+import { pageAlternates } from "@/lib/seo-alternates";
 
-export const metadata: Metadata = { title: "Доставка і оплата" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const isRu = locale === "ru";
+  return {
+    title: isRu ? "Доставка и оплата" : "Доставка і оплата",
+    description: isRu
+      ? "Доставка Новой Почтой по всей Украине, оплата при получении или онлайн. Условия доставки и оплаты в Pro-Optics (Про Оптикс)."
+      : "Доставка Новою Поштою по всій Україні, оплата при отриманні або онлайн. Умови доставки та оплати в Pro-Optics (Про Оптікс).",
+    alternates: pageAlternates(locale, "/delivery"),
+  };
+}
 
 export default async function DeliveryPage({
   params,

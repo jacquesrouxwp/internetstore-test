@@ -10,6 +10,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { pageAlternates } from "@/lib/seo-alternates";
 
 // searchParams → dynamic render; taxonomy uses unstable_cache (120s).
 // Soft product freshness without full force-no-store (was killing catalog speed).
@@ -31,10 +32,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cat = await getCategoryBySlug(category);
   if (!cat) return { title: "Catalog" };
   const name = categoryName(cat, locale as "uk" | "ru");
+  const isRu = locale === "ru";
+  const description =
+    (isRu ? cat.descriptionRu : cat.descriptionUk) ||
+    (isRu
+      ? `${name} — купить в Pro-Optics (Про Оптикс). Консультация, доставка Новой Почтой по Украине, гарантия.`
+      : `${name} — купити в Pro-Optics (Про Оптікс). Консультація, доставка Новою Поштою по Україні, гарантія.`);
   return {
     title: name,
-    description:
-      (locale === "ru" ? cat.descriptionRu : cat.descriptionUk) || name,
+    description,
+    alternates: pageAlternates(locale, `/catalog/${category}`),
   };
 }
 

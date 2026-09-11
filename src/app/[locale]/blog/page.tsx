@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/routing";
+import { pageAlternates } from "@/lib/seo-alternates";
 import {
   listPostCategories,
   listPublishedPosts,
@@ -24,6 +25,7 @@ export async function generateMetadata({
     description: isRu
       ? "Статьи о тепловизорах, выборе оптики и сервисе Pro-Optics."
       : "Статті про тепловізори, вибір оптики та сервіс Pro-Optics.",
+    alternates: pageAlternates(locale, "/blog"),
   };
 }
 

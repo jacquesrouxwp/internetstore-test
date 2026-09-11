@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 import { absoluteUrl } from "@/lib/site-url";
+import { pageAlternates } from "@/lib/seo-alternates";
 import { Link } from "@/i18n/routing";
 import { Shield } from "lucide-react";
 
@@ -18,9 +19,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : "Pro-Optics: професійна оптика. Спеціальні умови та знижка для військовослужбовців ЗСУ, НГУ, ДПСУ та ТрО на тепловізори, ПНБ і приціли. Консультація та доставка по Україні.";
   const path = isRu ? "/ru/about" : "/about";
   return {
-    title,
+    // `absolute`: the title already ends in "| Pro-Optics"; the root template
+    // would append it a second time.
+    title: { absolute: title },
     description,
-    alternates: { canonical: absoluteUrl(path) },
+    alternates: pageAlternates(locale, "/about"),
     openGraph: { title, description, url: absoluteUrl(path) },
   };
 }

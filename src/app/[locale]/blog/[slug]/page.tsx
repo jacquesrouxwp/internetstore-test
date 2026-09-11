@@ -15,6 +15,7 @@ import {
   stripHtml,
 } from "@/lib/blog/types";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
+import { pageAlternates } from "@/lib/seo-alternates";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -33,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: url },
+    alternates: pageAlternates(locale, `/blog/${slug}`),
     openGraph: {
       title,
       description,

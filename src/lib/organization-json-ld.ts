@@ -88,7 +88,16 @@ export function buildOrganizationJsonLd(input?: {
     "@type": ["Organization", "LocalBusiness", "Store"],
     "@id": `${siteUrl}/#organization`,
     name,
-    alternateName: ["Pro Optics", "ProOptics", "Про-Оптікс"],
+    // Cyrillic spellings people actually type — Ukrainian (Оптікс) and the
+    // Russian "про оптикс", which previously appeared nowhere on the site.
+    alternateName: [
+      "Pro Optics",
+      "ProOptics",
+      "Про-Оптікс",
+      "Про Оптікс",
+      "Про Оптикс",
+      "Про-Оптикс",
+    ],
     url: siteUrl,
     logo: logoObject,
     image: [logoUrl, `${siteUrl}/icon-512.png`],

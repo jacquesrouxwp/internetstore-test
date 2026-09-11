@@ -1,8 +1,23 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
+import { pageAlternates } from "@/lib/seo-alternates";
 
-export const metadata: Metadata = { title: "Сервіс" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const isRu = locale === "ru";
+  return {
+    title: isRu ? "Сервис и гарантия" : "Сервіс і гарантія",
+    description: isRu
+      ? "Гарантия производителя, сервис и помощь с настройкой тепловизоров и прицелов в Pro-Optics (Про Оптикс)."
+      : "Гарантія виробника, сервіс і допомога з налаштуванням тепловізорів та прицілів у Pro-Optics (Про Оптікс).",
+    alternates: pageAlternates(locale, "/warranty"),
+  };
+}
 
 export default async function WarrantyPage({
   params,

@@ -3,8 +3,23 @@ import type { Metadata } from "next";
 import { Mail, Phone } from "lucide-react";
 import { InfoPage } from "@/components/layout/InfoPage";
 import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import { pageAlternates } from "@/lib/seo-alternates";
 
-export const metadata: Metadata = { title: "Контакти" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const isRu = locale === "ru";
+  return {
+    title: isRu ? "Контакты" : "Контакти",
+    description: isRu
+      ? `Контакты Pro-Optics (Про Оптикс): телефон ${STORE_PHONE_DISPLAY}, Telegram, Viber, WhatsApp. Консультация по тепловизорам и доставка по Украине.`
+      : `Контакти Pro-Optics (Про Оптікс): телефон ${STORE_PHONE_DISPLAY}, Telegram, Viber, WhatsApp. Консультація щодо тепловізорів і доставка по Україні.`,
+    alternates: pageAlternates(locale, "/contacts"),
+  };
+}
 
 export default async function ContactsPage({
   params,

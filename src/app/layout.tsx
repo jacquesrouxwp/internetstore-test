@@ -60,9 +60,11 @@ export const metadata: Metadata = {
       },
     ],
   },
-  alternates: {
-    canonical: siteUrl,
-  },
+  // No `alternates` here on purpose. Metadata merges down the tree, so a
+  // canonical set at the root was inherited by every page that did not
+  // override it — categories, delivery, warranty, blog and the /ru homepage
+  // all declared themselves duplicates of the homepage. Each localized page
+  // sets its own canonical + hreflang via pageAlternates().
 };
 
 export default function RootLayout({

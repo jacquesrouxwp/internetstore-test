@@ -1,5 +1,10 @@
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import type { Metadata } from "next";
+
+// Per-visitor state with no content worth ranking — keep it out of the index
+// (links are still followed).
+export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 export default async function CheckoutPage({
   params,

@@ -30,6 +30,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Star, Check, Package } from "lucide-react";
 import { buildSpecRows, groupSpecRows, SPEC_SECTION_ORDER } from "@/lib/product-specs";
+import { productMetaDescription } from "@/lib/product-meta";
+import { pageAlternates } from "@/lib/seo-alternates";
 // Live price/stock, and newly imported products must resolve immediately —
 // see the catalog page for the Data Cache problem this avoids.
 export const dynamic = "force-dynamic";
@@ -47,8 +49,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Product" };
-  const name = productName(product, locale as "uk" | "ru");
-  const desc = productShort(product, locale as "uk" | "ru") || name;
+  const loc = locale as "uk" | "ru";
+  const name = productName(product, loc);
+  const desc = productMetaDescription(product, name, loc);
   const path =
     locale === "ru" ? `/ru/product/${slug}` : `/product/${slug}`;
   const url = absoluteUrl(path);
@@ -64,7 +67,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: name,
     description: desc,
-    alternates: { canonical: url },
+    alternates: pageAlternates(locale, `/product/${slug}`),
     openGraph: {
       title: name,
       description: desc,

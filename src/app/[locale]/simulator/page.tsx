@@ -2,6 +2,7 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ThermalSandbox } from "@/components/simulator/ThermalSandbox";
+import { pageAlternates } from "@/lib/seo-alternates";
 
 // Feature flag: sandbox route disabled site-wide (kept in code, not
 // removed, per owner request 2026-08-01) -- 404s while off, even by direct URL.
@@ -19,6 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description: isRu
       ? "Приблизительная сцена: олень в лесу. Матрица, pitch, NETD, объектив → картинка и дальности DRI."
       : "Приблизна сцена: олень у лісі. Матриця, pitch, NETD, об'єктив → картинка і дальності DRI.",
+    alternates: pageAlternates(locale, "/simulator"),
   };
 }
 
