@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildSpecRows,
+  classifySpecKey,
+  groupSpecRows,
   isInternalSpecKey,
   stripInternalSpecs,
 } from "./product-specs";
@@ -101,5 +103,77 @@ describe("buildSpecRows — internal keys never reach the storefront", () => {
     assert.ok(values.includes("640x512"));
     assert.ok(values.includes("≤25 мК"));
     assert.ok(values.includes("1800"));
+  });
+});
+
+describe("classifySpecKey", () => {
+  it("routes matrix / optics / display / power / ops / LRF", () => {
+    assert.equal(classifySpecKey("Матриця"), "matrix");
+    assert.equal(classifySpecKey("NETD"), "matrix");
+    assert.equal(classifySpecKey("Частота"), "matrix");
+    assert.equal(classifySpecKey("Об'єктив, мм"), "optics");
+    assert.equal(classifySpecKey("Поле зрения"), "optics");
+    assert.equal(classifySpecKey("Тип дисплея"), "display");
+    assert.equal(classifySpecKey("Дальномер лазерный"), "rangefinder");
+    assert.equal(classifySpecKey("LRF range"), "rangefinder");
+    assert.equal(classifySpecKey("Вага, грам"), "ops");
+    assert.equal(classifySpecKey("Рівень захисту"), "ops");
+    assert.equal(classifySpecKey("Тип батареї"), "power");
+    assert.equal(classifySpecKey("Wi-Fi"), "features");
+    assert.equal(classifySpecKey("Комплектація"), "package");
+    assert.equal(classifySpecKey("Тип"), "main");
+    assert.equal(
+      classifySpecKey("Дальність виявлення людини, м"),
+      "main"
+    );
+  });
+});
+
+describe("groupSpecRows", () => {
+  it("splits into ordered non-empty sections", () => {
+    const rows = buildSpecRows(
+      {
+        Тип: "Приціл",
+        Матриця: "384x288",
+        NETD: "≤25 мК",
+        "Об'єктив": "35 мм",
+        Дисплей: "OLED",
+        "Дальномер лазерный": "так",
+        Вага: "650 г",
+        Живлення: "18650",
+        "Wi-Fi": "так",
+        Комплектація: "прилад, чохол",
+      },
+      { locale: "uk" }
+    );
+    const sections = groupSpecRows(rows);
+    const ids = sections.map((s) => s.id);
+    assert.deepEqual(ids, [
+      "main",
+      "matrix",
+      "optics",
+      "display",
+      "rangefinder",
+      "ops",
+      "power",
+      "features",
+      "package",
+    ]);
+    assert.ok(sections.every((s) => s.rows.length > 0));
+  });
+
+  it("keeps detection and recognition as separate main rows", () => {
+    const rows = buildSpecRows(
+      {
+        "Дальність виявлення людини, м": "1800",
+        "Дальність розпізнавання людини, м": "600",
+      },
+      { locale: "uk" }
+    );
+    assert.equal(rows.length, 2);
+    const sections = groupSpecRows(rows);
+    assert.equal(sections.length, 1);
+    assert.equal(sections[0].id, "main");
+    assert.equal(sections[0].rows.length, 2);
   });
 });

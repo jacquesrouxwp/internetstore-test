@@ -23,12 +23,13 @@ import { PriceCompareSection } from "@/components/product/PriceCompareSection";
 import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
 import { ProductDescriptionBody } from "@/components/product/ProductDescriptionBody";
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
+import { ProductSpecsGrouped } from "@/components/product/ProductSpecsGrouped";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Star, Check, Package } from "lucide-react";
-import { buildSpecRows } from "@/lib/product-specs";
+import { buildSpecRows, groupSpecRows, SPEC_SECTION_ORDER } from "@/lib/product-specs";
 // Live price/stock, and newly imported products must resolve immediately —
 // see the catalog page for the Data Cache problem this avoids.
 export const dynamic = "force-dynamic";
@@ -226,23 +227,19 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       <div className="mt-14 grid gap-8 lg:grid-cols-2">
-        <section className="product-panel">
-          <h2 className="product-panel__title">{t("specs")}</h2>
-          <table className="product-panel__specs">
-            <tbody>
-              {buildSpecRows(product.specs, {
-                locale: loc,
-                resolution: product.resolution,
-                detectionRangeM: product.detectionRangeM,
-              }).map((row) => (
-                <tr key={row.key}>
-                  <th>{row.label}</th>
-                  <td>{row.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <ProductSpecsGrouped
+          heading={t("specs")}
+          sections={groupSpecRows(
+            buildSpecRows(product.specs, {
+              locale: loc,
+              resolution: product.resolution,
+              detectionRangeM: product.detectionRangeM,
+            })
+          )}
+          titles={Object.fromEntries(
+            SPEC_SECTION_ORDER.map((id) => [id, t(`specSections.${id}`)])
+          )}
+        />
 
         <section className="product-panel">
           <h2 className="product-panel__title">{t("description")}</h2>

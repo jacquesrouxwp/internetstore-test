@@ -453,6 +453,42 @@ body {
     border-bottom: none;
   }
 
+  /* Grouped specs: always-open sections (matrix / optics / power / …) */
+  .product-specs-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+
+  .product-specs-section {
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius-card) - 2px);
+    background: rgba(8, 10, 14, 0.45);
+    overflow: hidden;
+  }
+
+  .product-specs-section__title {
+    margin: 0;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.9375rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: #f5f6f7;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .product-specs-section .product-panel__specs {
+    margin: 0;
+    padding: 0.15rem 0.9rem 0.35rem;
+  }
+
+  .product-specs-section .product-panel__specs th,
+  .product-specs-section .product-panel__specs td {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+
   .input {
     width: 100%;
     border-radius: var(--radius-btn);

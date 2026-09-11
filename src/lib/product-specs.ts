@@ -1,8 +1,43 @@
 /**
- * Localize + de-duplicate product characteristic labels for PDP.
+ * Localize + de-duplicate product characteristic labels for PDP,
+ * then group into readable sections (matrix / optics / power / …).
  */
 
-export type SpecRow = { key: string; label: string; value: string };
+export type SpecRow = {
+  key: string;
+  label: string;
+  value: string;
+  /** Original specs key before canonical collapse — used for section routing. */
+  sourceKey?: string;
+};
+
+export type SpecSectionId =
+  | "main"
+  | "matrix"
+  | "optics"
+  | "display"
+  | "rangefinder"
+  | "ops"
+  | "power"
+  | "features"
+  | "package";
+
+export type SpecSection = {
+  id: SpecSectionId;
+  rows: SpecRow[];
+};
+
+export const SPEC_SECTION_ORDER: SpecSectionId[] = [
+  "main",
+  "matrix",
+  "optics",
+  "display",
+  "rangefinder",
+  "ops",
+  "power",
+  "features",
+  "package",
+];
 
 /**
  * Keys the storefront must never render: anything underscore-prefixed is
@@ -94,23 +129,226 @@ const LABEL_MAP: Record<string, { uk: string; ru: string }> = {
   },
 };
 
-/** Normalize key for dedupe (detection / matrix variants collapse) */
+/** Normalize key for dedupe (near-duplicate labels collapse) */
 function canonicalGroup(raw: string): string {
   const k = raw.trim().toLowerCase();
+  // Keep detection vs recognition as separate rows (both go into "main").
   if (
-    k.includes("дальн") ||
-    k.includes("detection") ||
+    k.includes("розпізн") ||
+    k.includes("распозн") ||
+    k.includes("recognition")
+  ) {
+    return "recognition";
+  }
+  if (
     k.includes("виявлен") ||
-    k.includes("обнаруж")
+    k.includes("обнаруж") ||
+    k.includes("detection") ||
+    (k.includes("дальн") && !k.includes("далекомір") && !k.includes("дальномер"))
   ) {
     return "detection";
   }
   if (k.includes("матриц") || k === "resolution") return "matrix";
-  if (k.includes("захист") || k.includes("защит") || k.includes("ip"))
+  if (
+    k.includes("захист") ||
+    k.includes("защит") ||
+    /\bip\s*\d/i.test(k) ||
+    k === "ip"
+  ) {
     return "protection";
+  }
   if (k.includes("частот") || k.includes("hz") || k.includes("гц")) return "freq";
   if (k.includes("netd")) return "netd";
   return k;
+}
+
+/**
+ * Route a characteristic into a PDP section. Order of checks matters —
+ * more specific (LRF, battery, display) before broad (main).
+ */
+export function classifySpecKey(raw: string): SpecSectionId {
+  const k = raw.trim().toLowerCase();
+
+  if (
+    k.includes("комплектац") ||
+    k.includes("комплект постав") ||
+    k.includes("package") ||
+    k.includes("in the box") ||
+    k.includes("в комплект")
+  ) {
+    return "package";
+  }
+
+  if (
+    k.includes("далекомір") ||
+    k.includes("дальномер") ||
+    k.includes("rangefinder") ||
+    /\blrf\b/.test(k) ||
+    k.includes("лазер") ||
+    k.includes("точність вимірюван") ||
+    k.includes("точность измерен")
+  ) {
+    return "rangefinder";
+  }
+
+  if (
+    k.includes("диспле") ||
+    k.includes("display") ||
+    k.includes("палітр") ||
+    k.includes("палитр") ||
+    k.includes("amoled") ||
+    k.includes("oled") ||
+    k.includes("lcos")
+  ) {
+    return "display";
+  }
+
+  if (
+    k.includes("живлен") ||
+    k.includes("питан") ||
+    k.includes("батаре") ||
+    k.includes("акумулятор") ||
+    k.includes("аккумулятор") ||
+    k.includes("автоном") ||
+    k.includes("runtime") ||
+    k.includes("battery") ||
+    k.includes("ємність") ||
+    k.includes("емкость") ||
+    k.includes("powerbank") ||
+    k.includes("microusb") ||
+    k.includes("micro-usb") ||
+    /\busb\b/.test(k)
+  ) {
+    return "power";
+  }
+
+  if (
+    k.includes("wifi") ||
+    k.includes("wi-fi") ||
+    k.includes("wi‑fi") ||
+    k.includes("bluetooth") ||
+    k.includes("відеозапис") ||
+    k.includes("видеозапис") ||
+    k.includes("відео і фото") ||
+    k.includes("видео и фото") ||
+    k.includes("мікрофон") ||
+    k.includes("микрофон") ||
+    k.includes("гіроскоп") ||
+    k.includes("гироскоп") ||
+    k.includes("компас") ||
+    k.includes("recorder") ||
+    k.includes("балістичн") ||
+    k.includes("баллистич") ||
+    /\bpip\b/.test(k) ||
+    k.includes("picture-in-picture") ||
+    k.includes("функці") ||
+    k.includes("функци") ||
+    k.includes("фотозйом") ||
+    k.includes("фотосъем") ||
+    k.includes("запис фото") ||
+    k.includes("запись фото") ||
+    k.includes("відеовихід") ||
+    k.includes("видеовыход") ||
+    k.includes("microhdmi") ||
+    k.includes("microsd") ||
+    k.includes("пам’ят") ||
+    k.includes("пам'ят") ||
+    k.includes("памят")
+  ) {
+    return "features";
+  }
+
+  if (
+    k.includes("матриц") ||
+    k.includes("sensor") ||
+    k.includes("netd") ||
+    k.includes("pixel") ||
+    k.includes("pitch") ||
+    k.includes("піксел") ||
+    k.includes("пиксель") ||
+    k.includes("крок піксел") ||
+    k.includes("шаг пиксел") ||
+    k.includes("ядро") ||
+    k.includes("калібрув") ||
+    k.includes("калибров") ||
+    (k.includes("частот") && !k.includes("дискретиз")) ||
+    (k.includes("роздільн") && (k.includes("матриц") || k.includes("сенсор"))) ||
+    (k.includes("разрешен") && (k.includes("матриц") || k.includes("сенсор"))) ||
+    k === "resolution" ||
+    k === "частота"
+  ) {
+    return "matrix";
+  }
+
+  if (
+    k.includes("об'єктив") ||
+    k.includes("объектив") ||
+    k.includes("об єктив") || // broken apostrophe variants from donors
+    k.includes("об ектив") ||
+    k.includes("поле зору") ||
+    k.includes("поле зрения") ||
+    k.includes("кут поля") ||
+    k.includes("угол поля") ||
+    k.includes("збільшен") ||
+    k.includes("увеличен") ||
+    k.includes("magnif") ||
+    k.includes("фокус") ||
+    k.includes("діоптр") ||
+    k.includes("диоптр") ||
+    k.includes("зіниц") ||
+    k.includes("зрачк") ||
+    k.includes("окуляр") ||
+    k.includes("eye relief") ||
+    k.includes("zoom") ||
+    k.includes("оптичн") ||
+    k.includes("focal") ||
+    k.includes("світлосил") ||
+    k.includes("светосил") ||
+    k.includes("кратність") ||
+    k.includes("кратность")
+  ) {
+    return "optics";
+  }
+
+  if (
+    k.includes("температур") ||
+    k.includes("водозахист") ||
+    k.includes("водозащит") ||
+    k.includes("габарит") ||
+    k.includes("розмір") ||
+    k.includes("размер") ||
+    k.includes("вага") ||
+    k.includes("вес") ||
+    k.includes("weight") ||
+    k.includes("dimension") ||
+    k.includes("ударо") ||
+    k.includes("humidity") ||
+    k.includes("захист") ||
+    k.includes("защит") ||
+    k.includes("корпус") ||
+    k.includes("ip рейтинг") ||
+    k.includes("ip-рейтинг") ||
+    /\bip\b/.test(k)
+  ) {
+    return "ops";
+  }
+
+  // Type, detection/recognition ranges, mounts, warranty → main
+  return "main";
+}
+
+export function groupSpecRows(rows: SpecRow[]): SpecSection[] {
+  const buckets = new Map<SpecSectionId, SpecRow[]>();
+  for (const id of SPEC_SECTION_ORDER) buckets.set(id, []);
+
+  for (const row of rows) {
+    const id = classifySpecKey(row.sourceKey || row.label || row.key);
+    buckets.get(id)!.push(row);
+  }
+
+  return SPEC_SECTION_ORDER.filter((id) => (buckets.get(id)?.length || 0) > 0).map(
+    (id) => ({ id, rows: buckets.get(id)! })
+  );
 }
 
 function localizeLabel(raw: string, locale: string): string {
@@ -148,6 +386,7 @@ export function buildSpecRows(
       key: group,
       label: localizeLabel(rawKey, locale),
       value: value.trim(),
+      sourceKey: rawKey,
     });
   };
 
