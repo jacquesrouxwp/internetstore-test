@@ -11,6 +11,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { pageAlternates } from "@/lib/seo-alternates";
+import { catalogCanonicalPath, pageFromQuery } from "@/lib/pagination";
 
 // searchParams → dynamic render; taxonomy uses unstable_cache (120s).
 // Soft product freshness without full force-no-store (was killing catalog speed).
@@ -27,12 +28,25 @@ function paramList(v: string | string[] | undefined): string[] {
   return Array.isArray(v) ? v : [v];
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
   const { locale, category } = await params;
+  const sp = await searchParams;
   const cat = await getCategoryBySlug(category);
   if (!cat) return { title: "Catalog" };
-  const name = categoryName(cat, locale as "uk" | "ru");
+  const baseName = categoryName(cat, locale as "uk" | "ru");
   const isRu = locale === "ru";
+  const basePath = `/catalog/${category}`;
+  const canonicalPath = catalogCanonicalPath(basePath, sp);
+  // Deeper pages are now indexable in their own right, so they need distinct
+  // titles — identical titles across a sequence get flagged as duplicates.
+  const pageNum = canonicalPath === basePath ? 1 : pageFromQuery(sp);
+  const name =
+    pageNum > 1
+      ? `${baseName} — ${isRu ? "страница" : "сторінка"} ${pageNum}`
+      : baseName;
   const description =
     (isRu ? cat.descriptionRu : cat.descriptionUk) ||
     (isRu
@@ -41,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: name,
     description,
-    alternates: pageAlternates(locale, `/catalog/${category}`),
+    alternates: pageAlternates(locale, canonicalPath),
   };
 }
 
@@ -126,13 +140,13 @@ export default async function CatalogPage({ params, searchParams }: Props) {
             <CatalogProductGrid products={result.products} />
           )}
 
-          <Suspense fallback={null}>
-            <Pagination
-              page={result.page}
-              total={result.total}
-              limit={result.limit}
-            />
-          </Suspense>
+          <Pagination
+            page={result.page}
+            total={result.total}
+            limit={result.limit}
+            basePath={`/catalog/${category}`}
+            query={sp}
+          />
 
           <article
             className="mt-12 max-w-none pt-8 text-secondary"

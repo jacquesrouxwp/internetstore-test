@@ -127,13 +127,13 @@ export default async function SearchPage({ params, searchParams }: Props) {
               <CatalogProductGrid products={result.products} />
             )}
 
-            <Suspense fallback={null}>
-              <Pagination
-                page={result.page}
-                total={result.total}
-                limit={result.limit}
-              />
-            </Suspense>
+            <Pagination
+              page={result.page}
+              total={result.total}
+              limit={result.limit}
+              basePath="/search"
+              query={sp}
+            />
           </CatalogFiltersDrawer>
         </Suspense>
       )}
