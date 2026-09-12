@@ -21,7 +21,8 @@ type Props = {
   params: Promise<{ locale: string; slug: string }>;
 };
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;

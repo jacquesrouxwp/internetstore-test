@@ -20,7 +20,9 @@ import {
 import { pageAlternates } from "@/lib/seo-alternates";
 
 /** Refresh catalog rails periodically */
-export const revalidate = 60;
+// Blog shelf + rails read live Supabase — avoid stale ISR for new posts/products.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export async function generateMetadata({
   params,
