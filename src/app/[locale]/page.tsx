@@ -53,9 +53,10 @@ const RAIL_SIZE = 10;
  * Hand-picked models for the top of the homepage. Slugs, not flags, so the
  * selection is explicit and cannot be shuffled by marketing flags on other
  * products. Anything that fails to resolve is simply skipped.
- * Pulsar Merger XL50 first, then AGM Rattler / Adder / PVS / Asp.
+ * Leonardo DRS IWS first (unique offer), then Merger / AGM Rattler / Adder / PVS.
  */
 const FEATURED_SLUGS = [
+  "leonardo-drs-iws-teploviziynyy-monokuliar",
   "pulsar-teploviziynyy-binokl-pulsar-merger-lrf-xl50-merger-lrf-xl50",
   "agm-teploviziynyy-prytsil-agm-rattler-v2-35-384-314204550205r331",
   "agm-teploviziynyy-prytsil-agm-rattler-v2-19-256-314218550203r921",
