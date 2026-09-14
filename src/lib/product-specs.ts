@@ -129,6 +129,18 @@ const LABEL_MAP: Record<string, { uk: string; ru: string }> = {
   },
 };
 
+/** Donor mega-keys like "Матриця: пікселі, мкм, < NETD мК" — hide from UI. */
+function isPackedMatrixComboKey(raw: string): boolean {
+  const k = raw.trim().toLowerCase();
+  if (!k.includes("матриц")) return false;
+  const signals = [
+    k.includes("піксел") || k.includes("пиксель") || k.includes("pixel"),
+    k.includes("мкм") || k.includes("µm") || k.includes("um"),
+    k.includes("netd"),
+  ].filter(Boolean).length;
+  return signals >= 2 || (k.includes(",") && signals >= 1 && k.includes(":"));
+}
+
 /** Normalize key for dedupe (near-duplicate labels collapse) */
 function canonicalGroup(raw: string): string {
   const k = raw.trim().toLowerCase();
@@ -404,6 +416,9 @@ export function buildSpecRows(
     // Internal bookkeeping keys (import provenance etc.) are never shown to
     // shoppers -- they leaked onto live product pages, donor URL included.
     if (isInternalSpecKey(rawKey) || isTechnicalSpecKey(rawKey)) return;
+    // Donor sometimes packs resolution+pitch+NETD into one mega-key; skip it
+    // when we already (or will) show those as separate clean rows.
+    if (isPackedMatrixComboKey(rawKey)) return;
     const group = canonicalGroup(rawKey);
     if (seen.has(group)) return;
     seen.add(group);
