@@ -22,9 +22,9 @@ export function ProductSpecsGrouped({ sections, titles, heading }: Props) {
             </h3>
             <table className="product-panel__specs">
               <tbody>
-                {section.rows.map((row) => (
-                  <tr key={`${section.id}-${row.key}`}>
-                    <th>{row.label}</th>
+                {section.rows.map((row, i) => (
+                  <tr key={`${section.id}-${row.key}-${i}`}>
+                    <th scope="row">{row.label}</th>
                     <td>{row.value}</td>
                   </tr>
                 ))}
