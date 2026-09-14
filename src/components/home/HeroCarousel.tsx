@@ -25,6 +25,7 @@ import {
 } from "@/lib/contact";
 import { trackConsultClick } from "@/lib/analytics/consult";
 import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import type { Brand } from "@/types";
 import type { BlogPost } from "@/lib/blog/types";
 
@@ -44,20 +45,15 @@ function ConsultButton() {
   const wa = `${STORE_PHONE_WHATSAPP}?text=${CONSULT_MSG}`;
   const tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.body.setAttribute("data-scroll-lock", "true");
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      document.body.removeAttribute("data-scroll-lock");
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (
@@ -75,17 +71,22 @@ function ConsultButton() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4">
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4"
+          data-scroll-lock="true"
+        >
           <button
             type="button"
             className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
             aria-label={t("consultClose")}
             onClick={() => setOpen(false)}
+            style={{ touchAction: "none" }}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={t("heroSecondary")}
+            data-scroll-lock-allow
             className="relative z-10 w-full max-w-sm rounded-t-2xl border border-white/10 bg-[var(--surface-solid,#16181d)] p-5 shadow-2xl sm:rounded-2xl"
           >
             <div className="mb-4 flex items-start justify-between gap-3">

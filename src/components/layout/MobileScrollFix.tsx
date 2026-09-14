@@ -19,15 +19,18 @@ export function MobileScrollFix() {
         document.querySelector('[aria-modal="true"]') ||
         document.querySelector('[data-scroll-lock="true"]');
 
-      if (!modalOpen) {
-        if (body.style.overflow === "hidden") body.style.overflow = "";
-        if (html.style.overflow === "hidden") html.style.overflow = "";
-      }
+      // Never fight an intentional lock (burger / drawer / sheet)
+      if (modalOpen) return;
 
+      if (body.style.overflow === "hidden") body.style.overflow = "";
+      if (html.style.overflow === "hidden") html.style.overflow = "";
       body.style.removeProperty("touch-action");
       html.style.removeProperty("touch-action");
       body.style.removeProperty("position");
-      // Ensure vertical scroll is allowed
+      body.style.removeProperty("top");
+      body.style.removeProperty("left");
+      body.style.removeProperty("right");
+      body.style.removeProperty("width");
       if (html.style.overflowY === "hidden") html.style.overflowY = "";
       if (body.style.overflowY === "hidden") body.style.overflowY = "";
     };

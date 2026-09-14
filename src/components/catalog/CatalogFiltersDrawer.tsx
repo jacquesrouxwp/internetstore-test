@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 import { X, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CatalogFilters } from "@/components/catalog/CatalogFilters";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import type { Brand } from "@/types";
 
 type Props = {
@@ -45,17 +46,7 @@ export function CatalogFiltersDrawer({
     new URLSearchParams(searchParams.toString())
   );
 
-  // Lock body scroll when drawer open (mobile)
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.body.setAttribute("data-scroll-lock", "true");
-    return () => {
-      document.body.style.overflow = prev;
-      document.body.removeAttribute("data-scroll-lock");
-    };
-  }, [open]);
+  useBodyScrollLock(open);
 
   // Close on Escape
   useEffect(() => {
@@ -167,7 +158,11 @@ export function CatalogFiltersDrawer({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3">
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3"
+            data-scroll-lock-scroll
+            style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+          >
             <CatalogFilters
               brands={brands}
               detectionRangeBounds={detectionRangeBounds}

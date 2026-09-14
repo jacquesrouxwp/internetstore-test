@@ -20,6 +20,7 @@ import { categoryName } from "@/types";
 import { SiteLogo } from "@/components/layout/SiteLogo";
 import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
 import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
 /** Simulator in nav + header CTA next to cart. */
 const SIMULATOR_LINK_ENABLED = true;
@@ -48,17 +49,8 @@ export function Header({
 
   useEffect(() => setMounted(true), []);
 
-  // Lock page scroll while mobile drawer is open (and always restore on close)
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.body.setAttribute("data-scroll-lock", "true");
-    return () => {
-      document.body.style.overflow = prev;
-      document.body.removeAttribute("data-scroll-lock");
-    };
-  }, [open]);
+  // Freeze page behind burger — overflow:hidden alone fails on Redmi/iOS
+  useBodyScrollLock(open);
 
   const openCategoryMenu = (slug: string, el: HTMLElement) => {
     if (closeTimer.current) {
@@ -299,22 +291,31 @@ export function Header({
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-[60] md:hidden">
+        <div
+          className="fixed inset-0 z-[60] md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+          data-scroll-lock="true"
+        >
           <button
             type="button"
             className="absolute inset-0 bg-black/60"
             onClick={() => setOpen(false)}
             aria-label="Close"
+            // Backdrop must not scroll the page underneath
+            style={{ touchAction: "none" }}
           />
           <div
-            className="absolute right-0 top-0 flex h-full w-[min(100%,320px)] flex-col shadow-lift"
+            className="absolute right-0 top-0 flex h-full max-h-[100dvh] w-[min(100%,320px)] flex-col shadow-lift"
             style={{
               background: "var(--surface-solid)",
               borderLeft: "1px solid var(--border)",
+              overscrollBehavior: "contain",
             }}
           >
             <div
-              className="flex items-center justify-between px-4 py-3 text-primary"
+              className="flex shrink-0 items-center justify-between px-4 py-3 text-primary"
               style={{ borderBottom: "1px solid var(--border)" }}
             >
               <span className="font-semibold">Menu</span>
@@ -324,7 +325,7 @@ export function Header({
             </div>
             <form
               onSubmit={onSearch}
-              className="search-field p-4"
+              className="search-field shrink-0 p-4"
               style={{ borderBottom: "1px solid var(--border)" }}
             >
               <input
@@ -343,7 +344,12 @@ export function Header({
                 <Search className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.25} />
               </button>
             </form>
-            <ul className="flex-1 overflow-y-auto p-2">
+            {/* Only this list scrolls; page behind stays frozen */}
+            <ul
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+              data-scroll-lock-scroll
+              style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
+            >
               {categories.map((c) => (
                 <li key={c.id}>
                   <Link
