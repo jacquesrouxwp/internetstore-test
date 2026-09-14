@@ -148,7 +148,34 @@ function canonicalGroup(raw: string): string {
   ) {
     return "detection";
   }
-  if (k.includes("матриц") || k === "resolution") return "matrix";
+  // Frequency / NETD / pitch must be checked BEFORE bare "матриц*" —
+  // otherwise "Частота матриці" or "NETD матриці" steals the resolution slot
+  // and the actual 384×288 / 640×480 row never reaches the storefront.
+  if (k.includes("частот") || k.includes("hz") || k.includes("гц")) return "freq";
+  if (k.includes("netd") || k.includes("різниця температур") || k.includes("разница температур"))
+    return "netd";
+  if (
+    k.includes("крок піксел") ||
+    k.includes("шаг пиксел") ||
+    k.includes("pixel pitch") ||
+    k.includes("pitch")
+  ) {
+    return "pitch";
+  }
+  // True sensor resolution only (not "частота матриці", not display resolution)
+  if (
+    k === "resolution" ||
+    k === "матриця" ||
+    k === "матрица" ||
+    (k.includes("роздільн") && k.includes("матриц")) ||
+    (k.includes("разрешен") && k.includes("матриц")) ||
+    (k.includes("матриц") &&
+      !k.includes("диспле") &&
+      !k.includes("display") &&
+      !k.includes("частот"))
+  ) {
+    return "matrix_res";
+  }
   if (
     k.includes("захист") ||
     k.includes("защит") ||
@@ -157,8 +184,6 @@ function canonicalGroup(raw: string): string {
   ) {
     return "protection";
   }
-  if (k.includes("частот") || k.includes("hz") || k.includes("гц")) return "freq";
-  if (k.includes("netd")) return "netd";
   return k;
 }
 
@@ -390,10 +415,8 @@ export function buildSpecRows(
     });
   };
 
-  for (const [k, v] of Object.entries(specs || {})) {
-    push(k, String(v));
-  }
-
+  // Prefer clean typed columns first so donor combo-keys like
+  // "Матриця: пікселі, мкм, NETD" cannot claim the resolution slot.
   if (opts.resolution) {
     push("Матриця", opts.resolution);
   }
@@ -405,6 +428,10 @@ export function buildSpecRows(
         : "Дальність виявлення людини, м",
       String(opts.detectionRangeM)
     );
+  }
+
+  for (const [k, v] of Object.entries(specs || {})) {
+    push(k, String(v));
   }
 
   return rows;

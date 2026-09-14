@@ -129,6 +129,36 @@ describe("classifySpecKey", () => {
   });
 });
 
+describe("buildSpecRows — matrix resolution not stolen by frequency", () => {
+  it("keeps resolution when 'Частота матриці' is also present", () => {
+    const rows = buildSpecRows(
+      {
+        "Частота матриці, Гц": "50",
+        "Крок пікселю, мкм": "12",
+        "Роздільна здатність матриці, піксель": "384х288",
+        "Різниця температур матриці (NETD)": "20",
+      },
+      { locale: "uk", resolution: "384x288" }
+    );
+    const labels = rows.map((r) => r.label + "=" + r.value);
+    assert.ok(
+      rows.some((r) => /384/.test(r.value) && /матриц|роздільн/i.test(r.label)),
+      `missing resolution row: ${labels.join(" | ")}`
+    );
+    assert.ok(
+      rows.some((r) => /50/.test(r.value) && /частот/i.test(r.label)),
+      `missing frequency row: ${labels.join(" | ")}`
+    );
+    const sections = groupSpecRows(rows);
+    const matrix = sections.find((s) => s.id === "matrix");
+    assert.ok(matrix, "matrix section missing");
+    assert.ok(
+      matrix!.rows.some((r) => /384/.test(r.value)),
+      `matrix section without resolution: ${matrix!.rows.map((r) => r.label + "=" + r.value).join(" | ")}`
+    );
+  });
+});
+
 describe("groupSpecRows", () => {
   it("splits into ordered non-empty sections", () => {
     const rows = buildSpecRows(
