@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ConsultWidget } from "@/components/layout/ConsultWidget";
 import { SiteBackground } from "@/components/layout/SiteBackground";
 import { LogoIntro } from "@/components/layout/LogoIntro";
+import { MobileScrollFix } from "@/components/layout/MobileScrollFix";
 import { getCategories, getCategoryBrandsMap } from "@/lib/catalog";
 import { Analytics as SiteAnalytics } from "@/components/Analytics";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
@@ -49,11 +50,13 @@ export default async function LocaleLayout({
       />
       <SiteBackground />
       <LogoIntro />
+      <MobileScrollFix />
       {/* min-h-dvh keeps footer at viewport bottom on short pages without
           stretching document height past content on long pages */}
-      <div className="relative z-10 flex min-h-dvh w-full max-w-[100vw] flex-col overflow-x-hidden">
+      {/* max-w-full (not 100vw): 100vw breaks vertical scroll on some Android/MIUI WebViews */}
+      <div className="relative z-10 flex min-h-dvh w-full max-w-full flex-col overflow-x-hidden">
         <Header categories={categories} categoryBrandsMap={categoryBrandsMap} />
-        <main className="w-full min-w-0 max-w-full flex-1 overflow-x-hidden">
+        <main className="w-full min-w-0 max-w-full flex-1">
           {children}
         </main>
         <Footer />

@@ -50,8 +50,10 @@ export function CatalogFiltersDrawer({
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.setAttribute("data-scroll-lock", "true");
     return () => {
       document.body.style.overflow = prev;
+      document.body.removeAttribute("data-scroll-lock");
     };
   }, [open]);
 

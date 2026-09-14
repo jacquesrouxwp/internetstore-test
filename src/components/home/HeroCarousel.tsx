@@ -48,12 +48,14 @@ function ConsultButton() {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.setAttribute("data-scroll-lock", "true");
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
+      document.body.removeAttribute("data-scroll-lock");
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
