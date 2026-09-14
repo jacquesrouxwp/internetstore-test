@@ -6,7 +6,6 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ConsultWidget } from "@/components/layout/ConsultWidget";
 import { SiteBackground } from "@/components/layout/SiteBackground";
-import { LogoIntro } from "@/components/layout/LogoIntro";
 import { MobileScrollFix } from "@/components/layout/MobileScrollFix";
 import { getCategories, getCategoryBrandsMap } from "@/lib/catalog";
 import { Analytics as SiteAnalytics } from "@/components/Analytics";
@@ -49,7 +48,6 @@ export default async function LocaleLayout({
         hours={settings.site.hours || null}
       />
       <SiteBackground />
-      <LogoIntro />
       <MobileScrollFix />
       {/* min-h-dvh keeps footer at viewport bottom on short pages without
           stretching document height past content on long pages */}
