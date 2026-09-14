@@ -10,7 +10,7 @@ import {
   productShort,
   salePercent,
 } from "@/types";
-import { formatPrice } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import {
   absoluteProductImageUrl,
@@ -30,6 +30,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Star, Check, Package } from "lucide-react";
 import { buildSpecRows, groupSpecRows, SPEC_SECTION_ORDER } from "@/lib/product-specs";
+import { isSpotlightProduct } from "@/lib/spotlight-product";
 import { productMetaDescription } from "@/lib/product-meta";
 import { pageAlternates } from "@/lib/seo-alternates";
 // Live price/stock, and newly imported products must resolve immediately —
@@ -91,6 +92,7 @@ export default async function ProductPage({ params }: Props) {
   const name = productName(product, loc);
   const desc = productDescription(product, loc);
   const sale = salePercent(product.price, product.oldPrice);
+  const spotlight = isSpotlightProduct(product.slug);
 
   // Parallel I/O — no price-compare on secondary rails (faster PDP)
   const [related, hitProducts, settings] = await Promise.all([
@@ -129,32 +131,61 @@ export default async function ProductPage({ params }: Props) {
         <ProductImageGallery
           images={product.images}
           alt={resolveProductImageAlt(name, product.imageAlts, 0)}
+          badgesBelowOnMobile
           badges={
-            <>
-              {sale != null && sale > 0 && (
-                <span className="label-badge badge-sale">-{sale}%</span>
-              )}
-              {product.isHit === true && t("hit") ? (
-                <span className="label-badge badge-hit">{t("hit")}</span>
-              ) : null}
-              {product.isNew === true && t("new") ? (
-                <span className="label-badge badge-new">{t("new")}</span>
-              ) : null}
-              {product.isTop === true && !product.isHit && t("top") ? (
-                <span className="label-badge badge-hit">{t("top")}</span>
-              ) : null}
-              <Link
-                href="/about#military-support"
-                className="label-badge badge-military transition hover:brightness-110"
-                title={t("militaryBadgeHint")}
-              >
-                {t("militaryBadge")}
-              </Link>
-            </>
+            spotlight ? (
+              <>
+                <span className="label-badge badge-spotlight">
+                  {t("spotlightDontMiss")}
+                </span>
+                {sale != null && sale > 0 ? (
+                  <span className="label-badge badge-sale">-{sale}%</span>
+                ) : null}
+                {product.stock === 1 ? (
+                  <span className="label-badge badge-hit">
+                    {t("spotlightOnlyOne")}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {sale != null && sale > 0 && (
+                  <span className="label-badge badge-sale">-{sale}%</span>
+                )}
+                {product.isHit === true && t("hit") ? (
+                  <span className="label-badge badge-hit">{t("hit")}</span>
+                ) : null}
+                {product.isNew === true && t("new") ? (
+                  <span className="label-badge badge-new">{t("new")}</span>
+                ) : null}
+                {product.isTop === true && !product.isHit && t("top") ? (
+                  <span className="label-badge badge-hit">{t("top")}</span>
+                ) : null}
+                <Link
+                  href="/about#military-support"
+                  className="label-badge badge-military transition hover:brightness-110"
+                  title={t("militaryBadgeHint")}
+                >
+                  {t("militaryBadge")}
+                </Link>
+              </>
+            )
           }
         />
 
-        <div>
+        <div className={spotlight ? "product-pdp--spotlight" : undefined}>
+          {spotlight ? (
+            <div className="spotlight-banner mb-4">
+              <span className="spotlight-banner__dot" aria-hidden />
+              <div>
+                <p className="spotlight-banner__title">{t("spotlightUnique")}</p>
+                <p className="spotlight-banner__sub">
+                  {t("spotlightDontMiss")}
+                  {product.stock === 1 ? ` · ${t("spotlightOnlyOne")}` : ""}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {product.brandName && (
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-ui">
               {product.brandName}
@@ -165,13 +196,15 @@ export default async function ProductPage({ params }: Props) {
           </h1>
 
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-            <Link
-              href="/about#military-support"
-              className="label-badge badge-military !static transition hover:brightness-110"
-              title={t("militaryBadgeHint")}
-            >
-              {t("militaryBadge")}
-            </Link>
+            {!spotlight ? (
+              <Link
+                href="/about#military-support"
+                className="label-badge badge-military !static transition hover:brightness-110"
+                title={t("militaryBadgeHint")}
+              >
+                {t("militaryBadge")}
+              </Link>
+            ) : null}
             <span className="inline-flex items-center gap-1">
               <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
               <strong>{product.rating.toFixed(1)}</strong>
@@ -187,7 +220,12 @@ export default async function ProductPage({ params }: Props) {
           </div>
 
           <div className="mt-6 flex flex-wrap items-baseline gap-3">
-            <span className="text-3xl font-bold tracking-tight text-price">
+            <span
+              className={cn(
+                "text-3xl font-bold tracking-tight text-price",
+                spotlight && "price-pulse-spotlight"
+              )}
+            >
               {formatPrice(product.price, locale)}
             </span>
             {product.oldPrice != null && product.oldPrice > product.price && (

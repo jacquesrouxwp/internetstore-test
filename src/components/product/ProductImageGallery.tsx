@@ -13,6 +13,8 @@ type Props = {
   alt: string;
   /** Badges overlaid on the main frame (sale / hit / new) */
   badges?: ReactNode;
+  /** On mobile put badges under the photo so they don't cover it */
+  badgesBelowOnMobile?: boolean;
   /** Max thumbs shown (rest still reachable via arrows) */
   maxThumbs?: number;
 };
@@ -21,6 +23,7 @@ export function ProductImageGallery({
   images,
   alt: altProp,
   badges,
+  badgesBelowOnMobile = false,
   maxThumbs = 8,
 }: Props) {
   const list = images.filter(Boolean);
@@ -67,7 +70,14 @@ export function ProductImageGallery({
         )}
 
         {badges ? (
-          <div className="absolute left-4 top-4 z-10 flex flex-col gap-1.5">
+          <div
+            className={cn(
+              "z-10 flex flex-col gap-1.5",
+              badgesBelowOnMobile
+                ? "absolute left-3 top-3 hidden sm:flex"
+                : "absolute left-4 top-4"
+            )}
+          >
             {badges}
           </div>
         ) : null}
@@ -104,6 +114,10 @@ export function ProductImageGallery({
           </>
         )}
       </div>
+
+      {badges && badgesBelowOnMobile ? (
+        <div className="mt-2 flex flex-wrap gap-1.5 sm:hidden">{badges}</div>
+      ) : null}
 
       {multi && (
         <div

@@ -2,7 +2,7 @@
 
 import { Link } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
-import { ScanEye, ShoppingCart, Star } from "lucide-react";
+import { ScanEye, ShoppingCart, Sparkles, Star } from "lucide-react";
 import type { Product } from "@/types";
 import {
   productCardTitle,
@@ -17,6 +17,7 @@ import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
 import { LayoutModeContext } from "@/components/ui/animated-toggle-layout-container";
 import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
 import { resolveProductImageAlt } from "@/lib/product-image-alt";
+import { isSpotlightProduct } from "@/lib/spotlight-product";
 
 /**
  * Desktop-only hover: only devices with real hover + fine pointer
@@ -53,6 +54,7 @@ export function ProductCard({
   const name = productName(product, locale);
   const cardTitle = productCardTitle(product, locale);
   const short = productShort(product, locale);
+  const spotlight = isSpotlightProduct(product.slug);
   const layoutMode = useContext(LayoutModeContext);
   /** 6-up → slightly tighter cards */
   const tight = layoutMode === "6col";
@@ -66,6 +68,23 @@ export function ProductCard({
     setTimeout(() => setToast(false), 1600);
   };
 
+  const flagBadges = (
+    <>
+      {sale != null && sale > 0 ? (
+        <span className="label-badge badge-sale">-{sale}%</span>
+      ) : null}
+      {!spotlight && product.isHit === true && t("hit") ? (
+        <span className="label-badge badge-hit">{t("hit")}</span>
+      ) : null}
+      {!spotlight && product.isNew === true && t("new") ? (
+        <span className="label-badge badge-new">{t("new")}</span>
+      ) : null}
+      {!spotlight && product.isTop === true && !product.isHit && t("top") ? (
+        <span className="label-badge badge-hit">{t("top")}</span>
+      ) : null}
+    </>
+  );
+
   return (
     <article
       className={cn(
@@ -74,10 +93,22 @@ export function ProductCard({
         "active:scale-[0.99]",
         compact && "max-w-none",
         tight && "product-card--tight",
-        ultraTight && "product-card--ultra"
+        ultraTight && "product-card--ultra",
+        spotlight && "product-card--spotlight"
       )}
       data-layout={layoutMode}
+      data-spotlight={spotlight ? "true" : undefined}
     >
+      {spotlight ? (
+        <div className="spotlight-ribbon" aria-hidden={false}>
+          <Sparkles className="h-3 w-3 shrink-0" strokeWidth={2.25} />
+          <span>
+            {t("spotlightDontMiss")}
+            {product.stock === 1 ? ` · ${t("spotlightOnlyOne")}` : ""}
+          </span>
+        </div>
+      ) : null}
+
       <Link
         href={`/product/${product.slug}`}
         prefetch
@@ -117,34 +148,30 @@ export function ProductCard({
             </div>
           )}
 
+          {/* Desktop only: keep a single sale chip on the photo. Mobile badges live under the image. */}
           <div
             className={cn(
-              "absolute left-2 top-2 z-[1] flex flex-col gap-1",
+              "absolute left-2 top-2 z-[1] hidden flex-col gap-1 sm:flex",
               "transition-all duration-250 ease-premium",
               `${hoverDesk}:group-hover:pointer-events-none`,
               `${hoverDesk}:group-hover:-translate-y-1`,
               `${hoverDesk}:group-hover:opacity-0`
             )}
           >
-            {sale != null && sale > 0 ? (
-              <span className="label-badge badge-sale">-{sale}%</span>
-            ) : null}
-            {product.isHit === true && t("hit") ? (
-              <span className="label-badge badge-hit">{t("hit")}</span>
-            ) : null}
-            {product.isNew === true && t("new") ? (
-              <span className="label-badge badge-new">{t("new")}</span>
-            ) : null}
-            {product.isTop === true && !product.isHit && t("top") ? (
-              <span className="label-badge badge-hit">{t("top")}</span>
-            ) : null}
+            {spotlight ? (
+              sale != null && sale > 0 ? (
+                <span className="label-badge badge-sale">-{sale}%</span>
+              ) : null
+            ) : (
+              flagBadges
+            )}
           </div>
 
-          {/* Military badge on the PHOTO only (not whole card) — fixes green text over price on mobile */}
-          {!ultraTight ? (
+          {/* Military badge — desktop only on photo; mobile row below */}
+          {!ultraTight && !spotlight ? (
             <span
               className={cn(
-                "pointer-events-none absolute bottom-2 left-2 z-[2] label-badge badge-military max-w-[calc(100%-1rem)] truncate",
+                "pointer-events-none absolute bottom-2 left-2 z-[2] hidden label-badge badge-military max-w-[calc(100%-1rem)] truncate sm:inline-flex",
                 tight ? "text-[9px] sm:text-[10px]" : "text-[10px] sm:text-[11px]",
                 "transition-all duration-250 ease-premium",
                 `${hoverDesk}:group-hover:pointer-events-none`,
@@ -157,6 +184,27 @@ export function ProductCard({
           ) : null}
         </div>
       </Link>
+
+      {/* Mobile: badges under photo so they never cover the image */}
+      <div className="relative z-10 flex flex-wrap gap-1 px-3 pt-2 sm:hidden">
+        {spotlight ? (
+          <>
+            <span className="label-badge badge-spotlight">{t("spotlightUnique")}</span>
+            {sale != null && sale > 0 ? (
+              <span className="label-badge badge-sale">-{sale}%</span>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {flagBadges}
+            {!ultraTight ? (
+              <span className="label-badge badge-military text-[10px]">
+                {t("militaryBadge")}
+              </span>
+            ) : null}
+          </>
+        )}
+      </div>
 
       {/* Meta fades under photo hover; price plate is sibling (z-30) so popover stays opaque */}
       <div
@@ -255,7 +303,8 @@ export function ProductCard({
                 ? "text-[10px] leading-none sm:text-sm"
                 : tight
                   ? "text-sm sm:text-lg"
-                  : "text-lg"
+                  : "text-lg",
+              spotlight && "price-pulse-spotlight"
             )}
           >
             {formatPrice(product.price, locale)}
