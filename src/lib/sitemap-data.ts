@@ -181,14 +181,62 @@ function iso(d: Date): string {
   return d.toISOString();
 }
 
+/**
+ * Published blog posts. Each article is its own indexable page, but the
+ * sitemap used to list only /blog, so articles were reachable solely through
+ * the blog index. Reads the table directly (no cookie-bound client).
+ */
+async function loadBlogEntries(): Promise<SlugRow[]> {
+  const read = async (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase: { from: (t: string) => any }
+  ): Promise<SlugRow[]> => {
+    const { data, error } = await supabase
+      .from("blog_posts")
+      .select("slug, updated_at, published_at")
+      .eq("published", true);
+    if (error) throw error;
+    return (data || [])
+      .map((r: { slug?: string; updated_at?: string; published_at?: string }) => {
+        const ts = r.updated_at || r.published_at;
+        return {
+          slug: String(r.slug || ""),
+          lastModified: ts ? new Date(ts) : undefined,
+        };
+      })
+      .filter((e: SlugRow) => e.slug);
+  };
+
+  try {
+    if (hasServiceSupabase()) return await read(createServiceClient());
+  } catch (e) {
+    console.error("[sitemap] blog", e);
+  }
+  if (hasPublicSupabase()) {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const url =
+        process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+      if (url && key) return await read(createClient(url, key));
+    } catch (e) {
+      console.error("[sitemap] blog public", e);
+    }
+  }
+  return [];
+}
+
 /** Build flat entry list for the canonical site origin. */
 export async function buildSitemapEntries(
   base: string
 ): Promise<SitemapEntry[]> {
-  const now = new Date();
-  const nowIso = iso(now);
   const out: SitemapEntry[] = [];
 
+  // lastmod is only emitted when we actually know it. Stamping pages with the
+  // request time made every static and category URL claim "changed just now"
+  // on each fetch; Google treats a sitemap whose lastmod is not "consistently
+  // and verifiably accurate" as untrustworthy and ignores lastmod for all of
+  // it — including the accurate per-product dates it needs to prioritise.
   const push = (
     path: string,
     opts: {
@@ -200,7 +248,7 @@ export async function buildSitemapEntries(
   ) => {
     out.push({
       loc: path ? `${base}${path.startsWith("/") ? path : `/${path}`}` : base,
-      lastmod: opts.lastmod || nowIso,
+      lastmod: opts.lastmod,
       changefreq: opts.changefreq || "weekly",
       priority: opts.priority ?? 0.5,
       images: opts.images?.length ? opts.images : undefined,
@@ -228,9 +276,10 @@ export async function buildSitemapEntries(
     });
   }
 
-  const [cats, products] = await Promise.all([
+  const [cats, products, posts] = await Promise.all([
     loadCategorySlugs(),
     loadProductEntries(base),
+    loadBlogEntries(),
   ]);
 
   for (const c of cats) {
@@ -238,8 +287,22 @@ export async function buildSitemapEntries(
     push(`/ru/catalog/${c.slug}`, { changefreq: "daily", priority: 0.7 });
   }
 
+  for (const post of posts) {
+    const lm = post.lastModified ? iso(post.lastModified) : undefined;
+    push(`/blog/${post.slug}`, {
+      lastmod: lm,
+      changefreq: "monthly",
+      priority: 0.6,
+    });
+    push(`/ru/blog/${post.slug}`, {
+      lastmod: lm,
+      changefreq: "monthly",
+      priority: 0.5,
+    });
+  }
+
   for (const p of products) {
-    const lm = p.lastModified ? iso(p.lastModified) : nowIso;
+    const lm = p.lastModified ? iso(p.lastModified) : undefined;
     const images = p.images?.length ? p.images : undefined;
     push(`/product/${p.slug}`, {
       lastmod: lm,

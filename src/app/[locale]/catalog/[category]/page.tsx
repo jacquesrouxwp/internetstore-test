@@ -11,6 +11,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { pageAlternates } from "@/lib/seo-alternates";
+import { breadcrumbJsonLd, jsonLdScript } from "@/lib/breadcrumbs";
 import { catalogCanonicalPath, pageFromQuery } from "@/lib/pagination";
 
 // searchParams → dynamic render; taxonomy uses unstable_cache (120s).
@@ -102,7 +103,21 @@ export default async function CatalogPage({ params, searchParams }: Props) {
 
   return (
     <div className="container-shop py-5 sm:py-8">
-      <nav className="mb-3 flex flex-wrap items-center gap-2 text-sm text-secondary sm:mb-4">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(
+            breadcrumbJsonLd(locale, [
+              { name: tn("home"), path: "/" },
+              { name: title, path: `/catalog/${category}` },
+            ])
+          ),
+        }}
+      />
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-3 flex flex-wrap items-center gap-2 text-sm text-secondary sm:mb-4"
+      >
         <Link href="/" className="hover:text-[var(--accent)]">
           {tn("home")}
         </Link>

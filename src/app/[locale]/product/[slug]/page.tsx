@@ -1,15 +1,18 @@
 import {
+  getCategoryBySlug,
   getProductBySlug,
   getRelatedProducts,
   getProductsByFlag,
 } from "@/lib/catalog";
 import { Link } from "@/i18n/routing";
 import {
+  categoryName,
   productName,
   productDescription,
   productShort,
   salePercent,
 } from "@/types";
+import { breadcrumbJsonLd, jsonLdScript, type Crumb } from "@/lib/breadcrumbs";
 import { cn, formatPrice } from "@/lib/utils";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import {
@@ -95,13 +98,25 @@ export default async function ProductPage({ params }: Props) {
   const spotlight = isSpotlightProduct(product.slug);
 
   // Parallel I/O — no price-compare on secondary rails (faster PDP)
-  const [related, hitProducts, settings] = await Promise.all([
+  const [related, hitProducts, settings, category] = await Promise.all([
     getRelatedProducts(product, 4),
     getProductsByFlag("hit", 4, { priceCompare: false }),
     getAllPublicSettings(),
+    product.categorySlug
+      ? getCategoryBySlug(product.categorySlug)
+      : Promise.resolve(null),
   ]);
   const boughtWith = hitProducts.filter((p) => p.id !== product.id);
   const siteUrl = getSiteUrl();
+
+  // Real category, not a hardcoded "Тепловізори" — see lib/breadcrumbs.ts.
+  const crumbs: Crumb[] = [
+    { name: tn("home"), path: "/" },
+    ...(category
+      ? [{ name: categoryName(category, loc), path: `/catalog/${category.slug}` }]
+      : []),
+    { name, path: `/product/${product.slug}` },
+  ];
 
   return (
     <div className="container-shop py-6 sm:py-10">
@@ -114,17 +129,28 @@ export default async function ProductPage({ params }: Props) {
         // until a real review source exists (Google policy).
         realReviews={null}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(breadcrumbJsonLd(locale, crumbs)),
+        }}
+      />
 
-      <nav className="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted">
-        <Link href="/" className="hover:text-accent">
-          {tn("home")}
-        </Link>
-        <span>/</span>
-        <Link href="/catalog/teplovizori" className="hover:text-accent">
-          {tn("thermal")}
-        </Link>
-        <span>/</span>
-        <span className="line-clamp-1 text-ink">{name}</span>
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted"
+      >
+        {crumbs.slice(0, -1).map((c) => (
+          <span key={c.path} className="flex items-center gap-2">
+            <Link href={c.path} className="hover:text-accent">
+              {c.name}
+            </Link>
+            <span>/</span>
+          </span>
+        ))}
+        <span className="line-clamp-1 text-ink" aria-current="page">
+          {name}
+        </span>
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
