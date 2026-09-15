@@ -19,6 +19,17 @@ describe("formatProductCardTitle", () => {
     );
   });
 
+  it("puts Leonardo monocular model first", () => {
+    assert.equal(
+      formatProductCardTitle("Тепловізійний монокуляр Leonardo DRS IWS"),
+      "Leonardo DRS IWS — Тепловізійний монокуляр"
+    );
+    assert.equal(
+      formatProductCardTitle("Тепловизионный монокуляр Leonardo DRS IWS"),
+      "Leonardo DRS IWS — Тепловизионный монокуляр"
+    );
+  });
+
   it("handles RU тепловизор", () => {
     assert.equal(
       formatProductCardTitle("Тепловизор HikMicro LYNX LE10 3.0"),

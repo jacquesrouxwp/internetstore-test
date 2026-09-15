@@ -197,6 +197,8 @@ export function productName(p: Product, locale: Locale): string {
  * Full `productName` stays for PDP / SEO / feeds.
  */
 const DEVICE_TYPE_PREFIXES_UK = [
+  // Longer phrases first so "тепловізійний монокуляр" wins over bare "монокуляр"
+  "тепловізійний монокуляр",
   "тепловізійний бінокль",
   "тепловізійний приціл",
   "тепловізійна насадка",
@@ -216,6 +218,7 @@ const DEVICE_TYPE_PREFIXES_UK = [
 ];
 
 const DEVICE_TYPE_PREFIXES_RU = [
+  "тепловизионный монокуляр",
   "тепловизионный бинокль",
   "тепловизионный прицел",
   "тепловизионная насадка",
