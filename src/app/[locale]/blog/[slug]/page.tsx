@@ -33,7 +33,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const path = locale === "ru" ? `/ru/blog/${slug}` : `/blog/${slug}`;
   const url = absoluteUrl(path);
   return {
-    title,
+    // Editors often type the brand into the meta title themselves; the root
+    // template then appended it again ("… | Pro-Optics | Pro-Optics").
+    title: /pro-optics\s*$/i.test(title) ? { absolute: title } : title,
     description,
     alternates: pageAlternates(locale, `/blog/${slug}`),
     openGraph: {
