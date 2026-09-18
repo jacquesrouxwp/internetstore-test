@@ -75,6 +75,11 @@ export async function Footer() {
                 ПНБ
               </Link>
             </li>
+            <li>
+              <Link href="/brand" className="hover:text-[var(--accent)]">
+                {tn("brands")}
+              </Link>
+            </li>
             {SIMULATOR_LINK_ENABLED && (
               <li>
                 <Link

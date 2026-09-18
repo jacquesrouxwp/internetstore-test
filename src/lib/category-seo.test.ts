@@ -27,3 +27,13 @@ describe("categorySeo", () => {
     assert.doesNotMatch(ru, /\/ru\/ru\//);
   });
 });
+
+describe("categorySeo brand links", () => {
+  it("links brand names in the intro to their pages", () => {
+    const uk = categorySeo("teplovizori", "uk")!.html;
+    assert.match(uk, /<a href="\/brand\/pulsar">Pulsar<\/a>/);
+    assert.match(uk, /<a href="\/brand\/agm">AGM<\/a>/);
+    const ru = categorySeo("pricili", "ru")!.html;
+    assert.match(ru, /<a href="\/ru\/brand\/atn">ATN<\/a>/);
+  });
+});

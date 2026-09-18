@@ -20,13 +20,17 @@ function BrandLogoCard({
   labelPrefix: string;
 }) {
   const router = useRouter();
-  const href = `/catalog/teplovizori?brand=${encodeURIComponent(brand.slug)}`;
+  const locale = useLocale();
+  // router.push localizes itself; the raw <a href> (what crawlers follow) must
+  // carry the /ru prefix explicitly.
+  const path = `/brand/${encodeURIComponent(brand.slug)}`;
+  const href = locale === "ru" ? `/ru${path}` : path;
   /** Ignore click if finger moved (user was scrolling the page / marquee drag) */
   const startRef = useRef<{ x: number; y: number } | null>(null);
 
   const go = useCallback(() => {
-    router.push(href);
-  }, [router, href]);
+    router.push(path);
+  }, [router, path]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     startRef.current = { x: e.clientX, y: e.clientY };
@@ -119,8 +123,8 @@ export function BrandGrid({
         {title && <h2 className="section-title">{title}</h2>}
         <p className="mt-1 text-sm text-secondary">
           {locale === "ru"
-            ? "Нажмите на бренд — сразу откроется каталог с его товарами"
-            : "Натисніть на бренд — одразу відкриється каталог з його товарами"}
+            ? "Нажмите на бренд — откроются все его модели, цены и наличие"
+            : "Натисніть на бренд — відкриються всі його моделі, ціни й наявність"}
         </p>
       </div>
 

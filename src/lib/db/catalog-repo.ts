@@ -21,6 +21,7 @@ import {
   SEED_REVIEWS,
 } from "@/data/seed";
 import type { Review } from "@/types";
+import type { BrandProductRow } from "@/lib/brand-pages";
 import { getPriceCompareMap } from "@/lib/price-compare/repo";
 import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
 import {
@@ -531,6 +532,59 @@ async function dbGetCategoryBrandsMapUncached(): Promise<Record<
 }
 
 /** Cached — layout hits this on every navigation */
+/**
+ * Every published product as a light row (no images/specs) — the brand
+ * landing pages summarise counts, prices and model lines from these.
+ * ~1.2k rows; paged because PostgREST caps a response at 1000.
+ */
+async function dbGetBrandProductRowsUncached(): Promise<BrandProductRow[] | null> {
+  const supabase = await getReadClient();
+  if (!supabase) return null;
+  try {
+    const rows: BrandProductRow[] = [];
+    const pageSize = 1000;
+    for (let from = 0; from <= 50000; from += pageSize) {
+      const { data, error } = await supabase
+        .from("products")
+        .select(
+          "slug, name_uk, name_ru, price, stock, updated_at, brands(slug, name), categories(slug)"
+        )
+        .eq("published", true)
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      for (const r of data || []) {
+        const row = r as Record<string, unknown>;
+        const brand = row.brands as { slug?: string; name?: string } | null;
+        const cat = row.categories as { slug?: string } | null;
+        if (!brand?.slug) continue;
+        rows.push({
+          slug: String(row.slug || ""),
+          nameUk: String(row.name_uk || ""),
+          nameRu: String(row.name_ru || ""),
+          price: Number(row.price) || 0,
+          stock: Number(row.stock) || 0,
+          brandSlug: brand.slug,
+          brandName: brand.name || brand.slug,
+          categorySlug: cat?.slug || null,
+          updatedAt: (row.updated_at as string) || null,
+        });
+      }
+      if (!data || data.length < pageSize) break;
+    }
+    return filterHiddenBrandProducts(rows);
+  } catch (e) {
+    console.error("[brand rows]", e);
+    return null;
+  }
+}
+
+export const dbGetBrandProductRows = unstable_cache(
+  async () => dbGetBrandProductRowsUncached(),
+  ["db-brand-product-rows-v1"],
+  { revalidate: 120, tags: ["products", "brands"] }
+);
+
 export const dbGetCategoryBrandsMap = unstable_cache(
   async () => dbGetCategoryBrandsMapUncached(),
   ["db-category-brands-map-v2-no-rix"],
@@ -579,6 +633,10 @@ export async function getCatalogWithFallback(
     getRuntimeProducts().filter((p) => p.published)
   );
   if (categorySlug) list = list.filter((p) => p.categorySlug === categorySlug);
+  if (filters.brands?.length) {
+    const wanted = new Set(filters.brands);
+    list = list.filter((p) => p.brandSlug && wanted.has(p.brandSlug));
+  }
   if (filters.q) {
     const tokens = filters.q
       .toLowerCase()

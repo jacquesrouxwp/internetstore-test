@@ -8,6 +8,7 @@ import type {
   Review,
 } from "@/types";
 import {
+  dbGetBrandProductRows,
   dbGetBrands,
   dbGetBrandsCached,
   dbGetCategories,
@@ -26,7 +27,11 @@ import {
 } from "@/data/seed";
 import { getDetectionRangeBounds } from "@/lib/detection-range";
 import { hasPublicSupabase } from "@/lib/supabase/service";
-import { sortBrandsByPriority } from "@/lib/brand-priority";
+import {
+  filterHiddenBrandProducts,
+  sortBrandsByPriority,
+} from "@/lib/brand-priority";
+import type { BrandProductRow } from "@/lib/brand-pages";
 
 export async function getCatalog(
   filters: CatalogFilters = {},
@@ -149,6 +154,37 @@ export const getCategoryBrandsMap = cache(
         : sortedAll;
     }
     return result;
+  }
+);
+
+export const getBrandBySlug = cache(
+  async (slug: string): Promise<Brand | null> => {
+    const brands = await getBrands();
+    return brands.find((b) => b.slug === slug) || null;
+  }
+);
+
+/** Light rows of every published product — brand pages & sitemap summaries. */
+export const getBrandProductRows = cache(
+  async (): Promise<BrandProductRow[]> => {
+    const db = await dbGetBrandProductRows();
+    if (db) return db;
+    if (hasPublicSupabase()) return [];
+    // memory fallback (dev without Supabase)
+    const brandNames = new Map(getRuntimeBrands().map((b) => [b.slug, b.name]));
+    return filterHiddenBrandProducts(
+      getRuntimeProducts().filter((p) => p.published && p.brandSlug)
+    ).map((p) => ({
+      slug: p.slug,
+      nameUk: p.nameUk,
+      nameRu: p.nameRu,
+      price: p.price,
+      stock: p.stock,
+      brandSlug: p.brandSlug!,
+      brandName: p.brandName || brandNames.get(p.brandSlug!) || p.brandSlug!,
+      categorySlug: p.categorySlug || null,
+      updatedAt: p.createdAt || null,
+    }));
   }
 );
 

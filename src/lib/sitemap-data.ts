@@ -11,6 +11,13 @@ import {
   hasPublicSupabase,
 } from "@/lib/supabase/service";
 import { absoluteProductImageUrls } from "@/lib/product-image-alt";
+import { isBrandHidden, isRixProduct } from "@/lib/brand-priority";
+import {
+  MIN_INDEXABLE_PRODUCTS,
+  brandCounts,
+  indexableBrandCategories,
+  type BrandProductRow,
+} from "@/lib/brand-pages";
 
 export type SitemapEntry = {
   loc: string;
@@ -32,6 +39,9 @@ type ProductRow = {
   slug: string;
   lastModified?: Date;
   images: string[];
+  brandSlug?: string | null;
+  categorySlug?: string | null;
+  hidden?: boolean;
 };
 
 type SlugRow = { slug: string; lastModified?: Date };
@@ -100,14 +110,23 @@ function mapProductRows(
         updated_at?: string;
         created_at?: string;
         images?: unknown;
+        name_uk?: string;
+        brands?: { slug?: string; name?: string } | null;
+        categories?: { slug?: string } | null;
       };
       const slug = String(row.slug || "");
       if (!slug) return null;
       const ts = row.updated_at || row.created_at;
+      const brandSlug = row.brands?.slug || null;
       return {
         slug,
         lastModified: ts ? new Date(ts) : undefined,
         images: absoluteProductImageUrls(parseImagesField(row.images), siteUrl),
+        brandSlug,
+        categorySlug: row.categories?.slug || null,
+        hidden:
+          isBrandHidden(brandSlug) ||
+          isRixProduct({ brandSlug, brandName: row.brands?.name, slug, nameUk: row.name_uk }),
       };
     })
     .filter(Boolean) as ProductRow[];
@@ -124,7 +143,7 @@ async function fetchAllPublishedProducts(
   for (;;) {
     const { data, error } = await supabase
       .from("products")
-      .select("slug, updated_at, created_at, images")
+      .select("slug, updated_at, created_at, images, name_uk, brands(slug, name), categories(slug)")
       .eq("published", true)
       .order("created_at", { ascending: false })
       .range(from, from + pageSize - 1);
@@ -174,6 +193,9 @@ async function loadProductEntries(siteUrl: string): Promise<ProductRow[]> {
     slug: p.slug,
     lastModified: new Date(p.createdAt),
     images: absoluteProductImageUrls(p.images || [], siteUrl),
+    brandSlug: p.brandSlug || null,
+    categorySlug: p.categorySlug || null,
+    hidden: isBrandHidden(p.brandSlug) || isRixProduct(p),
   }));
 }
 
@@ -316,6 +338,43 @@ export async function buildSitemapEntries(
       priority: 0.6,
       images,
     });
+  }
+
+  // Brand landing pages: only brands / brand×category combos with enough
+  // products to be a real listing (the thin ones are noindex anyway).
+  const brandRows: BrandProductRow[] = products
+    .filter((p) => p.brandSlug && !p.hidden)
+    .map((p) => ({
+      slug: p.slug,
+      nameUk: "",
+      nameRu: "",
+      price: 0,
+      stock: 0,
+      brandSlug: p.brandSlug!,
+      brandName: p.brandSlug!,
+      categorySlug: p.categorySlug || null,
+      updatedAt: p.lastModified ? iso(p.lastModified) : null,
+    }));
+  if (brandRows.length) {
+    push("/brand", { changefreq: "weekly", priority: 0.7 });
+    push("/ru/brand", { changefreq: "weekly", priority: 0.6 });
+  }
+  const newest = new Map<string, string>();
+  for (const r of brandRows) {
+    const cur = newest.get(r.brandSlug);
+    if (r.updatedAt && (!cur || r.updatedAt > cur)) newest.set(r.brandSlug, r.updatedAt);
+  }
+  for (const [brandSlug, count] of Array.from(brandCounts(brandRows))) {
+    if (count < MIN_INDEXABLE_PRODUCTS) continue;
+    const lm = newest.get(brandSlug);
+    push(`/brand/${brandSlug}`, { lastmod: lm, changefreq: "daily", priority: 0.8 });
+    push(`/ru/brand/${brandSlug}`, { lastmod: lm, changefreq: "daily", priority: 0.7 });
+  }
+  for (const c of indexableBrandCategories(brandRows)) {
+    const path = `/brand/${c.brandSlug}/${c.categorySlug}`;
+    const lm = c.lastModified || undefined;
+    push(path, { lastmod: lm, changefreq: "daily", priority: 0.7 });
+    push(`/ru${path}`, { lastmod: lm, changefreq: "daily", priority: 0.6 });
   }
 
   return out;

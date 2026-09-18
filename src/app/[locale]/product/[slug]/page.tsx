@@ -214,7 +214,16 @@ export default async function ProductPage({ params }: Props) {
           ) : null}
           {product.brandName && (
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-ui">
-              {product.brandName}
+              {product.brandSlug ? (
+                <Link
+                  href={`/brand/${product.brandSlug}`}
+                  className="transition hover:text-[var(--accent)]"
+                >
+                  {product.brandName}
+                </Link>
+              ) : (
+                product.brandName
+              )}
             </p>
           )}
           <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">

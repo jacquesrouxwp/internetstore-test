@@ -265,6 +265,14 @@ export function Header({
                   </li>
                 );
               })}
+              <li className="shrink-0">
+                <Link
+                  href="/brand"
+                  className="inline-block whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-medium leading-snug text-secondary transition hover:bg-white/[0.06] hover:text-primary lg:px-2.5 lg:text-sm"
+                >
+                  {locale === "ru" ? "Бренды" : "Бренди"}
+                </Link>
+              </li>
               {SIMULATOR_LINK_ENABLED && (
                 <li className="shrink-0">
                   <Link
@@ -361,6 +369,15 @@ export function Header({
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link
+                  href="/brand"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg px-3 py-2.5 text-sm font-medium text-primary hover:bg-white/[0.06]"
+                >
+                  {locale === "ru" ? "Бренды" : "Бренди"}
+                </Link>
+              </li>
               {SIMULATOR_LINK_ENABLED && (
                 <li>
                   <Link
@@ -424,7 +441,7 @@ export function Header({
             {categoryBrandsMap[hoverCat.slug].map((b) => (
               <Link
                 key={b.id}
-                href={`/catalog/${hoverCat.slug}?brand=${b.slug}`}
+                href={`/brand/${b.slug}/${hoverCat.slug}`}
                 onClick={() => setHoverCat(null)}
                 className="block whitespace-nowrap px-4 py-2 text-sm text-secondary transition hover:bg-white/[0.06] hover:text-primary"
               >

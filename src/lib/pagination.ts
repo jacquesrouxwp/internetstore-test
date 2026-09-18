@@ -58,3 +58,30 @@ export function catalogCanonicalPath(basePath: string, query: Query): string {
   const page = pageFromQuery(query);
   return page > 1 ? `${basePath}?page=${page}` : basePath;
 }
+
+function paramList(v: string | string[] | undefined): string[] {
+  if (!v) return [];
+  return Array.isArray(v) ? v : [v];
+}
+
+function numParam(v: string | string[] | undefined): number | undefined {
+  const raw = Array.isArray(v) ? v[0] : v;
+  return raw != null && raw !== "" ? Number(raw) : undefined;
+}
+
+/** Sidebar/toolbar query params → catalog filters (shared by listings). */
+export function catalogFiltersFromQuery(query: Query) {
+  return {
+    brands: paramList(query.brand),
+    resolutions: paramList(query.res),
+    deviceType: typeof query.type === "string" ? query.type : "all",
+    priceMin: numParam(query.min),
+    priceMax: numParam(query.max),
+    rangeMin: numParam(query.rmin),
+    rangeMax: numParam(query.rmax),
+    q: typeof query.q === "string" ? query.q : undefined,
+    sort: typeof query.sort === "string" ? query.sort : "default",
+    page: Number(query.page || 1),
+    limit: Number(query.limit || 12),
+  };
+}

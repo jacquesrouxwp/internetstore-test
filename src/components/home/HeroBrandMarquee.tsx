@@ -17,7 +17,7 @@ type Props = {
 };
 
 function BrandChip({ brand }: { brand: Brand }) {
-  const href = `/catalog/teplovizori?brand=${encodeURIComponent(brand.slug)}`;
+  const href = `/brand/${encodeURIComponent(brand.slug)}`;
   return (
     <Link
       href={href}

@@ -147,9 +147,43 @@ const CONTENT: Record<string, Record<Locale, Entry>> = {
   },
 };
 
+/** Brand names in the copy that have their own landing page. */
+const BRAND_LINKS: [string, string][] = [
+  ["Pulsar", "pulsar"],
+  ["HikMicro", "hikmicro"],
+  ["InfiRay", "infiray"],
+  ["AGM", "agm"],
+  ["ATN", "atn"],
+  ["PARD", "pard"],
+  ["Guide", "guide"],
+  ["ThermTec", "thermtec"],
+  ["Armasight", "armasight"],
+  ["NVECTECH", "nvectech"],
+  ["Dipol", "dipol"],
+];
+
+/** Link the first mention of each brand in the intro paragraph. */
+function linkBrands(html: string): string {
+  const end = html.indexOf("</p>");
+  if (end < 0) return html;
+  let intro = html.slice(0, end);
+  for (const [name, slug] of BRAND_LINKS) {
+    intro = intro.replace(
+      new RegExp("(^|[\\s,(])" + name + "(?=[\\s,.)])"),
+      `$1<a href="/brand/${slug}">${name}</a>`
+    );
+  }
+  return intro + html.slice(end);
+}
+
 function localizeLinks(html: string, locale: Locale): string {
   if (locale !== "ru") return html;
   return html.replace(/href="\/(?!ru\/)/g, 'href="/ru/');
+}
+
+/** "Купівля в Pro-Optics" block — shared by category and brand pages. */
+export function serviceBlockHtml(locale: Locale): string {
+  return localizeLinks(SERVICE[locale], locale);
 }
 
 export function categorySeo(slug: string, locale: Locale): Entry | null {
@@ -157,6 +191,6 @@ export function categorySeo(slug: string, locale: Locale): Entry | null {
   if (!entry) return null;
   return {
     title: entry.title,
-    html: localizeLinks(`${entry.html}\n${SERVICE[locale]}`, locale),
+    html: localizeLinks(`${linkBrands(entry.html)}\n${SERVICE[locale]}`, locale),
   };
 }

@@ -77,6 +77,8 @@ export function CatalogFilters({
           {t("filters")}
         </h3>
 
+        {/* Brand pages pass no brands — the listing is already one brand */}
+        {brands.length > 0 && (
         <details open className="group py-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <summary className="cursor-pointer list-none text-sm font-medium text-primary marker:content-none">
             {t("brand")}
@@ -114,6 +116,7 @@ export function CatalogFilters({
             })}
           </div>
         </details>
+        )}
 
         <details open className="group py-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <summary className="cursor-pointer list-none text-sm font-medium text-primary">
