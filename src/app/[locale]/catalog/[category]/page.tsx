@@ -13,6 +13,7 @@ import { Suspense } from "react";
 import { pageAlternates } from "@/lib/seo-alternates";
 import { breadcrumbJsonLd, jsonLdScript } from "@/lib/breadcrumbs";
 import { catalogCanonicalPath, pageFromQuery } from "@/lib/pagination";
+import { categorySeo } from "@/lib/category-seo";
 
 // searchParams → dynamic render; taxonomy uses unstable_cache (120s).
 // Soft product freshness without full force-no-store (was killing catalog speed).
@@ -108,6 +109,10 @@ export default async function CatalogPage({ params, searchParams }: Props) {
   const detectionBounds = supportsDetectionRangeFilter(category)
     ? result.detectionRangeBounds ?? null
     : null;
+  const isFirstPage =
+    catalogCanonicalPath(`/catalog/${category}`, sp) === `/catalog/${category}`;
+  const seo = categorySeo(category, loc);
+  const catDescription = loc === "ru" ? cat.descriptionRu : cat.descriptionUk;
 
   return (
     <div className="container-shop py-5 sm:py-8">
@@ -171,20 +176,42 @@ export default async function CatalogPage({ params, searchParams }: Props) {
             query={sp}
           />
 
-          <article
-            className="mt-12 max-w-none pt-8 text-secondary"
-            style={{ borderTop: "1px solid var(--border)" }}
-          >
-            <h2 className="font-display text-xl font-semibold text-primary">
-              {t("buyThermal")}
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed">{t("seoText")}</p>
-            {(locale === "ru" ? cat.descriptionRu : cat.descriptionUk) && (
-              <p className="mt-3 text-sm leading-relaxed">
-                {locale === "ru" ? cat.descriptionRu : cat.descriptionUk}
-              </p>
-            )}
-          </article>
+          {/* Page 1 only: the same long text on all 37 paginated pages would
+              read as duplicate content. */}
+          {isFirstPage && (seo || catDescription) && (
+            <article
+              className="category-seo mt-12 max-w-none pt-8 text-secondary"
+              style={{ borderTop: "1px solid var(--border)" }}
+            >
+              <h2 className="font-display text-xl font-semibold text-primary">
+                {seo
+                  ? seo.title
+                  : loc === "ru"
+                    ? `${title} — купить в Украине`
+                    : `${title} — купити в Україні`}
+              </h2>
+              {catDescription && (
+                <p className="mt-3 text-sm leading-relaxed">{catDescription}</p>
+              )}
+              {seo && (
+                <div
+                  className="mt-3 space-y-3 text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: seo.html }}
+                />
+              )}
+            </article>
+          )}
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+            .category-seo h3 { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-top: 1.25rem; }
+            .category-seo ul { list-style: disc; margin-left: 1.25rem; }
+            .category-seo li { margin-bottom: 0.35rem; }
+            .category-seo a { color: var(--accent); text-decoration: underline; }
+            .category-seo strong { color: var(--text-primary); }
+          `,
+            }}
+          />
         </CatalogFiltersDrawer>
       </Suspense>
     </div>

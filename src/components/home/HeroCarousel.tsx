@@ -203,11 +203,14 @@ export function HeroCarousel({ brands, posts = [] }: Props) {
               Professional Optics · Ukraine
             </p>
 
-            <h1 className="hero-mobile__title font-display font-bold tracking-tight text-primary sm:hidden break-words hyphens-auto">
-              {t("heroTitleMobile")}
-            </h1>
-            <h1 className="hidden font-display text-3xl font-bold leading-[1.15] tracking-tight text-primary sm:block lg:text-[2.15rem]">
-              {t("heroTitle")}
+            {/* One H1 for the page — two (mobile + desktop) were both in the DOM */}
+            <h1 className="font-display font-bold tracking-tight text-primary">
+              <span className="hero-mobile__title block sm:hidden break-words hyphens-auto">
+                {t("heroTitleMobile")}
+              </span>
+              <span className="hidden text-3xl leading-[1.15] sm:block lg:text-[2.15rem]">
+                {t("heroTitle")}
+              </span>
             </h1>
 
             <p className="hero-mobile__sub mt-1.5 text-[0.75rem] leading-snug text-secondary sm:hidden">
