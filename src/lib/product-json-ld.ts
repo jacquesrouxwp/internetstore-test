@@ -203,6 +203,7 @@ export function buildProductJsonLd(input: ProductJsonLdInput): Record<string, un
     name,
     description,
     image: images.length === 1 ? images[0] : images,
+    url: productUrl,
     brand: {
       "@type": "Brand",
       name: brandName,
@@ -211,6 +212,17 @@ export function buildProductJsonLd(input: ProductJsonLdInput): Record<string, un
     mpn: mpn || sku,
     offers,
   };
+
+  // Related/hit product cards on the same page carry other devices' photos;
+  // without an explicit primary image Google may pick one of those for the
+  // search thumbnail (seen: Pulsar Axion shown for Leonardo DRS IWS).
+  if (product.images?.length) {
+    data.mainEntityOfPage = {
+      "@type": "WebPage",
+      "@id": productUrl,
+      primaryImageOfPage: { "@type": "ImageObject", url: images[0] },
+    };
+  }
 
   if (gtin) {
     // Google accepts gtin, gtin8, gtin12, gtin13, gtin14

@@ -61,6 +61,32 @@ describe("productJsonLdDescription", () => {
 });
 
 describe("buildProductJsonLd", () => {
+  it("pins the product's own first photo as the page's primary image", () => {
+    const data = buildProductJsonLd({
+      product: baseProduct(),
+      locale: "ru",
+      siteUrl: "https://pro-optics.com.ua",
+    });
+    const url = "https://pro-optics.com.ua/ru/product/hikmicro-lynx-lh19-3-0";
+    assert.equal(data.url, url);
+    const page = data.mainEntityOfPage as Record<string, unknown>;
+    assert.equal(page["@id"], url);
+    const primary = page.primaryImageOfPage as Record<string, unknown>;
+    assert.equal(
+      primary.url,
+      "https://pro-optics.com.ua/products/hikmicro-lynx-lh19-3-0.jpg"
+    );
+  });
+
+  it("skips primary image when the product has no photos", () => {
+    const data = buildProductJsonLd({
+      product: baseProduct({ images: [] }),
+      locale: "uk",
+      siteUrl: "https://pro-optics.com.ua",
+    });
+    assert.equal(data.mainEntityOfPage, undefined);
+  });
+
   it("includes required Product + Offer fields", () => {
     const data = buildProductJsonLd({
       product: baseProduct(),
