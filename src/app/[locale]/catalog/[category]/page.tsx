@@ -48,13 +48,21 @@ export async function generateMetadata({
     pageNum > 1
       ? `${baseName} — ${isRu ? "страница" : "сторінка"} ${pageNum}`
       : baseName;
+  // A bare "Тепловізори" title doesn't match how people search
+  // ("тепловізори україна", "тепловизор купить") — say it in the title.
+  const title =
+    pageNum > 1
+      ? name
+      : isRu
+        ? `${baseName} — купить в Украине, цены`
+        : `${baseName} — купити в Україні, ціни`;
   const description =
     (isRu ? cat.descriptionRu : cat.descriptionUk) ||
     (isRu
       ? `${name} — купить в Pro-Optics (Про Оптикс). Консультация, доставка Новой Почтой по Украине, гарантия.`
       : `${name} — купити в Pro-Optics (Про Оптікс). Консультація, доставка Новою Поштою по Україні, гарантія.`);
   return {
-    title: name,
+    title,
     description,
     alternates: pageAlternates(locale, canonicalPath),
   };
