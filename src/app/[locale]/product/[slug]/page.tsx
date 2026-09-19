@@ -31,7 +31,7 @@ import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Star, Check, Package } from "lucide-react";
+import { Check, Package } from "lucide-react";
 import { buildSpecRows, groupSpecRows, SPEC_SECTION_ORDER } from "@/lib/product-specs";
 import { isSpotlightProduct } from "@/lib/spotlight-product";
 import { productMetaDescription } from "@/lib/product-meta";
@@ -167,11 +167,6 @@ export default async function ProductPage({ params }: Props) {
                 {sale != null && sale > 0 ? (
                   <span className="label-badge badge-sale">-{sale}%</span>
                 ) : null}
-                {product.stock === 1 ? (
-                  <span className="label-badge badge-hit">
-                    {t("spotlightOnlyOne")}
-                  </span>
-                ) : null}
               </>
             ) : (
               <>
@@ -207,7 +202,6 @@ export default async function ProductPage({ params }: Props) {
                 <p className="spotlight-banner__title">{t("spotlightUnique")}</p>
                 <p className="spotlight-banner__sub">
                   {t("spotlightDontMiss")}
-                  {product.stock === 1 ? ` · ${t("spotlightOnlyOne")}` : ""}
                 </p>
               </div>
             </div>
@@ -240,13 +234,6 @@ export default async function ProductPage({ params }: Props) {
                 {t("militaryBadge")}
               </Link>
             ) : null}
-            <span className="inline-flex items-center gap-1">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-              <strong>{product.rating.toFixed(1)}</strong>
-              <span className="text-muted">
-                ({product.reviewsCount} {t("reviews")})
-              </span>
-            </span>
             {product.sku && (
               <span className="text-muted">
                 {t("sku")}: {product.sku}
@@ -278,7 +265,7 @@ export default async function ProductPage({ params }: Props) {
             {product.stock > 0 ? (
               <>
                 <Check className="h-4 w-4" />
-                {t("inStock")} ({product.stock})
+                {t("inStock")}
               </>
             ) : (
               <>

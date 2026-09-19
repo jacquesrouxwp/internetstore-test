@@ -2,7 +2,7 @@
 
 import { Link } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
-import { ScanEye, ShoppingCart, Sparkles, Star } from "lucide-react";
+import { ScanEye, ShoppingCart, Sparkles } from "lucide-react";
 import type { Product } from "@/types";
 import {
   productCardTitle,
@@ -102,10 +102,7 @@ export function ProductCard({
       {spotlight ? (
         <div className="spotlight-ribbon" aria-hidden={false}>
           <Sparkles className="h-3 w-3 shrink-0" strokeWidth={2.25} />
-          <span>
-            {t("spotlightDontMiss")}
-            {product.stock === 1 ? ` · ${t("spotlightOnlyOne")}` : ""}
-          </span>
+          <span>{t("spotlightDontMiss")}</span>
         </div>
       ) : null}
 
@@ -249,35 +246,6 @@ export function ProductCard({
           </p>
         )}
 
-        <div
-          className={cn(
-            "mt-1 flex flex-wrap items-center gap-1 text-secondary",
-            ultraTight
-              ? "text-[9px]"
-              : tight
-                ? "mt-1.5 text-[10px] sm:text-xs"
-                : "mt-2 gap-2 text-xs"
-          )}
-        >
-          {!ultraTight && (
-            <span className="inline-flex items-center gap-0.5">
-              <Star
-                className={cn(
-                  "fill-[var(--rating)] text-[var(--rating)]",
-                  tight ? "h-3 w-3" : "h-3.5 w-3.5"
-                )}
-              />
-              <span className="font-medium text-primary">
-                {product.rating.toFixed(1)}
-              </span>
-              {!tight && (
-                <span className="text-muted-ui">
-                  ({product.reviewsCount} {t("reviews")})
-                </span>
-              )}
-            </span>
-          )}
-        </div>
       </div>
 
       <div
