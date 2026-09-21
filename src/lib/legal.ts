@@ -1,20 +1,12 @@
 /**
- * Seller identity for the public offer and privacy policy pages.
- *
- * The legal fields are empty until the owner provides them (ФОП/ТОВ name,
- * ІПН/ЄДРПОУ, registered address) — empty fields are simply not rendered,
- * so fill them here and both pages pick them up. Google Merchant Center and
- * the Law of Ukraine "On E-Commerce" expect them on the site.
+ * Storefront identity for the public offer and privacy policy pages.
+ * The seller's legal details (ФОП/ТОВ, ЄДРПОУ, ІПН, address) are NOT kept
+ * here — they are edited in admin → Налаштування → юридичні дані and read by
+ * SellerDetails, so the owner can fill them in without a deploy.
  */
 export const SELLER = {
   brand: "Pro-Optics",
   site: "pro-optics.com.ua",
-  /** e.g. "ФОП Прізвище Ім'я По батькові" / "ТОВ «…»" */
-  legalName: "",
-  /** ІПН (ФОП) or код ЄДРПОУ (ТОВ) */
-  taxId: "",
-  /** Registered address */
-  address: "",
   city: { uk: "Київ, Україна", ru: "Киев, Украина" },
   hours: {
     uk: "Пн–Пт 9:00–18:00, Сб 12:00–15:00",

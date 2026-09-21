@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
-import NextLink from "next/link";
+import { Link } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowRight,
@@ -233,21 +233,27 @@ export function HeroCarousel({ brands, posts = [] }: Props) {
                     {t("heroTradeInTitle")}
                   </p>
                   <p className="mt-1 text-[0.7rem] leading-snug text-primary/95 sm:mt-1.5 sm:text-[0.9375rem] sm:leading-relaxed">
-                    {t("heroTradeInBody")}
+                    {t("heroTradeInBody")}{" "}
+                    <Link
+                      href="/vykup"
+                      className="whitespace-nowrap font-semibold text-[var(--accent)] underline-offset-2 hover:underline"
+                    >
+                      {t("heroTradeInMore")}
+                    </Link>
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="hero-mobile__cta mt-3 flex flex-row flex-wrap gap-1.5 sm:mt-6 sm:gap-2.5">
-              <NextLink
+              <Link
                 href="/catalog/teplovizori"
                 className="btn-hero btn-hero-primary hero-mobile__btn min-w-0 flex-1 sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
               >
                 <span className="truncate sm:hidden">{t("heroCtaMobile")}</span>
                 <span className="hidden truncate sm:inline">{t("heroCta")}</span>
                 <ArrowRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              </NextLink>
+              </Link>
               <ConsultButton />
             </div>
 

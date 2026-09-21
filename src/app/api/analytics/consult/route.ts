@@ -12,6 +12,8 @@ const SOURCES = new Set([
   "footer",
   "header",
   "catalog",
+  "returns",
+  "buyback",
   "other",
 ]);
 

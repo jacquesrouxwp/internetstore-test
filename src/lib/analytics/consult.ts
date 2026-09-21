@@ -13,6 +13,7 @@ export type ConsultSource =
   | "header"
   | "catalog"
   | "returns"
+  | "buyback"
   | "other";
 
 export type ConsultTrackPayload = {

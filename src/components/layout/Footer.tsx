@@ -119,6 +119,11 @@ export async function Footer() {
               </Link>
             </li>
             <li>
+              <Link href="/vykup" className="hover:text-[var(--accent)]">
+                {t("buyback")}
+              </Link>
+            </li>
+            <li>
               <Link href="/oferta" className="hover:text-[var(--accent)]">
                 {t("offer")}
               </Link>
