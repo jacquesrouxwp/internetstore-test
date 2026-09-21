@@ -205,7 +205,7 @@ export default async function MilitaryPage({ params }: Props) {
         <p>
           {L(
             <>
-              Як різні матриці й об'єктиви бачать ціль на дистанції, можна порівняти в{" "}
+              Як різні матриці й об’єктиви бачать ціль на дистанції, можна порівняти в{" "}
               <Link href="/simulator">симуляторі тепловізора</Link>, а що означають цифри
               дальності в паспорті — у статті{" "}
               <Link href="/blog/dalnist-teplovizora-yak-chytaty-pasport">«Дальність тепловізора»</Link>.
