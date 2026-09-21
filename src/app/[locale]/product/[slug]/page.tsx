@@ -21,6 +21,8 @@ import {
 } from "@/lib/product-image-alt";
 import { getAllPublicSettings } from "@/lib/store-settings";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
+import { ProductSimulatorCta } from "@/components/simulator/SimulatorCta";
+import { HowWeWorkCompact } from "@/components/trust/HowWeWork";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
 import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
@@ -281,6 +283,9 @@ export default async function ProductPage({ params }: Props) {
               className="btn-buy min-w-[200px] w-full sm:w-auto"
             />
           </div>
+
+          <ProductSimulatorCta product={product} locale={loc} />
+          <HowWeWorkCompact locale={loc} />
 
           {PRICE_COMPARE_PUBLIC_UI && (
             <PriceCompareSection compare={product.priceCompare} locale={locale} />

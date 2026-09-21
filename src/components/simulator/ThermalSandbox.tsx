@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { SimulatorPreset } from "@/lib/thermal/simulator-link";
 import NextLink from "next/link";
 import { ArrowUpRight, ScanEye } from "lucide-react";
 import { netdContrast } from "@/lib/thermal/parse-product-thermal";
@@ -92,6 +93,8 @@ type Props = {
   /** full = /simulator page; hero = desktop homepage embed */
   variant?: "full" | "hero";
   className?: string;
+  /** Start from a product's optics (validated — see simulator-link.ts) */
+  preset?: SimulatorPreset;
 };
 
 function mulberry32(seed: number) {
@@ -249,6 +252,7 @@ export function ThermalSandbox({
   locale = "uk",
   variant = "full",
   className,
+  preset,
 }: Props) {
   const isRu = locale === "ru";
   const isHero = variant === "hero";
@@ -262,6 +266,7 @@ export function ThermalSandbox({
       distanceM: isHero ? 120 : 150,
       fog: false,
       kCalib: INPUT_LIMITS.kDefault,
+      ...preset,
     })
   );
   const [palette, setPalette] = useState<Palette>("whitehot");

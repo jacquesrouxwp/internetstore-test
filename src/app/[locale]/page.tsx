@@ -1,6 +1,8 @@
 import { Hero } from "@/components/home/Hero";
 import { ProductRail } from "@/components/ui/ProductRail";
 import { BrandGrid } from "@/components/ui/BrandGrid";
+import { HowWeWork } from "@/components/trust/HowWeWork";
+import { SimulatorPromo } from "@/components/simulator/SimulatorCta";
 import {
   getProductBySlug,
   getProductsByFlag,
@@ -148,6 +150,9 @@ export default async function HomePage({
         brands={visibleBrandGridBrands(brands)}
         title={tc("brandsBlock")}
       />
+
+      <HowWeWork locale={locale as "uk" | "ru"} />
+      <SimulatorPromo locale={locale as "uk" | "ru"} />
 
     </>
   );
