@@ -4,12 +4,10 @@ import { BrandGrid } from "@/components/ui/BrandGrid";
 import {
   getProductBySlug,
   getProductsByFlag,
-  getReviews,
   getBrandsWithProducts,
 } from "@/lib/catalog";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
-import { Star } from "lucide-react";
 import { visibleBrandGridBrands } from "@/lib/brand-priority";
 import {
   dedupeRails,
@@ -81,13 +79,12 @@ export default async function HomePage({
   // Over-fetch: a rail must still fill up after items claimed by earlier rails
   // are dropped, otherwise de-duplication would leave gaps.
   const fetchSize = RAIL_SIZE * RAIL_FETCH_MULTIPLIER;
-  const [topRaw, hitsRaw, newsRaw, saleRaw, reviews, brands, featuredRaw] =
+  const [topRaw, hitsRaw, newsRaw, saleRaw, brands, featuredRaw] =
     await Promise.all([
       getProductsByFlag("top", fetchSize),
       getProductsByFlag("hit", fetchSize),
       getProductsByFlag("new", fetchSize),
       getProductsByFlag("sale", fetchSize),
-      Promise.resolve(getReviews()),
       getBrandsWithProducts(),
       Promise.all(FEATURED_SLUGS.map((s) => getProductBySlug(s))),
     ]);
@@ -152,29 +149,6 @@ export default async function HomePage({
         title={tc("brandsBlock")}
       />
 
-      <section className="py-12">
-        <div className="container-shop">
-          <h2 className="section-title mb-6">{t("reviews")}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {reviews.slice(0, 6).map((r) => (
-              <article key={r.id} className="card-surface p-5">
-                <div className="mb-2 flex gap-0.5" style={{ color: "var(--rating)" }}>
-                  {Array.from({ length: r.rating }).map((_, i) => (
-                    <Star key={i} className="h-3.5 w-3.5 fill-current" />
-                  ))}
-                </div>
-                <p className="mb-3 text-xs font-medium text-muted-ui">
-                  {r.productName}
-                </p>
-                <p className="text-sm leading-relaxed text-secondary">{r.text}</p>
-                <p className="mt-4 text-xs text-muted-ui">
-                  {r.author} · {r.date}
-                </p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
     </>
   );
 }

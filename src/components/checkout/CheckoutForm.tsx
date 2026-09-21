@@ -4,7 +4,7 @@ import { useCart } from "@/lib/cart-store";
 import { useLocale, useTranslations } from "next-intl";
 import { formatPrice } from "@/lib/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { BrandMark } from "@/components/ui/BrandMark";
 
 type City = { Ref: string; Description: string; Area?: string };
@@ -545,6 +545,20 @@ export function CheckoutForm() {
         <button type="submit" disabled={loading} className="btn-buy mt-6">
           {loading ? "…" : t("submit")}
         </button>
+        <p className="mt-3 text-xs leading-relaxed text-muted-ui">
+          {t.rich("consent", {
+            offer: (chunks) => (
+              <Link href="/oferta" className="underline hover:text-[var(--accent)]">
+                {chunks}
+              </Link>
+            ),
+            privacy: (chunks) => (
+              <Link href="/privacy" className="underline hover:text-[var(--accent)]">
+                {chunks}
+              </Link>
+            ),
+          })}
+        </p>
       </aside>
     </form>
   );
