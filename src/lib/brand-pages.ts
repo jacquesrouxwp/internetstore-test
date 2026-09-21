@@ -12,6 +12,8 @@ export type BrandProductRow = {
   nameUk: string;
   nameRu: string;
   price: number;
+  /** "640x512" etc. — spec landing pages filter on the width prefix */
+  resolution?: string | null;
   brandSlug: string;
   brandName: string;
   categorySlug: string | null;
@@ -165,11 +167,18 @@ export function summarizeBrand(
   locale: Locale,
   categorySlug?: string
 ): BrandSummary {
-  const list = rows.filter(
-    (r) =>
-      r.brandSlug === brandSlug &&
-      (!categorySlug || r.categorySlug === categorySlug)
+  return summarizeRows(
+    rows.filter(
+      (r) =>
+        r.brandSlug === brandSlug &&
+        (!categorySlug || r.categorySlug === categorySlug)
+    ),
+    locale
   );
+}
+
+/** Counts, price range, categories and model lines for any product list. */
+export function summarizeRows(list: BrandProductRow[], locale: Locale): BrandSummary {
 
   // Mounts and batteries would make "prices from" start at a bracket, so
   // accessories only count when the listing has nothing else.
@@ -192,7 +201,7 @@ export function summarizeBrand(
 
   for (const r of list) {
     if (r.categorySlug) cats.set(r.categorySlug, (cats.get(r.categorySlug) || 0) + 1);
-    const line = detectLine(brandSlug, r);
+    const line = detectLine(r.brandSlug, r);
     if (line) {
       const entry = lines.get(line) || { count: 0, cats: new Map() };
       entry.count += 1;

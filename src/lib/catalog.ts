@@ -179,6 +179,7 @@ export const getBrandProductRows = cache(
       nameUk: p.nameUk,
       nameRu: p.nameRu,
       price: p.price,
+      resolution: p.resolution || null,
       brandSlug: p.brandSlug!,
       brandName: p.brandName || brandNames.get(p.brandSlug!) || p.brandSlug!,
       categorySlug: p.categorySlug || null,

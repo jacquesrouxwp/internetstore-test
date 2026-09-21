@@ -11,6 +11,7 @@ import {
   hasPublicSupabase,
 } from "@/lib/supabase/service";
 import { absoluteProductImageUrls } from "@/lib/product-image-alt";
+import { COLLECTIONS } from "@/lib/collections";
 import { isBrandHidden, isRixProduct } from "@/lib/brand-priority";
 import {
   MIN_INDEXABLE_PRODUCTS,
@@ -310,6 +311,16 @@ export async function buildSitemapEntries(
   for (const c of cats) {
     push(`/catalog/${c.slug}`, { changefreq: "daily", priority: 0.8 });
     push(`/ru/catalog/${c.slug}`, { changefreq: "daily", priority: 0.7 });
+  }
+
+  // Spec landing pages (curated list; each holds 17+ products today — the
+  // page itself goes noindex if one ever drops below the threshold).
+  const catSlugs = new Set(cats.map((c) => c.slug));
+  for (const col of COLLECTIONS) {
+    if (!catSlugs.has(col.category)) continue;
+    const path = `/catalog/${col.category}/${col.slug}`;
+    push(path, { changefreq: "daily", priority: 0.7 });
+    push(`/ru${path}`, { changefreq: "daily", priority: 0.6 });
   }
 
   for (const post of posts) {

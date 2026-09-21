@@ -23,6 +23,7 @@ import {
   singleBrandFacet,
 } from "@/lib/pagination";
 import { MIN_INDEXABLE_PRODUCTS } from "@/lib/brand-pages";
+import { collectionForFacet, collectionsFor } from "@/lib/collections";
 import { categorySeo } from "@/lib/category-seo";
 
 // searchParams → dynamic render; taxonomy uses unstable_cache (120s).
@@ -73,10 +74,16 @@ export async function generateMetadata({
       ? `${name} — купить в Pro-Optics (Про Оптикс). Консультация, доставка Новой Почтой по Украине, гарантия.`
       : `${name} — купити в Pro-Optics (Про Оптікс). Консультація, доставка Новою Поштою по Україні, гарантія.`);
   const brandCanonical = await brandListingCanonical(category, sp);
+  // `?res=640` alone is the "матриця 640" collection — same list, same order
+  const collection = collectionForFacet(category, sp);
+  const facetPage = pageFromQuery(sp);
+  const collectionCanonical = collection
+    ? `/catalog/${category}/${collection.slug}${facetPage > 1 ? `?page=${facetPage}` : ""}`
+    : null;
   return {
     title,
     description,
-    alternates: pageAlternates(locale, brandCanonical ?? canonicalPath),
+    alternates: pageAlternates(locale, brandCanonical ?? collectionCanonical ?? canonicalPath),
   };
 }
 
@@ -178,6 +185,23 @@ export default async function CatalogPage({ params, searchParams }: Props) {
       />
 
       <h1 className="section-title mb-4 sm:mb-6">{title}</h1>
+
+      {collectionsFor(category).length > 0 && (
+        <nav
+          aria-label={loc === "ru" ? "Подборки" : "Підбірки"}
+          className="-mt-2 mb-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mt-3"
+        >
+          {collectionsFor(category).map((c) => (
+            <Link
+              key={c.slug}
+              href={`/catalog/${category}/${c.slug}`}
+              className="inline-flex items-center whitespace-nowrap rounded-full border border-white/10 px-3.5 py-1.5 text-sm font-medium text-secondary transition hover:border-white/25 hover:text-primary"
+            >
+              {c.chip[loc]}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {/*
         Mobile: products first + side filter tab/drawer

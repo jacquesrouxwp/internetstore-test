@@ -547,7 +547,7 @@ async function dbGetBrandProductRowsUncached(): Promise<BrandProductRow[] | null
       const { data, error } = await supabase
         .from("products")
         .select(
-          "slug, name_uk, name_ru, price, updated_at, brands(slug, name), categories(slug)"
+          "slug, name_uk, name_ru, price, resolution, updated_at, brands(slug, name), categories(slug)"
         )
         .eq("published", true)
         .order("id", { ascending: true })
@@ -563,6 +563,7 @@ async function dbGetBrandProductRowsUncached(): Promise<BrandProductRow[] | null
           nameUk: String(row.name_uk || ""),
           nameRu: String(row.name_ru || ""),
           price: Number(row.price) || 0,
+          resolution: (row.resolution as string) || null,
           brandSlug: brand.slug,
           brandName: brand.name || brand.slug,
           categorySlug: cat?.slug || null,
@@ -580,7 +581,7 @@ async function dbGetBrandProductRowsUncached(): Promise<BrandProductRow[] | null
 
 export const dbGetBrandProductRows = unstable_cache(
   async () => dbGetBrandProductRowsUncached(),
-  ["db-brand-product-rows-v1"],
+  ["db-brand-product-rows-v2"],
   { revalidate: 120, tags: ["products", "brands"] }
 );
 
