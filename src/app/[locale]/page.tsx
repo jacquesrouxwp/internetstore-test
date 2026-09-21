@@ -5,7 +5,7 @@ import {
   getProductBySlug,
   getProductsByFlag,
   getReviews,
-  getBrands,
+  getBrandsWithProducts,
 } from "@/lib/catalog";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
@@ -88,7 +88,7 @@ export default async function HomePage({
       getProductsByFlag("new", fetchSize),
       getProductsByFlag("sale", fetchSize),
       Promise.resolve(getReviews()),
-      getBrands(),
+      getBrandsWithProducts(),
       Promise.all(FEATURED_SLUGS.map((s) => getProductBySlug(s))),
     ]);
 

@@ -20,7 +20,6 @@ function row(over: Partial<BrandProductRow>): BrandProductRow {
     nameUk: "Тепловізор Pulsar X",
     nameRu: "Тепловизор Pulsar X",
     price: 50000,
-    stock: 1,
     brandSlug: "pulsar",
     brandName: "PULSAR",
     categorySlug: "teplovizori",
@@ -31,7 +30,7 @@ function row(over: Partial<BrandProductRow>): BrandProductRow {
 
 const rows: BrandProductRow[] = [
   row({ slug: "pulsar-axion-xg30", nameUk: "Тепловізор Pulsar Axion XG30", price: 85500 }),
-  row({ slug: "pulsar-helion-xp50", nameUk: "Тепловізор Pulsar Helion XP50", price: 104000, stock: 0 }),
+  row({ slug: "pulsar-helion-xp50", nameUk: "Тепловізор Pulsar Helion XP50", price: 104000 }),
   row({ slug: "pulsar-axion-2", nameUk: "Тепловізор Pulsar Axion 2 XQ35", price: 60000, updatedAt: "2026-09-10T00:00:00.000Z" }),
   row({ slug: "pulsar-thermion-2", nameUk: "Тепловізійний приціл Pulsar Thermion 2 LRF", price: 150000, categorySlug: "pricili" }),
   row({ slug: "pulsar-kronshtein", nameUk: "Кронштейн Pulsar", price: 1500, categorySlug: "aksesuary" }),
@@ -39,10 +38,9 @@ const rows: BrandProductRow[] = [
 ];
 
 describe("summarizeBrand", () => {
-  it("counts products, stock and categories for one brand", () => {
+  it("counts products and categories for one brand", () => {
     const s = summarizeBrand(rows, "pulsar", "uk");
     assert.equal(s.total, 5);
-    assert.equal(s.inStock, 4);
     assert.deepEqual(s.byCategory[0], { slug: "teplovizori", count: 3 });
     assert.equal(s.lastModified, "2026-09-10T00:00:00.000Z");
   });
@@ -115,6 +113,7 @@ describe("titles and copy", () => {
     assert.ok(d.length <= 160, d);
     assert.match(d, /5 товарів/);
     assert.match(d, /від 60 000 грн/);
+    assert.doesNotMatch(d, /наявност/);
   });
 
   it("builds FAQ answers from catalog numbers", () => {
@@ -125,7 +124,8 @@ describe("titles and copy", () => {
     }));
     assert.match(faq[0].q, /Скільки коштують прилади Pulsar/);
     assert.match(faq[0].a, /від 60 000 грн до 150 000 грн/);
-    assert.match(faq[1].a, /4 з 5 товарів/);
+    assert.match(faq[1].a, /5 товарів Pulsar/);
+    assert.doesNotMatch(faq.map((f) => f.a).join(" "), /в наявності \d/);
   });
 
   it("prefers readable brand names over DB caps", () => {

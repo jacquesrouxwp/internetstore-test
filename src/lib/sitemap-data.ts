@@ -349,7 +349,6 @@ export async function buildSitemapEntries(
       nameUk: "",
       nameRu: "",
       price: 0,
-      stock: 0,
       brandSlug: p.brandSlug!,
       brandName: p.brandSlug!,
       categorySlug: p.categorySlug || null,

@@ -5,6 +5,7 @@ import {
   pageFromQuery,
   paginationHref,
   paginationItems,
+  singleBrandFacet,
 } from "./pagination";
 
 const BASE = "/catalog/teplovizori";
@@ -73,5 +74,19 @@ describe("catalogCanonicalPath", () => {
 
   it("an empty filter is not a facet", () => {
     assert.equal(catalogCanonicalPath(BASE, { brand: "", page: "2" }), `${BASE}?page=2`);
+  });
+});
+
+describe("singleBrandFacet", () => {
+  it("returns the brand when it is the only facet", () => {
+    assert.equal(singleBrandFacet({ brand: "pulsar" }), "pulsar");
+    assert.equal(singleBrandFacet({ brand: "pulsar", page: "3" }), "pulsar");
+  });
+
+  it("ignores listings with several brands or other filters", () => {
+    assert.equal(singleBrandFacet({}), null);
+    assert.equal(singleBrandFacet({ brand: ["pulsar", "agm"] }), null);
+    assert.equal(singleBrandFacet({ brand: "pulsar", res: "640" }), null);
+    assert.equal(singleBrandFacet({ brand: "pulsar", sort: "price_asc" }), null);
   });
 });

@@ -59,6 +59,22 @@ export function catalogCanonicalPath(basePath: string, query: Query): string {
   return page > 1 ? `${basePath}?page=${page}` : basePath;
 }
 
+function hasValue(v: string | string[] | undefined): boolean {
+  return Array.isArray(v) ? v.some((x) => x !== "") : v != null && v !== "";
+}
+
+/**
+ * A listing filtered by exactly one brand and nothing else is the same list
+ * as that brand's brand × category page — return the brand slug so the
+ * facet URL can point its canonical there.
+ */
+export function singleBrandFacet(query: Query): string | null {
+  const brands = paramList(query.brand).filter((b) => b !== "");
+  if (brands.length !== 1) return null;
+  const otherFacet = FACET_PARAMS.some((k) => k !== "brand" && hasValue(query[k]));
+  return otherFacet ? null : brands[0];
+}
+
 function paramList(v: string | string[] | undefined): string[] {
   if (!v) return [];
   return Array.isArray(v) ? v : [v];

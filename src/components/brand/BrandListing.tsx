@@ -94,9 +94,6 @@ export async function BrandListing({
     summary.minPrice
       ? `${ru ? "от" : "від"} ${formatUah(summary.minPrice.price)}`
       : null,
-    summary.inStock > 0
-      ? `${summary.inStock} ${ru ? "в наличии" : "в наявності"}`
-      : null,
   ].filter(Boolean);
 
   return (
@@ -315,8 +312,8 @@ export async function BrandListing({
         {". "}
         {priceRange()
           ? ru
-            ? `Цены на приборы — ${priceRange()}, в наличии — ${summary.inStock}.`
-            : `Ціни на прилади — ${priceRange()}, в наявності — ${summary.inStock}.`
+            ? `Цены на приборы — ${priceRange()}.`
+            : `Ціни на прилади — ${priceRange()}.`
           : null}
         {cheapestLink()}
       </>
@@ -332,8 +329,8 @@ export async function BrandListing({
           : `У розділі — ${pluralProducts(summary.total, locale)}`}
         {priceRange()
           ? ru
-            ? `, цены ${priceRange()}, в наличии — ${summary.inStock}.`
-            : `, ціни ${priceRange()}, в наявності — ${summary.inStock}.`
+            ? `, цены ${priceRange()}.`
+            : `, ціни ${priceRange()}.`
           : "."}
         {cheapestLink()}
         {ru ? " Смотрите также " : " Дивіться також "}

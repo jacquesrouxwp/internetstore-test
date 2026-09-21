@@ -179,7 +179,6 @@ export const getBrandProductRows = cache(
       nameUk: p.nameUk,
       nameRu: p.nameRu,
       price: p.price,
-      stock: p.stock,
       brandSlug: p.brandSlug!,
       brandName: p.brandName || brandNames.get(p.brandSlug!) || p.brandSlug!,
       categorySlug: p.categorySlug || null,
@@ -187,6 +186,18 @@ export const getBrandProductRows = cache(
     }));
   }
 );
+
+/**
+ * Brands with at least one published product. The homepage logo grids link
+ * each logo to its brand page; an empty brand there leads to "no products".
+ * Falls back to every brand if the product rows can't be loaded.
+ */
+export const getBrandsWithProducts = cache(async (): Promise<Brand[]> => {
+  const [brands, rows] = await Promise.all([getBrands(), getBrandProductRows()]);
+  if (!rows.length) return brands;
+  const withProducts = new Set(rows.map((r) => r.brandSlug));
+  return brands.filter((b) => withProducts.has(b.slug));
+});
 
 export function getReviews(): Review[] {
   return getReviewsSeed();

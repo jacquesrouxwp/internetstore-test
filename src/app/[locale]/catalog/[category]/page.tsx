@@ -3,7 +3,12 @@ import { CatalogCategoryTabs } from "@/components/catalog/CatalogCategoryTabs";
 import { CatalogToolbar } from "@/components/catalog/CatalogToolbar";
 import { CatalogProductGrid } from "@/components/catalog/CatalogProductGrid";
 import { Pagination } from "@/components/catalog/Pagination";
-import { getCatalog, getCategories, getCategoryBySlug } from "@/lib/catalog";
+import {
+  getBrandProductRows,
+  getCatalog,
+  getCategories,
+  getCategoryBySlug,
+} from "@/lib/catalog";
 import { Link } from "@/i18n/routing";
 import { categoryName, supportsDetectionRangeFilter } from "@/types";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -12,7 +17,12 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { pageAlternates } from "@/lib/seo-alternates";
 import { breadcrumbJsonLd, jsonLdScript } from "@/lib/breadcrumbs";
-import { catalogCanonicalPath, pageFromQuery } from "@/lib/pagination";
+import {
+  catalogCanonicalPath,
+  pageFromQuery,
+  singleBrandFacet,
+} from "@/lib/pagination";
+import { MIN_INDEXABLE_PRODUCTS } from "@/lib/brand-pages";
 import { categorySeo } from "@/lib/category-seo";
 
 // searchParams → dynamic render; taxonomy uses unstable_cache (120s).
@@ -62,11 +72,33 @@ export async function generateMetadata({
     (isRu
       ? `${name} — купить в Pro-Optics (Про Оптикс). Консультация, доставка Новой Почтой по Украине, гарантия.`
       : `${name} — купити в Pro-Optics (Про Оптікс). Консультація, доставка Новою Поштою по Україні, гарантія.`);
+  const brandCanonical = await brandListingCanonical(category, sp);
   return {
     title,
     description,
-    alternates: pageAlternates(locale, canonicalPath),
+    alternates: pageAlternates(locale, brandCanonical ?? canonicalPath),
   };
+}
+
+/**
+ * `/catalog/pricili?brand=pulsar` lists exactly what `/brand/pulsar/pricili`
+ * lists (same query, sort and page size). Old logo/menu links pointed at the
+ * facet, so Google holds history for it — hand that to the brand page.
+ * Only when the brand page is a real, indexable listing.
+ */
+async function brandListingCanonical(
+  category: string,
+  sp: Record<string, string | string[] | undefined>
+): Promise<string | null> {
+  const brand = singleBrandFacet(sp);
+  if (!brand) return null;
+  const rows = await getBrandProductRows();
+  const count = rows.filter(
+    (r) => r.brandSlug === brand && r.categorySlug === category
+  ).length;
+  if (count < MIN_INDEXABLE_PRODUCTS) return null;
+  const page = pageFromQuery(sp);
+  return `/brand/${brand}/${category}${page > 1 ? `?page=${page}` : ""}`;
 }
 
 export default async function CatalogPage({ params, searchParams }: Props) {

@@ -1,5 +1,5 @@
 import { HeroCarousel } from "@/components/home/HeroCarousel";
-import { getBrands } from "@/lib/catalog";
+import { getBrandsWithProducts } from "@/lib/catalog";
 import {
   sortBrandsByPriority,
   visibleBrandGridBrands,
@@ -12,7 +12,7 @@ import { listPublishedPosts } from "@/lib/blog/repo";
  */
 export async function Hero() {
   const [allBrands, blog] = await Promise.all([
-    getBrands(),
+    getBrandsWithProducts(),
     listPublishedPosts({ limit: 6, page: 1 }),
   ]);
   const brands = sortBrandsByPriority(visibleBrandGridBrands(allBrands));

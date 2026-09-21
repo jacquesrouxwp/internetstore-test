@@ -12,7 +12,6 @@ export type BrandProductRow = {
   nameUk: string;
   nameRu: string;
   price: number;
-  stock: number;
   brandSlug: string;
   brandName: string;
   categorySlug: string | null;
@@ -151,7 +150,6 @@ export type PricePoint = { price: number; name: string; slug: string };
 
 export type BrandSummary = {
   total: number;
-  inStock: number;
   minPrice: PricePoint | null;
   maxPrice: PricePoint | null;
   /** Category slug → count, largest first */
@@ -190,11 +188,9 @@ export function summarizeBrand(
   }
   const cats = new Map<string, number>();
   const lines = new Map<string, { count: number; cats: Map<string, number> }>();
-  let inStock = 0;
   let lastModified: string | null = null;
 
   for (const r of list) {
-    if (r.stock > 0) inStock += 1;
     if (r.categorySlug) cats.set(r.categorySlug, (cats.get(r.categorySlug) || 0) + 1);
     const line = detectLine(brandSlug, r);
     if (line) {
@@ -212,7 +208,6 @@ export function summarizeBrand(
 
   return {
     total: list.length,
-    inStock,
     minPrice,
     maxPrice,
     byCategory: Array.from(cats, ([slug, count]) => ({ slug, count })).sort(byCount),
@@ -320,11 +315,6 @@ export function brandMetaDescription(
         ? `Цены от ${formatUah(summary.minPrice.price)}.`
         : `Ціни від ${formatUah(summary.minPrice.price)}.`
       : "",
-    summary.inStock > 0
-      ? ru
-        ? `${summary.inStock} в наличии.`
-        : `${summary.inStock} в наявності.`
-      : "",
     ru
       ? "Доставка Новой Почтой по Украине, гарантия."
       : "Доставка Новою Поштою по Україні, гарантія.",
@@ -370,12 +360,14 @@ export function brandFaq(
   }
 
   out.push({
+    // Stock quantities aren't reliable (the storefront hides them), so the
+    // answer points to each product card instead of quoting a count.
     q: ru
-      ? `Какие модели ${brandName} есть в наличии?`
-      : `Які моделі ${brandName} є в наявності?`,
+      ? `Какие модели ${brandName} есть в каталоге?`
+      : `Які моделі ${brandName} є в каталозі?`,
     a: ru
-      ? `Сейчас в наличии ${summary.inStock} из ${pluralProducts(summary.total, locale)}. Наличие указано в карточке каждой модели. Если нужной нет — консультант подскажет аналог.`
-      : `Зараз в наявності ${summary.inStock} з ${pluralProducts(summary.total, locale)}. Наявність вказана в картці кожної моделі. Якщо потрібної немає — консультант підкаже аналог.`,
+      ? `В каталоге Pro-Optics — ${pluralProducts(summary.total, locale)} ${brandName}. Наличие указано в карточке каждой модели. Если нужной модели нет — консультант подскажет аналог.`
+      : `У каталозі Pro-Optics — ${pluralProducts(summary.total, locale)} ${brandName}. Наявність вказана в картці кожної моделі. Якщо потрібної моделі немає — консультант підкаже аналог.`,
   });
 
   out.push({
