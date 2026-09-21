@@ -1,7 +1,10 @@
 import { ScanEye } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import type { Product } from "@/types";
-import { parseProductThermal } from "@/lib/thermal/parse-product-thermal";
+import {
+  parseProductThermal,
+  type ThermalMatrix,
+} from "@/lib/thermal/parse-product-thermal";
 import { simulatorHref, specNetdMk } from "@/lib/thermal/simulator-link";
 
 type Locale = "uk" | "ru";
@@ -61,14 +64,23 @@ export function ProductSimulatorCta({
   if (!product.categorySlug || !THERMAL_CATEGORIES.has(product.categorySlug)) return null;
   const width = parseInt(product.resolution || "", 10);
   if (!(width in MATRIX_LABEL)) return null;
-  const params = parseProductThermal({
-    resolution: product.resolution,
-    specs: product.specs,
-    detectionRangeM: product.detectionRangeM,
-    name: product.nameUk,
-  });
+  const params = {
+    ...parseProductThermal({
+      resolution: product.resolution,
+      specs: product.specs,
+      detectionRangeM: product.detectionRangeM,
+      name: product.nameUk,
+    }),
+    // parseMatrix() doesn't know e.g. 640×480 and falls back to 384 — the
+    // card's own width is authoritative here.
+    matrix: width as ThermalMatrix,
+    netdMk: specNetdMk(product.specs) ?? 0,
+  };
   const ru = locale === "ru";
-  const matrix = MATRIX_LABEL[params.matrix];
+  const res = (product.resolution || "").trim();
+  const matrix = /^\d+\s*[x×]\s*\d+$/i.test(res)
+    ? res.replace(/\s*[x×]\s*/i, "×")
+    : MATRIX_LABEL[width];
   const lens = params.focalMm
     ? ru
       ? ` и объективом ${params.focalMm} мм`
@@ -87,7 +99,7 @@ export function ProductSimulatorCta({
             : `Відкрийте симулятор із матрицею ${matrix}${lens} і подивіться, на якій дистанції ціль ще видно.`}
         </p>
         <Link
-          href={simulatorHref({ ...params, netdMk: specNetdMk(product.specs) ?? 0 })}
+          href={simulatorHref(params)}
           className="mt-2 inline-block font-semibold text-[var(--accent)] hover:underline"
         >
           {ru ? "Посмотреть в симуляторе →" : "Подивитися в симуляторі →"}

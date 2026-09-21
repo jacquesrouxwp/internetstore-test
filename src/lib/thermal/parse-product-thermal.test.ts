@@ -206,6 +206,8 @@ describe("parseFocalMm", () => {
       parseFocalMm({ "Об'єктив": "35 мм" }, null),
       35
     );
+    // imported cards: unit in the key, apostrophe lost
+    assert.equal(parseFocalMm({ "Об єктив, мм": "35" }, null), 35);
   });
 
   it("reads from model name LE15 / LH25 / CQ50 / 640-50", () => {
@@ -477,5 +479,11 @@ describe("matrixPixelWidth", () => {
     assert.equal(matrixPixelWidth(256), 96);
     assert.equal(matrixPixelWidth(384), 144);
     assert.equal(matrixPixelWidth(640), 240);
+  });
+});
+
+describe("parseFocalMm — bare numbers", () => {
+  it("does not read magnification as a focal length", () => {
+    assert.equal(parseFocalMm({ "Оптичне збільшення, х": "12" }, null), null);
   });
 });

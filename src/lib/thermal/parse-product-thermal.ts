@@ -187,11 +187,16 @@ export function parseFocalMm(
   if (specs) {
     for (const [k, v] of Object.entries(specs)) {
       if (
-        /фокус|focal|объект|об'єкт|об'єктив|лінз|линз|lens|objective|оптик|f\b/i.test(
+        /фокус|focal|объект|об['’ʼ\s]?єкт|лінз|линз|lens|objective|оптик|f\b/i.test(
           k
         )
       ) {
-        chunks.push(String(v));
+        // Imported cards write "Об єктив, мм": "35" — the unit is in the key.
+        // Only for lens keys: "Оптичне збільшення": "4" is not a focal length.
+        const bareLens =
+          /^\s*\d{1,3}(?:[.,]\d+)?\s*$/.test(String(v)) &&
+          /фокус|focal|объект|об['’ʼ\s]?єкт|лінз|линз|lens|objective/i.test(k);
+        chunks.push(bareLens ? `${v} мм` : String(v));
       }
       // bare "25 мм" values on lens-ish keys already covered; also scan values
       if (/\d{1,3}\s*мм/i.test(String(v)) && /мм|mm|focal|линз|лінз|объект/i.test(k + v)) {
