@@ -166,11 +166,12 @@ function canonicalGroup(raw: string): string {
   if (k.includes("частот") || k.includes("hz") || k.includes("гц")) return "freq";
   if (k.includes("netd") || k.includes("різниця температур") || k.includes("разница температур"))
     return "netd";
+  // Pixel pitch only — NOT "крок корекції/поправок" (click value at 100 m)
   if (
     k.includes("крок піксел") ||
     k.includes("шаг пиксел") ||
     k.includes("pixel pitch") ||
-    k.includes("pitch")
+    (k.includes("pitch") && !k.includes("поправ") && !k.includes("корекц"))
   ) {
     return "pitch";
   }
