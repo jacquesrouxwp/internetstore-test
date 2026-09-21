@@ -23,6 +23,7 @@ import { getAllPublicSettings } from "@/lib/store-settings";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { ProductSimulatorCta } from "@/components/simulator/SimulatorCta";
 import { HowWeWorkCompact } from "@/components/trust/HowWeWork";
+import { comparisonsFor } from "@/lib/comparisons";
 import { ProductJsonLd } from "@/components/product/ProductJsonLd";
 import { PriceCompareSection } from "@/components/product/PriceCompareSection";
 import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
@@ -285,6 +286,20 @@ export default async function ProductPage({ params }: Props) {
           </div>
 
           <ProductSimulatorCta product={product} locale={loc} />
+          {comparisonsFor(product.slug).map((c) => {
+            const other = c.a.slug === product.slug ? c.b.name : c.a.name;
+            return (
+              <p key={c.slug} className="mt-3 text-sm text-secondary">
+                {loc === "ru" ? "Сравнить с " : "Порівняти з "}
+                <Link
+                  href={`/porivniannia/${c.slug}`}
+                  className="font-semibold text-[var(--accent)] hover:underline"
+                >
+                  {other} →
+                </Link>
+              </p>
+            );
+          })}
           <HowWeWorkCompact locale={loc} />
 
           {PRICE_COMPARE_PUBLIC_UI && (

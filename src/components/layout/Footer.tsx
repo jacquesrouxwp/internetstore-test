@@ -80,6 +80,11 @@ export async function Footer() {
                 {tn("brands")}
               </Link>
             </li>
+            <li>
+              <Link href="/porivniannia" className="hover:text-[var(--accent)]">
+                {t("compare")}
+              </Link>
+            </li>
             {SIMULATOR_LINK_ENABLED && (
               <li>
                 <Link

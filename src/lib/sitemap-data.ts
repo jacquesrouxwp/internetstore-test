@@ -12,6 +12,7 @@ import {
 } from "@/lib/supabase/service";
 import { absoluteProductImageUrls } from "@/lib/product-image-alt";
 import { COLLECTIONS } from "@/lib/collections";
+import { COMPARISONS } from "@/lib/comparisons";
 import { isBrandHidden, isRixProduct } from "@/lib/brand-priority";
 import {
   MIN_INDEXABLE_PRODUCTS,
@@ -288,6 +289,7 @@ export async function buildSitemapEntries(
     "/blog",
     "/vykup",
     "/viyskovym",
+    "/porivniannia",
     "/oferta",
     "/privacy",
   ];
@@ -312,6 +314,11 @@ export async function buildSitemapEntries(
   for (const c of cats) {
     push(`/catalog/${c.slug}`, { changefreq: "daily", priority: 0.8 });
     push(`/ru/catalog/${c.slug}`, { changefreq: "daily", priority: 0.7 });
+  }
+
+  for (const cmp of COMPARISONS) {
+    push(`/porivniannia/${cmp.slug}`, { changefreq: "weekly", priority: 0.6 });
+    push(`/ru/porivniannia/${cmp.slug}`, { changefreq: "weekly", priority: 0.5 });
   }
 
   // Spec landing pages (curated list; each holds 17+ products today — the
