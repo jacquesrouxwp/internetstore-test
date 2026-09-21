@@ -107,6 +107,10 @@ export function CatalogFilters({
                     <img
                       src={b.logoUrl}
                       alt=""
+                      width={40}
+                      height={20}
+                      loading="lazy"
+                      decoding="async"
                       className="h-5 w-10 rounded bg-[var(--photo-bg)] object-contain p-0.5"
                     />
                   ) : null}

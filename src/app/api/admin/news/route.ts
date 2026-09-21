@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { hasServiceSupabase } from "@/lib/supabase/service";
 import { slugify } from "@/lib/utils";
@@ -9,6 +10,11 @@ import {
   adminListPosts,
   adminUpsertPost,
 } from "@/lib/blog/repo";
+
+/** The homepage blog shelf is cached (ISR) — show post changes right away. */
+function refreshHome() {
+  revalidatePath("/[locale]", "page");
+}
 
 export async function GET(req: NextRequest) {
   const denied = await requireAdminApi(req);
@@ -92,6 +98,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const parsed = parseBody(body);
     const post = await adminUpsertPost(parsed, true);
+    refreshHome();
     return NextResponse.json({ post });
   } catch (e) {
     return NextResponse.json(
@@ -122,6 +129,7 @@ export async function PUT(req: NextRequest) {
     }
     const parsed = parseBody(body, existing.slug);
     const post = await adminUpsertPost({ ...parsed, id }, false);
+    refreshHome();
     return NextResponse.json({ post });
   } catch (e) {
     return NextResponse.json(
@@ -140,6 +148,7 @@ export async function DELETE(req: NextRequest) {
   }
   try {
     await adminDeletePost(id);
+    refreshHome();
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json(
