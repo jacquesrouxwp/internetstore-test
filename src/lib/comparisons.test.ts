@@ -89,3 +89,13 @@ describe("comparisonHighlights", () => {
     assert.deepEqual(sharedTraits(axion, lynx, "uk"), ["матриця 640", "об'єктив 35 мм"]);
   });
 });
+
+describe("number formatting", () => {
+  it("rounds weight before the difference and uses a decimal comma", () => {
+    const x = productMetrics({ price: 1, resolution: null, detectionRangeM: null, nameUk: "A", specs: { "Вага, грам": "380", "Автономна робота, г": "6.5" } });
+    const y = productMetrics({ price: 1, resolution: null, detectionRangeM: null, nameUk: "B", specs: { "Вага, грам": "354.5", "Автономна робота, г": "7" } });
+    const text = comparisonHighlights(["A", "B"], x, y, "uk").map((h) => h.text).join("\n");
+    assert.match(text, /355 г \(B легший на 25 г\)/);
+    assert.match(text, /до 6,5 год/);
+  });
+});

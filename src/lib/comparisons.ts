@@ -84,6 +84,13 @@ function specYesNo(specs: Record<string, string> | undefined, key: RegExp): bool
   return null;
 }
 
+function roundOrNull(x: number | null): number | null {
+  return x == null ? null : Math.round(x);
+}
+
+/** 6.5 → "6,5" (uk/ru decimal comma) */
+const dec = (x: number) => String(x).replace(".", ",");
+
 export function productMetrics(p: ProductLike): Metrics {
   const specs = p.specs || {};
   const lrfSpec = specYesNo(specs, /лазерн\S* далекомір|лазерн\S* дальномер/i);
@@ -93,7 +100,8 @@ export function productMetrics(p: ProductLike): Metrics {
       p.detectionRangeM ||
       specNumber(specs, /дальн?і?ість виявлення людини|дальность обнаружения человека/i),
     netdMk: specNetdMk(specs),
-    weightG: specNumber(specs, /^(вага|вес)/i),
+    // Rounded here so a stated "354.5 г" and the difference agree on screen
+    weightG: roundOrNull(specNumber(specs, /^(вага|вес)/i)),
     batteryH: specNumber(specs, /автономн/i),
     lrf: lrfSpec ?? (/\blrf\b/i.test(p.nameUk) ? true : null),
     resolution: p.resolution || null,
@@ -165,8 +173,8 @@ export function comparisonHighlights(
       edge: longer,
       label: ru ? "дольше работает от аккумулятора" : "довше працює від акумулятора",
       text: ru
-        ? `Работа от аккумулятора: ${na} — до ${a.batteryH} ч, ${nb} — до ${b.batteryH} ч.`
-        : `Робота від акумулятора: ${na} — до ${a.batteryH} год, ${nb} — до ${b.batteryH} год.`,
+        ? `Работа от аккумулятора: ${na} — до ${dec(a.batteryH)} ч, ${nb} — до ${dec(b.batteryH)} ч.`
+        : `Робота від акумулятора: ${na} — до ${dec(a.batteryH)} год, ${nb} — до ${dec(b.batteryH)} год.`,
     });
   }
   if (a.weightG && b.weightG && a.weightG !== b.weightG) {
