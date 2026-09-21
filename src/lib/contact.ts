@@ -18,3 +18,17 @@ export const STORE_PHONE_DIGITS = "380637897699";
 export const STORE_PHONE_WHATSAPP = `https://wa.me/${STORE_PHONE_DIGITS}`;
 export const STORE_PHONE_TELEGRAM = `https://t.me/+${STORE_PHONE_DIGITS}`;
 export const STORE_PHONE_VIBER = `viber://chat?number=%2B${STORE_PHONE_DIGITS}`;
+
+/**
+ * pro-optics.ua is not a registered domain, so mail to it bounces — yet it was
+ * the storefront address (and may still sit in admin settings). Never publish
+ * an address on a dead domain; a real mailbox set in admin shows up as-is.
+ */
+const DEAD_EMAIL_DOMAINS = ["pro-optics.ua"];
+
+export function publicStoreEmail(email: string | null | undefined): string | null {
+  const value = (email || "").trim();
+  const domain = value.split("@")[1]?.toLowerCase();
+  if (!domain || DEAD_EMAIL_DOMAINS.includes(domain)) return null;
+  return value;
+}

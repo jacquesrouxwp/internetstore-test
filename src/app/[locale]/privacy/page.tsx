@@ -25,8 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * Describes what the site actually does with data: orders are stored in our
  * database and announced to managers in Telegram, delivery data goes to Nova
  * Poshta, card data stays with the payment provider, the cart lives in
- * localStorage, and no third-party analytics/ad trackers are loaded.
- * Update this page if any of that changes (e.g. GA / pixel env vars are set).
+ * localStorage, page views go to cookieless Vercel Web Analytics, and no ad
+ * trackers are loaded. Update this page if any of that changes (e.g. the GA /
+ * Meta pixel env vars get set).
  */
 export default async function PrivacyPage({ params }: Props) {
   const { locale } = await params;
@@ -65,8 +66,8 @@ export default async function PrivacyPage({ params }: Props) {
           </li>
           <li>
             {L(
-              "Технічні дані: IP-адреса, тип браузера та відвідані сторінки — у журналах сервера для безпеки сайту й захисту від зловживань, а також знеособлена статистика натискань на кнопки консультації.",
-              "Технические данные: IP-адрес, тип браузера и посещённые страницы — в журналах сервера для безопасности сайта и защиты от злоупотреблений, а также обезличенная статистика нажатий на кнопки консультации."
+              "Технічні дані: IP-адреса, тип браузера та відвідані сторінки — у журналах сервера для безпеки сайту й захисту від зловживань; знеособлена статистика відвідувань (Vercel Web Analytics, без cookie) і натискань на кнопки консультації.",
+              "Технические данные: IP-адрес, тип браузера и посещённые страницы — в журналах сервера для безопасности сайта и защиты от злоупотреблений; обезличенная статистика посещений (Vercel Web Analytics, без cookie) и нажатий на кнопки консультации."
             )}
           </li>
         </ul>

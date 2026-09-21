@@ -66,7 +66,8 @@ export type SecuritySettings = {
 const DEFAULTS: Record<string, unknown> = {
   site: {
     phones: [STORE_PHONE_DISPLAY],
-    email: "info@pro-optics.ua",
+    // No working mailbox yet (pro-optics.ua doesn't exist) — set a real one in admin
+    email: "",
     address: "Київ, Україна",
     hours: "Пн–Пт: 9:00–18:00 · Сб: 12:00–15:00",
     siteName: "Pro-Optics",
