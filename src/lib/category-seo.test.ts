@@ -22,7 +22,7 @@ describe("categorySeo", () => {
     assert.match(categorySeo("teplovizori", "uk")!.html, /href="\/catalog\/pricili"/);
     const ru = categorySeo("teplovizori", "ru")!.html;
     assert.match(ru, /href="\/ru\/catalog\/pricili"/);
-    assert.match(ru, /href="\/ru\/about#military-support"/);
+    assert.match(ru, /href="\/ru\/viyskovym"/);
     assert.doesNotMatch(ru, /href="\/(?!ru\/)/);
     assert.doesNotMatch(ru, /\/ru\/ru\//);
   });

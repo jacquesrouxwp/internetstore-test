@@ -95,8 +95,14 @@ export default async function AboutPage({ params }: Props) {
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href="/contacts"
+            href="/viyskovym"
             className="inline-flex items-center justify-center rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover,#c41824)]"
+          >
+            {isRu ? "Условия для военных" : "Умови для військових"}
+          </Link>
+          <Link
+            href="/contacts"
+            className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-white/25 hover:bg-white/[0.07]"
           >
             {t("aboutMilitaryCta")}
           </Link>

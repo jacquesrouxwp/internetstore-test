@@ -14,6 +14,7 @@ const SOURCES = new Set([
   "catalog",
   "returns",
   "buyback",
+  "military",
   "other",
 ]);
 

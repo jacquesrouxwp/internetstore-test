@@ -287,6 +287,7 @@ export async function buildSitemapEntries(
     "/contacts",
     "/blog",
     "/vykup",
+    "/viyskovym",
     "/oferta",
     "/privacy",
   ];

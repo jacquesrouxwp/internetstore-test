@@ -14,6 +14,7 @@ export type ConsultSource =
   | "catalog"
   | "returns"
   | "buyback"
+  | "military"
   | "other";
 
 export type ConsultTrackPayload = {

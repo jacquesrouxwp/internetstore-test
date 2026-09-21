@@ -185,7 +185,7 @@ export default async function ProductPage({ params }: Props) {
                   <span className="label-badge badge-hit">{t("top")}</span>
                 ) : null}
                 <Link
-                  href="/about#military-support"
+                  href="/viyskovym"
                   className="label-badge badge-military transition hover:brightness-110"
                   title={t("militaryBadgeHint")}
                 >
@@ -229,7 +229,7 @@ export default async function ProductPage({ params }: Props) {
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
             {!spotlight ? (
               <Link
-                href="/about#military-support"
+                href="/viyskovym"
                 className="label-badge badge-military !static transition hover:brightness-110"
                 title={t("militaryBadgeHint")}
               >
