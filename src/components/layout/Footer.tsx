@@ -5,6 +5,7 @@ import { BrandMark } from "@/components/ui/BrandMark";
 import { SiteLogo } from "@/components/layout/SiteLogo";
 import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 import { getAllPublicSettings } from "@/lib/store-settings";
+import { SELLER } from "@/lib/legal";
 import {
   STORE_PHONE_DISPLAY,
   STORE_PHONE_TEL,
@@ -25,20 +26,22 @@ export async function Footer() {
   let address = tp("address");
   let tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
   let wa = process.env.NEXT_PUBLIC_WHATSAPP_URL || STORE_PHONE_WHATSAPP;
-  let legalLine = "";
+  // Seller line: admin values win, code default while they are still blank
+  let entityName = SELLER.legalName;
+  let edrpou = "";
   try {
     const s = await getAllPublicSettings();
     if (s.site.address) address = s.site.address;
     if (s.social.telegram) tg = s.social.telegram;
     if (s.social.whatsapp) wa = s.social.whatsapp;
-    if (s.legal.entityName || s.legal.edrpou) {
-      legalLine = [s.legal.entityName, s.legal.edrpou && `ЄДРПОУ ${s.legal.edrpou}`]
-        .filter(Boolean)
-        .join(" · ");
-    }
+    if (s.legal.entityName) entityName = s.legal.entityName;
+    if (s.legal.edrpou) edrpou = s.legal.edrpou;
   } catch {
     /* settings table may not exist yet */
   }
+  const legalLine = [entityName, edrpou && `ЄДРПОУ ${edrpou}`]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <footer className="site-footer mt-auto shrink-0">
