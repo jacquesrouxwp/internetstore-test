@@ -274,7 +274,26 @@ export function categoryName(c: Category, locale: Locale): string {
   return locale === "ru" ? c.nameRu : c.nameUk;
 }
 
-export function salePercent(price: number, oldPrice?: number | null): number | null {
+/**
+ * An "old price" more than this much above the current one reads as a fake
+ * anchor (Leonardo DRS IWS was listed at 248 000 vs 817 990 грн, i.e. -70%).
+ * Google Merchant Center treats that as misrepresentation, so such a price
+ * is not shown at all — the current price stays as it is.
+ */
+export const MAX_CREDIBLE_DISCOUNT = 60;
+
+/** Old price to display, or null when it isn't credible. */
+export function displayOldPrice(
+  price: number,
+  oldPrice?: number | null
+): number | null {
   if (!oldPrice || oldPrice <= price) return null;
-  return Math.round(((oldPrice - price) / oldPrice) * 100);
+  const discount = ((oldPrice - price) / oldPrice) * 100;
+  return discount > MAX_CREDIBLE_DISCOUNT ? null : oldPrice;
+}
+
+export function salePercent(price: number, oldPrice?: number | null): number | null {
+  const shown = displayOldPrice(price, oldPrice);
+  if (!shown) return null;
+  return Math.round(((shown - price) / shown) * 100);
 }

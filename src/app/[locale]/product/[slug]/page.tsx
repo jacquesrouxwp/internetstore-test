@@ -10,6 +10,7 @@ import {
   productName,
   productDescription,
   productShort,
+  displayOldPrice,
   salePercent,
 } from "@/types";
 import { breadcrumbJsonLd, jsonLdScript, type Crumb } from "@/lib/breadcrumbs";
@@ -253,9 +254,9 @@ export default async function ProductPage({ params }: Props) {
             >
               {formatPrice(product.price, locale)}
             </span>
-            {product.oldPrice != null && product.oldPrice > product.price && (
+            {displayOldPrice(product.price, product.oldPrice) != null && (
               <span className="text-lg text-price-old">
-                {formatPrice(product.oldPrice, locale)}
+                {formatPrice(displayOldPrice(product.price, product.oldPrice)!, locale)}
               </span>
             )}
           </div>

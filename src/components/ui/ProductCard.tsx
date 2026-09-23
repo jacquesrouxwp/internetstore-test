@@ -8,6 +8,7 @@ import {
   productCardTitle,
   productName,
   productShort,
+  displayOldPrice,
   salePercent,
 } from "@/types";
 import { formatPrice, cn } from "@/lib/utils";
@@ -277,8 +278,7 @@ export function ProductCard({
           >
             {formatPrice(product.price, locale)}
           </span>
-          {product.oldPrice != null &&
-            product.oldPrice > product.price &&
+          {displayOldPrice(product.price, product.oldPrice) != null &&
             !ultraTight && (
               <span
                 className={cn(
@@ -286,7 +286,7 @@ export function ProductCard({
                   tight ? "text-[10px]" : "text-sm"
                 )}
               >
-                {formatPrice(product.oldPrice, locale)}
+                {formatPrice(displayOldPrice(product.price, product.oldPrice)!, locale)}
               </span>
             )}
         </div>
