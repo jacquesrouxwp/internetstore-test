@@ -1,12 +1,15 @@
 /**
  * Storefront identity for the public offer and privacy policy pages.
- * The seller's legal details (ФОП/ТОВ, ЄДРПОУ, ІПН, address) are NOT kept
- * here — they are edited in admin → Налаштування → юридичні дані and read by
- * SellerDetails, so the owner can fill them in without a deploy.
+ * Admin → Налаштування → юридичні дані wins; these are the fallbacks used
+ * while those fields are still empty (the settings row stores empty strings,
+ * which would otherwise shadow the defaults).
  */
 export const SELLER = {
   brand: "Pro-Optics",
   site: "pro-optics.com.ua",
+  /** Seller as confirmed by the owner; ІПН still to be added in admin */
+  legalName: "ФОП Балик Сергій",
+  legalAddress: { uk: "Київ, Україна", ru: "Киев, Украина" },
   city: { uk: "Київ, Україна", ru: "Киев, Украина" },
   hours: {
     uk: "Пн–Пт 9:00–18:00, Сб 12:00–15:00",

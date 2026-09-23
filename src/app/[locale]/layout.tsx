@@ -12,7 +12,7 @@ import { Analytics as SiteAnalytics } from "@/components/Analytics";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import { OrganizationJsonLd } from "@/components/seo/OrganizationJsonLd";
 import { getAllPublicSettings } from "@/lib/store-settings";
-import { publicStoreEmail } from "@/lib/contact";
+import { publicStoreEmail, STORE_EMAIL } from "@/lib/contact";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -44,7 +44,7 @@ export default async function LocaleLayout({
         name={settings.site.siteName || "Pro-Optics"}
         social={settings.social}
         phone={settings.site.phones?.[0] || null}
-        email={publicStoreEmail(settings.site.email)}
+        email={publicStoreEmail(settings.site.email) || STORE_EMAIL}
         address={settings.site.address || null}
         hours={settings.site.hours || null}
       />

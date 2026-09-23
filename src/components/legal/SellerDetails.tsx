@@ -18,10 +18,14 @@ export async function SellerDetails({ locale }: { locale: "uk" | "ru" }) {
   const rows: [string, React.ReactNode][] = [
     ["Магазин", `${SELLER.brand} (${SELLER.site})`],
   ];
-  if (legal.entityName) rows.push([ru ? "Продавец" : "Продавець", legal.entityName]);
+  const entity = legal.entityName || SELLER.legalName;
+  if (entity) rows.push([ru ? "Продавец" : "Продавець", entity]);
   if (legal.edrpou) rows.push([ru ? "Код ЕГРПОУ" : "Код ЄДРПОУ", legal.edrpou]);
   if (legal.ipn) rows.push([ru ? "ИНН" : "ІПН", legal.ipn]);
-  rows.push([ru ? "Адрес" : "Адреса", legal.legalAddress || SELLER.city[locale]]);
+  rows.push([
+    ru ? "Адрес" : "Адреса",
+    legal.legalAddress || SELLER.legalAddress[locale] || SELLER.city[locale],
+  ]);
   rows.push([
     "Телефон",
     <a key="tel" href={STORE_PHONE_TEL}>
