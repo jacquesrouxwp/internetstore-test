@@ -78,10 +78,12 @@ const DEFAULTS: Record<string, unknown> = {
     whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_URL || STORE_PHONE_WHATSAPP,
   } satisfies SocialSettings,
   legal: {
-    entityName: "",
+    // Seller as given by the owner; ІПН/ЄДРПОУ still to be filled in admin
+    // (Merchant Center compares these with what he submitted for review).
+    entityName: "ФОП Балик Сергій",
     edrpou: "",
     ipn: "",
-    legalAddress: "",
+    legalAddress: "Київ, Україна",
   } satisfies LegalSettings,
   delivery: {
     defaultCost: 0,
