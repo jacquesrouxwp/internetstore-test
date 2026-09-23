@@ -1,8 +1,12 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
-import { Phone } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import { InfoPage } from "@/components/layout/InfoPage";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_EMAIL,
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+} from "@/lib/contact";
 import { pageAlternates } from "@/lib/seo-alternates";
 
 export async function generateMetadata({
@@ -44,6 +48,15 @@ export default async function ContactsPage({
               {STORE_PHONE_DISPLAY}
             </a>
           </div>
+        </div>
+        <div className="flex gap-3">
+          <Mail className="mt-0.5 h-5 w-5 shrink-0 text-accent" strokeWidth={1.75} />
+          <a
+            href={`mailto:${STORE_EMAIL}`}
+            className="text-[0.9375rem] font-medium text-primary hover:text-accent"
+          >
+            {STORE_EMAIL}
+          </a>
         </div>
         <p className="text-[0.9375rem] leading-relaxed text-secondary">
           {isRu

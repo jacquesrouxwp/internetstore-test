@@ -26,9 +26,13 @@ export const STORE_PHONE_VIBER = `viber://chat?number=%2B${STORE_PHONE_DIGITS}`;
  */
 const DEAD_EMAIL_DOMAINS = ["pro-optics.ua"];
 
+
 export function publicStoreEmail(email: string | null | undefined): string | null {
   const value = (email || "").trim();
   const domain = value.split("@")[1]?.toLowerCase();
   if (!domain || DEAD_EMAIL_DOMAINS.includes(domain)) return null;
   return value;
 }
+
+/** Storefront mailbox — forwarded to the owner (ImprovMX). */
+export const STORE_EMAIL = "info@pro-optics.com.ua";
