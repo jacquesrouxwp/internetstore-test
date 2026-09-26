@@ -78,12 +78,14 @@ const DEFAULTS: Record<string, unknown> = {
     whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_URL || STORE_PHONE_WHATSAPP,
   } satisfies SocialSettings,
   legal: {
-    // Seller as given by the owner; ІПН/ЄДРПОУ still to be filled in admin
-    // (Merchant Center compares these with what he submitted for review).
-    entityName: "ФОП Балик Сергій",
+    // Blank on purpose: the seller name lives in lib/legal.ts, where it is
+    // localized (uk/ru). Filling this field in admin overrides both locales.
+    // ІПН/ЄДРПОУ still to be filled in by the owner.
+    entityName: "",
     edrpou: "",
     ipn: "",
-    legalAddress: "Київ, Україна",
+    // Blank too: lib/legal.ts holds the uk/ru address.
+    legalAddress: "",
   } satisfies LegalSettings,
   delivery: {
     defaultCost: 0,

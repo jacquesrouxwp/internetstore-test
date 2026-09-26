@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Order } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import { SELLER } from "@/lib/legal";
 
 type Legal = {
   entityName?: string;
@@ -81,14 +82,12 @@ export default function OrderPrintPage() {
             Замовлення <strong>{order.orderNumber}</strong> ·{" "}
             {new Date(order.createdAt).toLocaleString("uk-UA")}
           </p>
-          {(legal.entityName || legal.edrpou) && (
-            <p className="mt-2 text-xs text-zinc-500">
-              {legal.entityName}
-              {legal.edrpou ? ` · ЄДРПОУ ${legal.edrpou}` : ""}
-              {legal.ipn ? ` · ІПН ${legal.ipn}` : ""}
-              {legal.legalAddress ? ` · ${legal.legalAddress}` : ""}
-            </p>
-          )}
+          <p className="mt-2 text-xs text-zinc-500">
+            {legal.entityName || SELLER.legalName.uk}
+            {legal.edrpou ? ` · ЄДРПОУ ${legal.edrpou}` : ""}
+            {legal.ipn ? ` · ІПН ${legal.ipn}` : ""}
+            {` · ${legal.legalAddress || SELLER.legalAddress.uk}`}
+          </p>
           {site.phones?.[0] && (
             <p className="text-xs text-zinc-500">
               {site.phones.join(" · ")}

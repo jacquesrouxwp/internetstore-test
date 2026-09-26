@@ -1,4 +1,4 @@
-import { SELLER } from "@/lib/legal";
+import { SELLER, sellerName } from "@/lib/legal";
 import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
 import { getAllPublicSettings, type LegalSettings } from "@/lib/store-settings";
 
@@ -18,7 +18,7 @@ export async function SellerDetails({ locale }: { locale: "uk" | "ru" }) {
   const rows: [string, React.ReactNode][] = [
     ["Магазин", `${SELLER.brand} (${SELLER.site})`],
   ];
-  const entity = legal.entityName || SELLER.legalName;
+  const entity = sellerName(locale, legal.entityName);
   if (entity) rows.push([ru ? "Продавец" : "Продавець", entity]);
   if (legal.edrpou) rows.push([ru ? "Код ЕГРПОУ" : "Код ЄДРПОУ", legal.edrpou]);
   if (legal.ipn) rows.push([ru ? "ИНН" : "ІПН", legal.ipn]);
