@@ -14,6 +14,11 @@ import { absoluteProductImageUrls } from "@/lib/product-image-alt";
 import { productJsonLdDescription } from "@/lib/product-json-ld";
 import { isBrandHidden } from "@/lib/brand-priority";
 import { isMerchantEligible } from "@/lib/merchant-eligibility";
+import {
+  productDetails,
+  productHighlights,
+  type ProductDetailEntry,
+} from "@/lib/merchant-item-details";
 import { getSiteUrl } from "@/lib/site-url";
 import {
   productName,
@@ -71,22 +76,22 @@ function googleProductCategory(p: Product): string {
 
 function productType(p: Product, locale: MerchantLocale): string {
   const slug = p.categorySlug || "";
+  // Slugs as they are in the database — "aksesuary" has one s, and the
+  // weapon categories never reach the feed (see lib/merchant-eligibility).
   const mapUk: Record<string, string> = {
     teplovizori: "Тепловізори",
-    pricili: "Приціли",
-    pnb: "ПНБ",
-    aksessuary: "Аксесуари",
+    binokli: "Тепловізійні біноклі",
+    pnb: "Прилади нічного бачення",
+    aksesuary: "Аксесуари",
   };
   const mapRu: Record<string, string> = {
     teplovizori: "Тепловизоры",
-    pricili: "Прицелы",
-    pnb: "ПНВ",
-    aksessuary: "Аксессуары",
+    binokli: "Тепловизионные бинокли",
+    pnb: "Приборы ночного видения",
+    aksesuary: "Аксессуары",
   };
   const mapped = (locale === "ru" ? mapRu : mapUk)[slug];
   if (mapped) return mapped;
-  if (p.deviceType === "scope")
-    return locale === "ru" ? "Тепловизионные прицелы" : "Тепловізійні приціли";
   if (p.deviceType === "binocular")
     return locale === "ru" ? "Тепловизионные бинокли" : "Тепловізійні біноклі";
   if (p.deviceType === "mono")
@@ -105,11 +110,27 @@ function itemId(p: Product): string {
   return (sku || p.slug).slice(0, 50);
 }
 
+/** One feed entry: flat tags, plus the repeated and nested ones. */
+export interface MerchantItem {
+  fields: Record<string, string>;
+  highlights: string[];
+  details: ProductDetailEntry[];
+}
+
+/** Flat tags only - kept for callers that just need the plain attributes. */
 export function productToMerchantFields(
   p: Product,
   locale: MerchantLocale,
   siteUrl: string
 ): Record<string, string> | null {
+  return productToMerchantItem(p, locale, siteUrl)?.fields ?? null;
+}
+
+export function productToMerchantItem(
+  p: Product,
+  locale: MerchantLocale,
+  siteUrl: string
+): MerchantItem | null {
   if (p.published === false) return null;
   if (isBrandHidden(p.brandSlug) || isBrandHidden(p.brandName)) return null;
   // Weapon-mounted optics breach Google's firearms policy — see lib/merchant-eligibility
@@ -161,10 +182,15 @@ export function productToMerchantFields(
     fields.identifier_exists = "no";
   }
 
-  return fields;
+  return {
+    fields,
+    highlights: productHighlights(p, locale),
+    details: productDetails(p, locale),
+  };
 }
 
-function renderItem(fields: Record<string, string>): string {
+function renderItem(item: MerchantItem): string {
+  const { fields, highlights, details } = item;
   const lines = ["    <item>"];
   for (const [key, value] of Object.entries(fields)) {
     if (!value) continue;
@@ -181,6 +207,18 @@ function renderItem(fields: Record<string, string>): string {
     }
     lines.push(`      <g:${key}>${escapeXml(value)}</g:${key}>`);
   }
+  for (const highlight of highlights) {
+    lines.push(
+      `      <g:product_highlight>${escapeXml(highlight)}</g:product_highlight>`
+    );
+  }
+  for (const d of details) {
+    lines.push("      <g:product_detail>");
+    lines.push(`        <g:section_name>${escapeXml(d.section)}</g:section_name>`);
+    lines.push(`        <g:attribute_name>${escapeXml(d.name)}</g:attribute_name>`);
+    lines.push(`        <g:attribute_value>${escapeXml(d.value)}</g:attribute_value>`);
+    lines.push("      </g:product_detail>");
+  }
   lines.push("    </item>");
   return lines.join("\n");
 }
@@ -194,9 +232,9 @@ export function renderGoogleMerchantXml(
   const base = siteUrl.replace(/\/$/, "");
   const items: string[] = [];
   for (const p of products) {
-    const fields = productToMerchantFields(p, locale, base);
-    if (!fields) continue;
-    items.push(renderItem(fields));
+    const item = productToMerchantItem(p, locale, base);
+    if (!item) continue;
+    items.push(renderItem(item));
   }
 
   const channelTitle =

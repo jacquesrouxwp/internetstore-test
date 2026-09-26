@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { Product } from "@/types";
 import {
   productToMerchantFields,
+  productToMerchantItem,
   renderGoogleMerchantXml,
 } from "./google-merchant-feed";
 
@@ -116,5 +117,63 @@ describe("renderGoogleMerchantXml", () => {
     assert.match(xml, /<g:price>45000\.00 UAH<\/g:price>/);
     assert.doesNotMatch(xml, /<script/i);
     assert.doesNotMatch(xml, /<!DOCTYPE/i);
+  });
+});
+
+describe("productToMerchantItem extras", () => {
+  it("adds highlights and details from the spec sheet", () => {
+    const item = productToMerchantItem(
+      baseProduct({
+        detectionRangeM: 1300,
+        specs: {
+          "Вага, г": "380",
+          "Автономність, год": "6.5",
+          "Об'єктив, мм": "25",
+          NETD: "25 мК",
+        },
+      }),
+      "uk",
+      "https://pro-optics.com.ua",
+    );
+    assert.ok(item);
+    const highlights = item!.highlights;
+    assert.ok(highlights.some((h) => h.includes("384×288")));
+    assert.ok(highlights.some((h) => h.includes("1300 м")));
+    assert.ok(highlights.some((h) => h.includes("380 г")));
+    assert.ok(highlights.some((h) => h.includes("6,5 год")));
+    assert.ok(highlights.length <= 6);
+
+    const details = item!.details;
+    assert.ok(details.length >= 3);
+    for (const d of details) {
+      assert.ok(d.section && d.name && d.value);
+    }
+  });
+
+  it("writes them as g:product_highlight and g:product_detail", () => {
+    const xml = renderGoogleMerchantXml(
+      [baseProduct({ detectionRangeM: 1300, specs: { "Вага, г": "380" } })],
+      { locale: "uk", siteUrl: "https://pro-optics.com.ua" },
+    );
+    assert.match(xml, /<g:product_highlight>[^<]+<\/g:product_highlight>/);
+    assert.match(xml, /<g:product_detail>\s*<g:section_name>/);
+    assert.match(xml, /<g:attribute_name>[^<]+<\/g:attribute_name>/);
+  });
+
+  it("says nothing when the spec sheet says nothing", () => {
+    // The model name is the last fallback for the lens, so an accessory with
+    // no digits in its name is the honest "no data at all" case.
+    const item = productToMerchantItem(
+      baseProduct({
+        nameUk: "Наглазник ATN",
+        nameRu: "Наглазник ATN",
+        resolution: null,
+        detectionRangeM: null,
+        specs: {},
+      }),
+      "uk",
+      "https://pro-optics.com.ua",
+    );
+    assert.deepEqual(item!.highlights, []);
   });
 });
