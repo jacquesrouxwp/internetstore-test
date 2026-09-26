@@ -31,6 +31,7 @@ import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
 import { ProductDescriptionBody } from "@/components/product/ProductDescriptionBody";
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 import { ProductSpecsGrouped } from "@/components/product/ProductSpecsGrouped";
+import { SpecStars } from "@/components/product/SpecStars";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
@@ -286,6 +287,7 @@ export default async function ProductPage({ params }: Props) {
             />
           </div>
 
+          <SpecStars product={product} locale={loc} />
           <ProductSimulatorCta product={product} locale={loc} />
           {comparisonsFor(product.slug).map((c) => {
             const other = c.a.slug === product.slug ? c.b.name : c.a.name;
