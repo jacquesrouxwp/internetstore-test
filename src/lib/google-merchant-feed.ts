@@ -13,6 +13,7 @@ import { mapDbProduct } from "@/lib/supabase/mappers";
 import { absoluteProductImageUrls } from "@/lib/product-image-alt";
 import { productJsonLdDescription } from "@/lib/product-json-ld";
 import { isBrandHidden } from "@/lib/brand-priority";
+import { isMerchantEligible } from "@/lib/merchant-eligibility";
 import { getSiteUrl } from "@/lib/site-url";
 import {
   productName,
@@ -111,6 +112,8 @@ export function productToMerchantFields(
 ): Record<string, string> | null {
   if (p.published === false) return null;
   if (isBrandHidden(p.brandSlug) || isBrandHidden(p.brandName)) return null;
+  // Weapon-mounted optics breach Google's firearms policy — see lib/merchant-eligibility
+  if (!isMerchantEligible(p, itemId(p))) return null;
 
   const images = absoluteProductImageUrls(p.images || [], siteUrl);
   if (!images.length) return null; // image_link required
@@ -202,8 +205,8 @@ export function renderGoogleMerchantXml(
       : "Pro-Optics — професійна оптика";
   const channelDesc =
     locale === "ru"
-      ? "Каталог тепловизоров, прицелов и ПНВ. Доставка по Украине."
-      : "Каталог тепловізорів, прицілів і ПНБ. Доставка по Україні.";
+      ? "Каталог тепловизоров, биноклей и ПНВ. Доставка по Украине."
+      : "Каталог тепловізорів, біноклів і ПНБ. Доставка по Україні.";
 
   return (
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
