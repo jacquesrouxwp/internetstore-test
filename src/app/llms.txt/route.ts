@@ -1,4 +1,4 @@
-import { getBrandsWithProducts, getCategories } from "@/lib/catalog";
+import { getBrandsWithProducts, getCategories, getCatalog } from "@/lib/catalog";
 import { getSiteUrl } from "@/lib/site-url";
 import { STORE_EMAIL, STORE_PHONE_DISPLAY } from "@/lib/contact";
 import { SELLER } from "@/lib/legal";
@@ -33,13 +33,19 @@ export async function GET() {
     "",
   ];
 
+  // A category with nothing in it (the stray "kolimatronie" row) would send an
+  // answer engine to an empty page, so it is counted before it is listed.
   for (const c of categories) {
-    lines.push(`- [${c.nameUk}](${site}/catalog/${c.slug})`);
+    const { total } = await getCatalog({ limit: 1 }, c.slug).catch(() => ({
+      total: 0,
+    }));
+    if (!total) continue;
+    lines.push(`- [${c.nameUk}](${site}/catalog/${c.slug}): ${total} моделей.`);
   }
 
   lines.push("", "## Сервіси та умови", "");
   lines.push(
-    `- [Викуп і трейд-ін тепловізорів](${site}/vykup): магазин купує вживані тепловізори та прилади нічного бачення в України, оцінка за фото й моделлю.`,
+    `- [Викуп і трейд-ін тепловізорів](${site}/vykup): магазин купує вживані тепловізори та прилади нічного бачення по Україні, оцінка за фото й моделлю.`,
     `- [Умови для військових](${site}/viyskovym): окремі умови для підрозділів ЗСУ та волонтерів.`,
     `- [Симулятор тепловізора](${site}/simulator): показує, як матриця, об'єктив і дистанція змінюють картинку — можна порівняти дві моделі.`,
     `- [Порівняння моделей](${site}/porivniannia): таблиці «модель X проти моделі Y» за паспортними характеристиками.`,
