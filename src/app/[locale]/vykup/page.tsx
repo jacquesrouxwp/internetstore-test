@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/routing";
 import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
+import { TradeInForm } from "@/components/tradein/TradeInForm";
 import { localizedPath, pageAlternates } from "@/lib/seo-alternates";
 import { absoluteUrl } from "@/lib/site-url";
 import { breadcrumbJsonLd, jsonLdScript } from "@/lib/breadcrumbs";
@@ -133,7 +134,11 @@ export default async function BuybackPage({ params }: Props) {
           )}
         </p>
         {cta}
+      </InfoPanel>
 
+      <TradeInForm locale={loc} />
+
+      <InfoPanel>
         <h2>{L("Що ми приймаємо", "Что мы принимаем")}</h2>
         <ul>
           <li>{L("тепловізійні монокуляри та біноклі;", "тепловизионные монокуляры и бинокли;")}</li>
