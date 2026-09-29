@@ -1,3 +1,4 @@
+import { ArticleCta } from "@/components/blog/ArticleCta";
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { notFound } from "next/navigation";
@@ -150,6 +151,8 @@ export default async function BlogPostPage({ params }: Props) {
             dangerouslySetInnerHTML={{ __html: bodyHtml }}
           />
         </div>
+
+        <ArticleCta bodyHtml={bodyHtml} locale={loc} />
       </div>
 
       {related.length > 0 && (
