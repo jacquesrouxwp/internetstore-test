@@ -1,5 +1,6 @@
 import { getBrandsWithProducts, getCategories, getCatalog } from "@/lib/catalog";
 import { getSiteUrl } from "@/lib/site-url";
+import { pluralProducts } from "@/lib/brand-pages";
 import { STORE_EMAIL, STORE_PHONE_DISPLAY } from "@/lib/contact";
 import { SELLER } from "@/lib/legal";
 
@@ -40,7 +41,9 @@ export async function GET() {
       total: 0,
     }));
     if (!total) continue;
-    lines.push(`- [${c.nameUk}](${site}/catalog/${c.slug}): ${total} моделей.`);
+    lines.push(
+      `- [${c.nameUk}](${site}/catalog/${c.slug}): ${pluralProducts(total, "uk")}.`,
+    );
   }
 
   lines.push("", "## Сервіси та умови", "");
