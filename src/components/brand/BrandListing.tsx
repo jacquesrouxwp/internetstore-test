@@ -9,6 +9,7 @@ import { getCatalog, getCategories } from "@/lib/catalog";
 import type { Brand } from "@/types";
 import { categoryName, supportsDetectionRangeFilter } from "@/types";
 import { breadcrumbJsonLd, jsonLdScript, type Crumb } from "@/lib/breadcrumbs";
+import { faqPageJsonLd } from "@/lib/faq-json-ld";
 import { catalogCanonicalPath, catalogFiltersFromQuery } from "@/lib/pagination";
 import {
   brandFaq,
@@ -89,6 +90,14 @@ export async function BrandListing({
       ? result.detectionRangeBounds ?? null
       : null;
 
+  const faqItems = brandFaq(
+    brand.name,
+    summary,
+    locale,
+    categorySlug ? words(categorySlug).full : undefined
+  );
+  const faqData = faqPageJsonLd(faqItems);
+
   const stats = [
     pluralProducts(summary.total, locale),
     summary.minPrice
@@ -104,6 +113,12 @@ export async function BrandListing({
           __html: jsonLdScript(breadcrumbJsonLd(locale, crumbs)),
         }}
       />
+      {faqData ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(faqData) }}
+        />
+      ) : null}
       <nav
         aria-label="Breadcrumb"
         className="mb-3 flex flex-wrap items-center gap-2 text-sm text-secondary sm:mb-4"
@@ -242,12 +257,7 @@ export async function BrandListing({
                 )}
 
                 <h3>{ru ? "Вопросы и ответы" : "Питання та відповіді"}</h3>
-                {brandFaq(
-                  brand.name,
-                  summary,
-                  locale,
-                  categorySlug ? words(categorySlug).full : undefined
-                ).map((f) => (
+                {faqItems.map((f) => (
                   <div key={f.q}>
                     <p>
                       <strong>{f.q}</strong>
