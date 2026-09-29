@@ -5,27 +5,15 @@
  * Simulator: header CTA + /simulator — not embedded here.
  */
 
-import { useEffect, useState } from "react";
 import { Link } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowRight,
   Headphones,
-  Phone,
   RefreshCw,
-  X,
 } from "lucide-react";
 import { HeroBrandMarquee } from "@/components/home/HeroBrandMarquee";
 import { BlogCarousel } from "@/components/home/BlogCarousel";
-import {
-  STORE_PHONE_DISPLAY,
-  STORE_PHONE_TEL,
-  STORE_PHONE_TELEGRAM,
-  STORE_PHONE_WHATSAPP,
-} from "@/lib/contact";
-import { trackConsultClick } from "@/lib/analytics/consult";
-import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
-import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import type { Brand } from "@/types";
 import type { BlogPost } from "@/lib/blog/types";
 
@@ -34,160 +22,6 @@ type Props = {
   posts?: BlogPost[];
 };
 
-const CONSULT_MSG = encodeURIComponent(
-  "Доброго дня! Потрібна консультація щодо оптики / тепловізора."
-);
-
-/** One red CTA → sheet: Telegram / WhatsApp / Call */
-function ConsultButton() {
-  const t = useTranslations("home");
-  const [open, setOpen] = useState(false);
-  const wa = `${STORE_PHONE_WHATSAPP}?text=${CONSULT_MSG}`;
-  const tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
-
-  useBodyScrollLock(open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          trackConsultClick("open_sheet", "hero");
-          setOpen(true);
-        }}
-        className="btn-hero btn-hero-primary hero-mobile__btn min-w-0 flex-1 sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
-      >
-        <span className="truncate sm:hidden">{t("heroSecondaryMobile")}</span>
-        <span className="hidden truncate sm:inline">{t("heroSecondary")}</span>
-      </button>
-
-      {open && (
-        <div
-          className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4"
-          data-scroll-lock="true"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
-            aria-label={t("consultClose")}
-            onClick={() => setOpen(false)}
-            style={{ touchAction: "none" }}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("heroSecondary")}
-            data-scroll-lock-allow
-            className="relative z-10 w-full max-w-sm rounded-t-2xl border border-white/10 bg-[var(--surface-solid,#16181d)] p-5 shadow-2xl sm:rounded-2xl"
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-base font-bold text-primary">
-                  {t("consultSheetTitle")}
-                </p>
-                <p className="mt-1 text-xs text-secondary">
-                  {t("consultSheetSub")}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-full p-1.5 text-muted-ui transition hover:bg-white/10 hover:text-primary"
-                aria-label={t("consultClose")}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-2.5">
-              <ConsultTrackLink
-                channel="telegram"
-                source="hero"
-                href={tg}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition hover:border-[var(--accent)]/50 hover:bg-white/[0.07]"
-              >
-                <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/logos/telegram.png"
-                    alt=""
-                    className="h-6 w-6 object-contain"
-                    width={24}
-                    height={24}
-                  />
-                </span>
-                <span className="flex-1 text-left">
-                  <span className="block text-sm font-semibold text-primary">
-                    {t("consultTg")}
-                  </span>
-                  <span className="block text-xs text-secondary">
-                    {t("consultTgHint")}
-                  </span>
-                </span>
-              </ConsultTrackLink>
-              <ConsultTrackLink
-                channel="whatsapp"
-                source="hero"
-                href={wa}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition hover:border-[var(--accent)]/50 hover:bg-white/[0.07]"
-              >
-                <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/logos/whatsapp.png"
-                    alt=""
-                    className="h-6 w-6 object-contain"
-                    width={24}
-                    height={24}
-                  />
-                </span>
-                <span className="flex-1 text-left">
-                  <span className="block text-sm font-semibold text-primary">
-                    {t("consultWa")}
-                  </span>
-                  <span className="block text-xs text-secondary">
-                    {t("consultWaHint")}
-                  </span>
-                </span>
-              </ConsultTrackLink>
-              <ConsultTrackLink
-                channel="phone"
-                source="hero"
-                href={STORE_PHONE_TEL}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition hover:border-[var(--accent)]/50 hover:bg-white/[0.07]"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(225,29,42,0.18)] text-[var(--accent)]">
-                  <Phone className="h-5 w-5" strokeWidth={2} />
-                </span>
-                <span className="flex-1 text-left">
-                  <span className="block text-sm font-semibold text-primary">
-                    {t("consultCall")}
-                  </span>
-                  <span className="block text-xs text-secondary">
-                    {STORE_PHONE_DISPLAY}
-                  </span>
-                </span>
-              </ConsultTrackLink>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
 
 export function HeroCarousel({ brands, posts = [] }: Props) {
   const t = useTranslations("home");
@@ -254,7 +88,14 @@ export function HeroCarousel({ brands, posts = [] }: Props) {
                 <span className="hidden truncate sm:inline">{t("heroCta")}</span>
                 <ArrowRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               </Link>
-              <ConsultButton />
+              <Link
+                href="/vykup"
+                className="btn-hero btn-hero-primary hero-mobile__btn min-w-0 flex-1 sm:flex-none sm:!min-h-[2.6rem] sm:!px-6 sm:!text-sm"
+              >
+                <span className="truncate sm:hidden">{t("heroBuybackMobile")}</span>
+                <span className="hidden truncate sm:inline">{t("heroBuyback")}</span>
+                <RefreshCw className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              </Link>
             </div>
 
             <ul className="hero-mobile__perks mt-3 grid grid-cols-2 gap-1 border-t border-white/[0.1] pt-2.5 sm:mt-6 sm:gap-3 sm:pt-5">
