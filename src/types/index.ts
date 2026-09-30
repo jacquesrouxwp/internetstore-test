@@ -1,3 +1,4 @@
+import { localizedProductName } from "@/lib/product-name";
 export type Locale = "uk" | "ru";
 
 export type DeviceType = "mono" | "scope" | "binocular" | "clipon";
@@ -188,7 +189,9 @@ export function supportsDetectionRangeFilter(
 }
 
 export function productName(p: Product, locale: Locale): string {
-  return locale === "ru" ? p.nameRu : p.nameUk;
+  // The import copied one string into both name columns, so a Russian name
+  // that equals the Ukrainian one is not a translation — see lib/product-name.
+  return localizedProductName(p, locale);
 }
 
 /**
