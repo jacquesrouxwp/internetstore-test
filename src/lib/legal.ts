@@ -1,3 +1,5 @@
+import type { Locale } from "@/types";
+
 /**
  * Storefront identity for the public offer and privacy policy pages.
  * Admin → Налаштування → юридичні дані wins; these are the fallbacks used
@@ -11,12 +13,15 @@ export const SELLER = {
   legalName: {
     uk: "ФОП Балик Сергій",
     ru: "ФОП Балик Сергей",
+    // The registry entry is Ukrainian; an English page transliterates it.
+    en: "FOP Balyk Serhii (sole proprietor)",
   },
-  legalAddress: { uk: "Київ, Україна", ru: "Киев, Украина" },
-  city: { uk: "Київ, Україна", ru: "Киев, Украина" },
+  legalAddress: { uk: "Київ, Україна", ru: "Киев, Украина", en: "Kyiv, Ukraine" },
+  city: { uk: "Київ, Україна", ru: "Киев, Украина", en: "Kyiv, Ukraine" },
   hours: {
     uk: "Пн–Пт 9:00–18:00, Сб 12:00–15:00",
     ru: "Пн–Пт 9:00–18:00, Сб 12:00–15:00",
+    en: "Mon–Fri 9:00–18:00, Sat 12:00–15:00",
   },
 };
 
@@ -26,7 +31,7 @@ export const SELLER = {
  * strings, so a blank value must not shadow it).
  */
 export function sellerName(
-  locale: "uk" | "ru",
+  locale: Locale,
   fromSettings?: string | null,
 ): string {
   const custom = (fromSettings || "").trim();
@@ -36,7 +41,13 @@ export function sellerName(
 /** Date shown as "last updated" on the legal pages (YYYY-MM-DD). */
 export const LEGAL_UPDATED = "2026-09-21";
 
-export function legalUpdatedLabel(locale: "uk" | "ru"): string {
+export function legalUpdatedLabel(locale: Locale): string {
   const [y, m, d] = LEGAL_UPDATED.split("-");
-  return `${locale === "ru" ? "Редакция от" : "Редакція від"} ${d}.${m}.${y}`;
+  const label =
+    locale === "ru"
+      ? "Редакция от"
+      : locale === "en"
+        ? "Version of"
+        : "Редакція від";
+  return `${label} ${d}.${m}.${y}`;
 }

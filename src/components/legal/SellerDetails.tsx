@@ -1,4 +1,5 @@
 import { SELLER, sellerName } from "@/lib/legal";
+import type { Locale } from "@/types";
 import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
 import { getAllPublicSettings, type LegalSettings } from "@/lib/store-settings";
 
@@ -7,7 +8,7 @@ import { getAllPublicSettings, type LegalSettings } from "@/lib/store-settings";
  * Налаштування → юридичні дані (the same fields the footer and printed
  * invoices use); empty fields are not rendered.
  */
-export async function SellerDetails({ locale }: { locale: "uk" | "ru" }) {
+export async function SellerDetails({ locale }: { locale: Locale }) {
   const ru = locale === "ru";
   let legal: Partial<LegalSettings> = {};
   try {

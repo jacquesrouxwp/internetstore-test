@@ -1,4 +1,5 @@
 import { setRequestLocale } from "next-intl/server";
+import type { Locale } from "@/types";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/routing";
 import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
@@ -24,9 +25,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function OfertaPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const loc = locale as "uk" | "ru";
+  const loc = locale as Locale;
   const ru = loc === "ru";
-  const L = (uk: React.ReactNode, ruText: React.ReactNode) => (ru ? ruText : uk);
+  const en = loc === "en";
+  // Third argument is optional: a page still being translated falls back to
+  // Ukrainian rather than rendering an empty slot.
+  const L = (
+    uk: React.ReactNode,
+    ruText: React.ReactNode,
+    enText?: React.ReactNode,
+  ): React.ReactNode => (en ? (enText ?? uk) : ru ? ruText : uk);
 
   return (
     <InfoPage title={ru ? "Публичная оферта и условия покупки" : "Публічна оферта та умови купівлі"}>

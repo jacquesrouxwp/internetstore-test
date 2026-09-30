@@ -39,7 +39,14 @@ export default async function MilitaryPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
   const ru = locale === "ru";
-  const L = (uk: React.ReactNode, ruText: React.ReactNode) => (ru ? ruText : uk);
+  const en = locale === "en";
+  // Third argument is optional: a page still being translated falls back to
+  // Ukrainian rather than rendering an empty slot.
+  const L = (
+    uk: React.ReactNode,
+    ruText: React.ReactNode,
+    enText?: React.ReactNode,
+  ): React.ReactNode => (en ? (enText ?? uk) : ru ? ruText : uk);
 
   let tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
   let wa = process.env.NEXT_PUBLIC_WHATSAPP_URL || STORE_PHONE_WHATSAPP;

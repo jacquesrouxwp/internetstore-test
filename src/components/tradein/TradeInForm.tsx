@@ -453,7 +453,7 @@ export function TradeInForm({ locale }: { locale: Locale }) {
         <div>
           <label className="mb-1.5 block text-sm font-semibold text-primary">{t.contactVia}</label>
           <div className="flex flex-wrap gap-2">
-            {["Телефон", "Telegram", "Viber", "WhatsApp"].map((c) => (
+            {[locale === "en" ? "Phone" : "Телефон", "Telegram", "Viber", "WhatsApp"].map((c) => (
               <label key={c} className="cursor-pointer">
                 <input type="radio" name="contactVia" value={c} className="peer sr-only" />
                 <span className="inline-block rounded-lg border border-white/15 px-3 py-1.5 text-sm text-secondary transition peer-checked:border-[var(--accent)] peer-checked:font-semibold peer-checked:text-[var(--accent)]">
