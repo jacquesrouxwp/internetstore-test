@@ -15,6 +15,7 @@ import { useCart } from "@/lib/cart-store";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import type { Locale } from "@/types";
 import type { Brand, Category } from "@/types";
 import { categoryName } from "@/types";
 import { SiteLogo } from "@/components/layout/SiteLogo";
@@ -23,6 +24,13 @@ import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
 /** Simulator in nav + header CTA next to cart. */
+/** Language tabs in the top bar. "UA" is what Ukrainians expect to see. */
+const LOCALE_TABS = [
+  { code: "uk", label: "UA" },
+  { code: "ru", label: "RU" },
+  { code: "en", label: "EN" },
+] as const;
+
 const SIMULATOR_LINK_ENABLED = true;
 /** Blog in top / mobile nav for SEO internal linking. */
 const BLOG_NAV_ENABLED = true;
@@ -69,7 +77,7 @@ export function Header({
     }
   };
 
-  const switchLocale = (next: "uk" | "ru") => {
+  const switchLocale = (next: Locale) => {
     router.replace(pathname, { locale: next });
   };
 
@@ -106,30 +114,21 @@ export function Header({
           </ConsultTrackLink>
           <span className="hidden text-muted-ui sm:inline">{t("hours")}</span>
           <div className="ml-auto flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => switchLocale("uk")}
-              className={cn(
-                "font-medium uppercase tracking-wide transition",
-                locale === "uk"
-                  ? "text-primary"
-                  : "text-faint hover:text-primary"
-              )}
-            >
-              UA
-            </button>
-            <button
-              type="button"
-              onClick={() => switchLocale("ru")}
-              className={cn(
-                "font-medium uppercase tracking-wide transition",
-                locale === "ru"
-                  ? "text-primary"
-                  : "text-faint hover:text-primary"
-              )}
-            >
-              RU
-            </button>
+            {LOCALE_TABS.map(({ code, label }) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => switchLocale(code)}
+                className={cn(
+                  "font-medium uppercase tracking-wide transition",
+                  locale === code
+                    ? "text-primary"
+                    : "text-faint hover:text-primary"
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -270,7 +269,7 @@ export function Header({
                   href="/brand"
                   className="inline-block whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-medium leading-snug text-secondary transition hover:bg-white/[0.06] hover:text-primary lg:px-2.5 lg:text-sm"
                 >
-                  {locale === "ru" ? "Бренды" : "Бренди"}
+                  {t("brands")}
                 </Link>
               </li>
               {SIMULATOR_LINK_ENABLED && (
@@ -375,7 +374,7 @@ export function Header({
                   onClick={() => setOpen(false)}
                   className="block rounded-lg px-3 py-2.5 text-sm font-medium text-primary hover:bg-white/[0.06]"
                 >
-                  {locale === "ru" ? "Бренды" : "Бренди"}
+                  {t("brands")}
                 </Link>
               </li>
               {SIMULATOR_LINK_ENABLED && (

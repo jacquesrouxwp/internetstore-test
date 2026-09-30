@@ -1,7 +1,9 @@
+import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
+import type { Locale } from "@/types";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ConsultWidget } from "@/components/layout/ConsultWidget";
@@ -18,6 +20,22 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+/**
+ * English is served to people but withheld from search until its content is
+ * genuinely English — a page that mixes languages is worth less in the index
+ * than no page at all. Remove this once the product texts are translated.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return locale === "en"
+    ? { robots: { index: false, follow: true } }
+    : {};
+}
+
 export default async function LocaleLayout({
   children,
   params,
@@ -26,7 +44,7 @@ export default async function LocaleLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  if (!routing.locales.includes(locale as "uk" | "ru")) {
+  if (!routing.locales.includes(locale as Locale)) {
     notFound();
   }
   setRequestLocale(locale);

@@ -30,15 +30,20 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const isRu = locale === "ru";
   // `absolute` — the homepage title already leads with the brand, so it must
   // not also receive the "| Pro-Optics" template suffix.
-  const title = isRu
-    ? "Pro-Optics (Про Оптикс) — тепловизоры, прицелы и ПНВ в Украине"
-    : "Pro-Optics (Про Оптікс) — тепловізори, приціли та ПНБ в Україні";
-  const description = isRu
-    ? "Интернет-магазин Pro-Optics: тепловизоры, тепловизионные прицелы, насадки и приборы ночного видения. Консультация, доставка Новой Почтой по Украине, гарантия."
-    : "Інтернет-магазин Pro-Optics: тепловізори, тепловізійні приціли, насадки та прилади нічного бачення. Консультація, доставка Новою Поштою по Україні, гарантія.";
+  const title =
+    locale === "ru"
+      ? "Pro-Optics (Про Оптикс) — тепловизоры, прицелы и ПНВ в Украине"
+      : locale === "en"
+        ? "Pro-Optics — thermal imagers, sights and night vision in Ukraine"
+        : "Pro-Optics (Про Оптікс) — тепловізори, приціли та ПНБ в Україні";
+  const description =
+    locale === "ru"
+      ? "Интернет-магазин Pro-Optics: тепловизоры, тепловизионные прицелы, насадки и приборы ночного видения. Консультация, доставка Новой Почтой по Украине, гарантия."
+      : locale === "en"
+        ? "Pro-Optics: thermal imagers, thermal sights, clip-on attachments and night vision devices. Expert advice, Nova Poshta delivery across Ukraine, warranty on every device."
+        : "Інтернет-магазин Pro-Optics: тепловізори, тепловізійні приціли, насадки та прилади нічного бачення. Консультація, доставка Новою Поштою по Україні, гарантія.";
   return {
     title: { absolute: title },
     description,

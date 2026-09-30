@@ -11,6 +11,8 @@
  * for the consultant. It is never presented to the seller as an offer.
  */
 
+import type { Locale } from "@/types";
+
 export const CONDITIONS = ["new", "excellent", "good", "used", "faulty"] as const;
 export type Condition = (typeof CONDITIONS)[number];
 
@@ -80,8 +82,28 @@ const LABELS_RU: Record<string, string> = {
   none: "нет",
 };
 
-export function label(key: string, locale: "uk" | "ru" = "uk"): string {
-  return (locale === "ru" ? LABELS_RU : LABELS_UK)[key] || key;
+const LABELS_EN: Record<string, string> = {
+  new: "as new",
+  excellent: "excellent",
+  good: "good",
+  used: "working, with wear",
+  faulty: "faulty",
+  box: "box",
+  docs: "documents",
+  case: "case",
+  charger: "charger",
+  warranty: "warranty still valid",
+  optics: "optics",
+  body: "body",
+  battery: "battery",
+  electronics: "electronics",
+  none: "none",
+};
+
+export function label(key: string, locale: Locale = "uk"): string {
+  const table =
+    locale === "ru" ? LABELS_RU : locale === "en" ? LABELS_EN : LABELS_UK;
+  return table[key] || key;
 }
 
 /** Ukrainian mobile numbers, however the seller typed them. */

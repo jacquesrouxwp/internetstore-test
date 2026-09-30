@@ -51,6 +51,7 @@ export async function generateMetadata({
   if (!cat) return { title: "Catalog" };
   const baseName = categoryName(cat, locale as "uk" | "ru");
   const isRu = locale === "ru";
+  const isEn = locale === "en";
   const basePath = `/catalog/${category}`;
   const canonicalPath = catalogCanonicalPath(basePath, sp);
   // Deeper pages are now indexable in their own right, so they need distinct
@@ -58,7 +59,7 @@ export async function generateMetadata({
   const pageNum = canonicalPath === basePath ? 1 : pageFromQuery(sp);
   const name =
     pageNum > 1
-      ? `${baseName} — ${isRu ? "страница" : "сторінка"} ${pageNum}`
+      ? `${baseName} — ${isRu ? "страница" : isEn ? "page" : "сторінка"} ${pageNum}`
       : baseName;
   // A bare "Тепловізори" title doesn't match how people search
   // ("тепловізори україна", "тепловизор купить") — say it in the title.
@@ -67,12 +68,15 @@ export async function generateMetadata({
       ? name
       : isRu
         ? `${baseName} — купить в Украине, цены`
-        : `${baseName} — купити в Україні, ціни`;
-  const description =
-    (isRu ? cat.descriptionRu : cat.descriptionUk) ||
-    (isRu
-      ? `${name} — купить в Pro-Optics (Про Оптикс). Консультация, доставка Новой Почтой по Украине, гарантия.`
-      : `${name} — купити в Pro-Optics (Про Оптікс). Консультація, доставка Новою Поштою по Україні, гарантія.`);
+        : isEn
+          ? `${baseName} — buy in Ukraine, prices`
+          : `${baseName} — купити в Україні, ціни`;
+  const description = isEn
+    ? `${name} — buy at Pro-Optics. Expert advice, Nova Poshta delivery across Ukraine, warranty.`
+    : (isRu ? cat.descriptionRu : cat.descriptionUk) ||
+      (isRu
+        ? `${name} — купить в Pro-Optics (Про Оптикс). Консультация, доставка Новой Почтой по Украине, гарантия.`
+        : `${name} — купити в Pro-Optics (Про Оптікс). Консультація, доставка Новою Поштою по Україні, гарантія.`);
   const brandCanonical = await brandListingCanonical(category, sp);
   // `?res=640` alone is the "матриця 640" collection — same list, same order
   const collection = collectionForFacet(category, sp);

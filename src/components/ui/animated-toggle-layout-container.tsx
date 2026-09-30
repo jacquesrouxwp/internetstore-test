@@ -106,6 +106,15 @@ export const ContainerToggle = React.forwardRef<
     ref
   ) => {
     const isRu = locale === "ru";
+    // Only the word "view" differs between locales — the labels are digits.
+    const viewWord =
+      locale === "ru" ? "Вид" : locale === "en" ? "View" : "Вигляд";
+    const viewAria =
+      locale === "ru"
+        ? "Вид сетки товаров"
+        : locale === "en"
+          ? "Product grid view"
+          : "Вигляд сітки товарів";
     const reduceMotion = useReducedMotion();
 
     const configs = React.useMemo(() => {
@@ -142,10 +151,10 @@ export const ContainerToggle = React.forwardRef<
             <div
               className="mb-3 flex w-full flex-wrap items-center justify-between gap-2 sm:mb-5"
               role="group"
-              aria-label={isRu ? "Вид сетки товаров" : "Вигляд сітки товарів"}
+              aria-label={viewAria}
             >
               <p className="text-[11px] font-medium uppercase tracking-wide text-faint sm:text-xs">
-                {isRu ? "Вид" : "Вигляд"}
+                {viewWord}
               </p>
               <div className="inline-flex max-w-full flex-wrap justify-end rounded-lg border border-white/15 bg-black/30 p-0.5">
                 {configs.map((config) => {

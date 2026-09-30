@@ -238,7 +238,7 @@ export function CatalogFilters({
                   Number.isFinite(rangeMax) ? rangeMax : bounds.max
                 }
                 step={10}
-                unit="м"
+                unit={t("meters")}
                 onChange={(lo, hi) => {
                   pushParams((p) => {
                     // only set params when not at full category span
@@ -266,9 +266,9 @@ export function CatalogFilters({
       </div>
 
       <div className="card-surface p-5">
-        <p className="text-sm font-semibold text-primary">Безкоштовна консультація</p>
+        <p className="text-sm font-semibold text-primary">{t("consultTitle")}</p>
         <p className="mt-1 text-xs leading-relaxed text-secondary">
-          Підберемо тепловізор під ваші завдання
+          {t("consultSub")}
         </p>
         <ConsultTrackLink
           channel="phone"
@@ -276,7 +276,7 @@ export function CatalogFilters({
           href={STORE_PHONE_TEL}
           className="btn-secondary mt-4 w-full text-sm"
         >
-          Подзвонити {STORE_PHONE_DISPLAY}
+          {t("consultCall")} {STORE_PHONE_DISPLAY}
         </ConsultTrackLink>
       </div>
     </aside>

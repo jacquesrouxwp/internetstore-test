@@ -30,42 +30,42 @@ const RULES: Rule[] = [
   {
     test: /\b640\b/,
     href: "/catalog/teplovizori/matrytsia-640",
-    label: { uk: "Тепловізори 640", ru: "Тепловизоры 640" },
+    label: { uk: "Тепловізори 640", ru: "Тепловизоры 640", en: "640 thermal monoculars" },
   },
   {
     test: /\b384\b/,
     href: "/catalog/teplovizori/matrytsia-384",
-    label: { uk: "Тепловізори 384", ru: "Тепловизоры 384" },
+    label: { uk: "Тепловізори 384", ru: "Тепловизоры 384", en: "384 thermal monoculars" },
   },
   {
     test: /\b256\b/,
     href: "/catalog/teplovizori/matrytsia-256",
-    label: { uk: "Тепловізори 256", ru: "Тепловизоры 256" },
+    label: { uk: "Тепловізори 256", ru: "Тепловизоры 256", en: "256 thermal monoculars" },
   },
   {
     test: /\bLRF\b|далекомір|дальномер/i,
     href: "/catalog/teplovizori/z-dalekomirom",
-    label: { uk: "З далекоміром", ru: "С дальномером" },
+    label: { uk: "З далекоміром", ru: "С дальномером", en: "With rangefinder" },
   },
   {
     test: /приц[іи]л|прицел/i,
     href: "/catalog/pricili",
-    label: { uk: "Тепловізійні приціли", ru: "Тепловизионные прицелы" },
+    label: { uk: "Тепловізійні приціли", ru: "Тепловизионные прицелы", en: "Thermal sights" },
   },
   {
     test: /насадк/i,
     href: "/catalog/nasadky",
-    label: { uk: "Насадки на оптику", ru: "Насадки на оптику" },
+    label: { uk: "Насадки на оптику", ru: "Насадки на оптику", en: "Clip-on attachments" },
   },
   {
     test: /ПНБ|ПНВ|нічного бачення|ночного видения/i,
     href: "/catalog/pnb",
-    label: { uk: "Прилади нічного бачення", ru: "Приборы ночного видения" },
+    label: { uk: "Прилади нічного бачення", ru: "Приборы ночного видения", en: "Night vision devices" },
   },
   {
     test: /бінокл|бинокл/i,
     href: "/catalog/binokli",
-    label: { uk: "Тепловізійні біноклі", ru: "Тепловизионные бинокли" },
+    label: { uk: "Тепловізійні біноклі", ru: "Тепловизионные бинокли", en: "Thermal binoculars" },
   },
 ];
 

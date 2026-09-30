@@ -140,3 +140,26 @@ export function localizedProductName(
   if (locale === "ru") return rest ? `${generic.ru} ${rest}` : generic.ru;
   return rest ? `${rest} ${generic.en}` : generic.en;
 }
+
+/**
+ * Category names in English, keyed by slug.
+ *
+ * Categories carry the same defect as products — `name_uk` and `name_ru` came
+ * from the same scrape — but there are only eight of them, so they are named
+ * outright rather than derived. A slug we do not know falls back to the stored
+ * name, which is how a new category behaves until someone adds it here.
+ */
+const CATEGORY_EN: Record<string, string> = {
+  teplovizori: "Thermal imagers",
+  pricili: "Thermal sights",
+  nasadky: "Clip-on attachments",
+  binokli: "Thermal binoculars",
+  pnb: "Night vision",
+  "pricili-pnb": "Night vision sights",
+  aksesuary: "Accessories",
+  kolimatronie: "Red dot sights",
+};
+
+export function categoryNameEn(slug: string, fallback: string): string {
+  return CATEGORY_EN[slug] || fallback;
+}

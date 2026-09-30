@@ -31,15 +31,15 @@ const MAX_HIGHLIGHTS = 6;
 const MAX_DETAILS = 25;
 
 const SECTION_NAMES: Record<SpecSectionId, Record<Locale, string>> = {
-  main: { uk: "Основні характеристики", ru: "Основные характеристики" },
-  matrix: { uk: "Матриця", ru: "Матрица" },
-  optics: { uk: "Оптика", ru: "Оптика" },
-  display: { uk: "Дисплей", ru: "Дисплей" },
-  rangefinder: { uk: "Далекомір", ru: "Дальномер" },
-  ops: { uk: "Експлуатаційні характеристики", ru: "Эксплуатационные характеристики" },
-  power: { uk: "Живлення та автономність", ru: "Питание и автономность" },
-  features: { uk: "Функції", ru: "Функции" },
-  package: { uk: "Комплектація", ru: "Комплектация" },
+  main: { uk: "Основні характеристики", ru: "Основные характеристики", en: "Key specifications" },
+  matrix: { uk: "Матриця", ru: "Матрица", en: "Sensor" },
+  optics: { uk: "Оптика", ru: "Оптика", en: "Optics" },
+  display: { uk: "Дисплей", ru: "Дисплей", en: "Display" },
+  rangefinder: { uk: "Далекомір", ru: "Дальномер", en: "Rangefinder" },
+  ops: { uk: "Експлуатаційні характеристики", ru: "Эксплуатационные характеристики", en: "Operating conditions" },
+  power: { uk: "Живлення та автономність", ru: "Питание и автономность", en: "Power and battery life" },
+  features: { uk: "Функції", ru: "Функции", en: "Features" },
+  package: { uk: "Комплектація", ru: "Комплектация", en: "In the box" },
 };
 
 /** "6.5" → "6,5" — a decimal comma, as everywhere else on the site. */

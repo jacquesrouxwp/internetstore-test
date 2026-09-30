@@ -7,10 +7,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatPrice(n: number, locale: string = "uk"): string {
-  const formatted = new Intl.NumberFormat(locale === "ru" ? "ru-UA" : "uk-UA", {
+  const tag = locale === "ru" ? "ru-UA" : locale === "en" ? "en-UA" : "uk-UA";
+  const formatted = new Intl.NumberFormat(tag, {
     maximumFractionDigits: 0,
   }).format(n);
-  return `${formatted} грн`;
+  // An English reader knows UAH; "грн" means nothing to them.
+  return `${formatted} ${locale === "en" ? "UAH" : "грн"}`;
 }
 
 /** URL-safe ASCII slug. Cyrillic is transliterated, never kept verbatim —

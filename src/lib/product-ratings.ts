@@ -71,28 +71,28 @@ function decimal(n: number): string {
 }
 
 const LABELS: Record<RatingKey, Record<Locale, string>> = {
-  detail: { uk: "Деталізація", ru: "Детализация" },
-  range: { uk: "Дальність", ru: "Дальность" },
-  weight: { uk: "Вага", ru: "Вес" },
-  battery: { uk: "Автономність", ru: "Автономность" },
-  price: { uk: "Ціна", ru: "Цена" },
+  detail: { uk: "Деталізація", ru: "Детализация", en: "Detail" },
+  range: { uk: "Дальність", ru: "Дальность", en: "Range" },
+  weight: { uk: "Вага", ru: "Вес", en: "Weight" },
+  battery: { uk: "Автономність", ru: "Автономность", en: "Battery life" },
+  price: { uk: "Ціна", ru: "Цена", en: "Price" },
 };
 
 const HINTS: Record<RatingKey, Record<Locale, string>> = {
   detail: {
     uk: "більше пікселів у матриці — дрібніші деталі",
-    ru: "больше пикселей в матрице — мельче детали",
+    ru: "больше пикселей в матрице — мельче детали", en: "more sensor pixels, finer detail",
   },
   range: {
     uk: "паспортна дальність виявлення людини",
-    ru: "паспортная дальность обнаружения человека",
+    ru: "паспортная дальность обнаружения человека", en: "stated human detection range",
   },
-  weight: { uk: "менша вага — більше зірок", ru: "меньше вес — больше звёзд" },
+  weight: { uk: "менша вага — більше зірок", ru: "меньше вес — больше звёзд", en: "lighter means more stars" },
   battery: {
     uk: "довше працює від одного заряду",
-    ru: "дольше работает от одного заряда",
+    ru: "дольше работает от одного заряда", en: "runs longer on one charge",
   },
-  price: { uk: "доступніша ціна — більше зірок", ru: "доступнее цена — больше звёзд" },
+  price: { uk: "доступніша ціна — більше зірок", ru: "доступнее цена — больше звёзд", en: "lower price means more stars" },
 };
 
 /**

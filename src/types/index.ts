@@ -1,5 +1,5 @@
-import { localizedProductName } from "@/lib/product-name";
-export type Locale = "uk" | "ru";
+import { categoryNameEn, localizedProductName } from "@/lib/product-name";
+export type Locale = "uk" | "ru" | "en";
 
 export type DeviceType = "mono" | "scope" | "binocular" | "clipon";
 export type Resolution =
@@ -274,6 +274,7 @@ export function productDescription(p: Product, locale: Locale): string {
 }
 
 export function categoryName(c: Category, locale: Locale): string {
+  if (locale === "en") return categoryNameEn(c.slug, c.nameUk);
   return locale === "ru" ? c.nameRu : c.nameUk;
 }
 

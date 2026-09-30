@@ -141,7 +141,7 @@ export function buildOrganizationJsonLd(input?: {
       telephone: phone,
       contactType: "customer service",
       areaServed: "UA",
-      availableLanguage: ["uk", "ru"],
+      availableLanguage: ["uk", "ru", "en"],
     },
   ];
 
