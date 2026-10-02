@@ -6,6 +6,7 @@ import { SiteLogo } from "@/components/layout/SiteLogo";
 import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 import { getAllPublicSettings } from "@/lib/store-settings";
 import { sellerName } from "@/lib/legal";
+import type { Locale } from "@/types";
 import {
   STORE_PHONE_DISPLAY,
   STORE_PHONE_TEL,
@@ -27,12 +28,14 @@ export async function Footer() {
   let tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
   let wa = process.env.NEXT_PUBLIC_WHATSAPP_URL || STORE_PHONE_WHATSAPP;
   // Seller line: admin values win, localized default while they are still blank
-  const locale = (await getLocale()) === "ru" ? "ru" : "uk";
+  const locale = (await getLocale()) as Locale;
   let entityName = sellerName(locale);
   let edrpou = "";
   try {
     const s = await getAllPublicSettings();
-    if (s.site.address) address = s.site.address;
+    // The admin address is written in Ukrainian; an English page keeps the
+    // translated one rather than showing Cyrillic in an English footer.
+    if (s.site.address && locale !== "en") address = s.site.address;
     if (s.social.telegram) tg = s.social.telegram;
     if (s.social.whatsapp) wa = s.social.whatsapp;
     entityName = sellerName(locale, s.legal.entityName);
@@ -40,7 +43,7 @@ export async function Footer() {
   } catch {
     /* settings table may not exist yet */
   }
-  const legalLine = [entityName, edrpou && `ЄДРПОУ ${edrpou}`]
+  const legalLine = [entityName, edrpou && `${locale === "en" ? "EDRPOU" : "ЄДРПОУ"} ${edrpou}`]
     .filter(Boolean)
     .join(" · ");
 
@@ -76,7 +79,7 @@ export async function Footer() {
             </li>
             <li>
               <Link href="/catalog/pnb" className="hover:text-[var(--accent)]">
-                ПНБ
+                {locale === "en" ? "Night vision" : "ПНБ"}
               </Link>
             </li>
             <li>

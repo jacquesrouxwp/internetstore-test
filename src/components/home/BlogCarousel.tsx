@@ -40,18 +40,24 @@ export function BlogCarousel({
     return (
       <div className="hero-glass flex h-full min-h-[280px] flex-col justify-center rounded-[var(--radius-card)] px-6 py-8">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-ui">
-          {locale === "ru" ? "Блог" : "Блог"}
+          {locale === "en" ? "Blog" : "Блог"}
         </p>
         <p className="mt-3 text-sm text-secondary">
           {locale === "ru"
             ? "Скоро здесь появятся статьи."
-            : "Незабаром тут з’являться статті."}
+            : locale === "en"
+              ? "Articles will appear here soon."
+              : "Незабаром тут з’являться статті."}
         </p>
         <Link
           href="/blog"
           className="mt-4 text-sm font-semibold text-[var(--accent)] hover:underline"
         >
-          {locale === "ru" ? "Все статьи →" : "Всі статті →"}
+          {locale === "ru"
+              ? "Все статьи →"
+              : locale === "en"
+                ? "All articles →"
+                : "Всі статті →"}
         </Link>
       </div>
     );
@@ -135,7 +141,11 @@ export function BlogCarousel({
             href="/blog"
             className="text-xs font-medium text-muted-ui transition hover:text-primary"
           >
-            {locale === "ru" ? "Все статьи →" : "Всі статті →"}
+            {locale === "ru"
+              ? "Все статьи →"
+              : locale === "en"
+                ? "All articles →"
+                : "Всі статті →"}
           </Link>
         </div>
 

@@ -124,7 +124,9 @@ export function BrandGrid({
         <p className="mt-1 text-sm text-secondary">
           {locale === "ru"
             ? "Нажмите на бренд — откроются все его модели, цены и наличие"
-            : "Натисніть на бренд — відкриються всі його моделі, ціни й наявність"}
+            : locale === "en"
+              ? "Tap a brand to see all its models, prices and availability"
+              : "Натисніть на бренд — відкриються всі його моделі, ціни й наявність"}
         </p>
       </div>
 

@@ -7,7 +7,7 @@ import {
 } from "@/lib/thermal/parse-product-thermal";
 import { simulatorHref, specNetdMk } from "@/lib/thermal/simulator-link";
 
-type Locale = "uk" | "ru";
+import type { Locale } from "@/types";
 
 const MATRIX_LABEL: Record<number, string> = {
   256: "256×192",
@@ -20,7 +20,6 @@ const THERMAL_CATEGORIES = new Set(["teplovizori", "pricili", "nasadky", "binokl
 
 /** Homepage card: the simulator is something no competitor has — show it. */
 export function SimulatorPromo({ locale }: { locale: Locale }) {
-  const ru = locale === "ru";
   return (
     <section className="pb-12">
       <div className="container-shop">
@@ -31,17 +30,19 @@ export function SimulatorPromo({ locale }: { locale: Locale }) {
             </span>
             <div>
               <h2 className="font-display text-xl font-bold text-primary sm:text-2xl">
-                {ru ? "Симулятор тепловизора" : "Симулятор тепловізора"}
+                {locale === "ru" ? "Симулятор тепловизора" : locale === "en" ? "Thermal simulator" : "Симулятор тепловізора"}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-secondary sm:text-base">
-                {ru
+                {locale === "ru"
                   ? "Посмотрите до покупки, как видят матрицы 256, 384 и 640 с разными объективами: олень на выбранной дистанции и расчёт дальностей обнаружения. Бесплатно, прямо в браузере."
+                  : locale === "en"
+                  ? "See before you buy how 256, 384 and 640 sensors look with different lenses: a deer at the distance you choose, plus the calculated detection ranges. Free, right in the browser."
                   : "Подивіться до покупки, як бачать матриці 256, 384 і 640 з різними об'єктивами: олень на обраній дистанції та розрахунок дальностей виявлення. Безкоштовно, прямо в браузері."}
               </p>
             </div>
           </div>
           <Link href="/simulator" className="btn-hero btn-hero-primary shrink-0 self-start sm:self-center">
-            {ru ? "Открыть симулятор" : "Відкрити симулятор"}
+            {locale === "ru" ? "Открыть симулятор" : locale === "en" ? "Open the simulator" : "Відкрити симулятор"}
           </Link>
         </div>
       </div>

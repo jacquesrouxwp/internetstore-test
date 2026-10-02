@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Link } from "@/i18n/routing";
 
-type Locale = "uk" | "ru";
+import type { Locale } from "@/types";
 
 type Item = {
   icon: LucideIcon;
@@ -27,54 +27,54 @@ type Item = {
 const ITEMS: Item[] = [
   {
     icon: ShieldCheck,
-    title: { uk: "Перевіряємо кожен прилад", ru: "Проверяем каждый прибор" },
+    title: { uk: "Перевіряємо кожен прилад", ru: "Проверяем каждый прибор", en: "We check every device" },
     text: {
       uk: "Тестуємо перед відправкою, щоб ви отримали справну техніку.",
-      ru: "Тестируем перед отправкой, чтобы вы получили исправную технику.",
+      ru: "Тестируем перед отправкой, чтобы вы получили исправную технику.", en: "Tested before dispatch, so what arrives works.",
     },
     href: "/about",
   },
   {
     icon: Headphones,
-    title: { uk: "Підбір під задачу", ru: "Подбор под задачу" },
+    title: { uk: "Підбір під задачу", ru: "Подбор под задачу", en: "Chosen for the task" },
     text: {
       uk: "Консультант допоможе обрати матрицю, об'єктив і бюджет — для полювання, охорони чи служби.",
-      ru: "Консультант поможет выбрать матрицу, объектив и бюджет — для охоты, охраны или службы.",
+      ru: "Консультант поможет выбрать матрицу, объектив и бюджет — для охоты, охраны или службы.", en: "A consultant helps pick the sensor, the lens and the budget — for hunting, security or service.",
     },
   },
   {
     icon: Truck,
-    title: { uk: "Нова Пошта 1–2 дні", ru: "Новая Почта 1–2 дня" },
+    title: { uk: "Нова Пошта 1–2 дні", ru: "Новая Почта 1–2 дня", en: "Nova Poshta, 1–2 days" },
     text: {
       uk: "Доставка по всій Україні у відділення або поштомат.",
-      ru: "Доставка по всей Украине в отделение или почтомат.",
+      ru: "Доставка по всей Украине в отделение или почтомат.", en: "Delivery across Ukraine to a branch or a parcel locker.",
     },
     href: "/delivery",
   },
   {
     icon: Banknote,
-    title: { uk: "Оплата при отриманні", ru: "Оплата при получении" },
+    title: { uk: "Оплата при отриманні", ru: "Оплата при получении", en: "Pay on delivery" },
     text: {
       uk: "Накладений платіж: оплачуєте, коли забираєте посилку.",
-      ru: "Наложенный платёж: оплачиваете, когда забираете посылку.",
+      ru: "Наложенный платёж: оплачиваете, когда забираете посылку.", en: "Cash on delivery: you pay when you collect the parcel.",
     },
     href: "/delivery",
   },
   {
     icon: RotateCcw,
-    title: { uk: "Повернення 14 днів", ru: "Возврат 14 дней" },
+    title: { uk: "Повернення 14 днів", ru: "Возврат 14 дней", en: "14-day returns" },
     text: {
       uk: "Прилад не підійшов — повернення або обмін за законом.",
-      ru: "Прибор не подошёл — возврат или обмен по закону.",
+      ru: "Прибор не подошёл — возврат или обмен по закону.", en: "If the device does not suit you — a return or an exchange, as the law provides.",
     },
     href: "/returns",
   },
   {
     icon: BadgeCheck,
-    title: { uk: "Гарантія виробника", ru: "Гарантия производителя" },
+    title: { uk: "Гарантія виробника", ru: "Гарантия производителя", en: "Manufacturer warranty" },
     text: {
       uk: "Заводський дефект — ремонт, заміна або повернення коштів.",
-      ru: "Заводской дефект — ремонт, замена или возврат денег.",
+      ru: "Заводской дефект — ремонт, замена или возврат денег.", en: "A factory defect means repair, replacement or your money back.",
     },
     href: "/warranty",
   },
@@ -82,11 +82,10 @@ const ITEMS: Item[] = [
 
 /** Homepage section: six promises in a grid. */
 export function HowWeWork({ locale }: { locale: Locale }) {
-  const ru = locale === "ru";
   return (
     <section className="py-12" style={{ borderTop: "1px solid var(--border)" }}>
       <div className="container-shop">
-        <h2 className="section-title mb-6">{ru ? "Как мы работаем" : "Як ми працюємо"}</h2>
+        <h2 className="section-title mb-6">{locale === "ru" ? "Как мы работаем" : locale === "en" ? "How we work" : "Як ми працюємо"}</h2>
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ITEMS.map(({ icon: Icon, title, text, href }) => {
             const body = (

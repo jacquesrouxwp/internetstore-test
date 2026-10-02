@@ -96,6 +96,7 @@ const GENERICS: Generic[] = [
   { uk: "Моноблок", ru: "Моноблок", en: "Monoblock" },
   { uk: "Адаптер", ru: "Адаптер", en: "Adapter" },
   { uk: "Окуляр", ru: "Окуляр", en: "Eyepiece" },
+  { uk: "ПНБ", ru: "ПНВ", en: "Night Vision Device" },
 ].sort((a, b) => b.uk.length - a.uk.length);
 
 export interface SplitName {
