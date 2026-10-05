@@ -12,6 +12,10 @@ import {
 import { mapDbProduct } from "@/lib/supabase/mappers";
 import { absoluteProductImageUrls } from "@/lib/product-image-alt";
 import { productJsonLdDescription } from "@/lib/product-json-ld";
+import {
+  MIN_FEED_DESCRIPTION,
+  stripWeaponSentences,
+} from "@/lib/merchant-description";
 import { isBrandHidden } from "@/lib/brand-priority";
 import { isMerchantEligible } from "@/lib/merchant-eligibility";
 import {
@@ -152,7 +156,18 @@ export function productToMerchantItem(
     locale === "ru" ? `/ru/product/${p.slug}` : `/product/${p.slug}`;
   const link = `${siteUrl.replace(/\/$/, "")}${path}`;
 
-  let description = stripTags(productJsonLdDescription(p, locale));
+  // Google reads the description when it enforces the firearms policy, so the
+  // sentences that explain what a monocular is *not* for stay on the site and
+  // never reach the feed — see lib/merchant-description.
+  let description = stripWeaponSentences(
+    stripTags(productJsonLdDescription(p, locale)),
+  ).text;
+  if (description.length < MIN_FEED_DESCRIPTION) {
+    // Too little left to be worth sending: rebuild from the spec sheet, which
+    // is factual by construction and mentions no weapons.
+    const facts = productHighlights(p, locale);
+    description = facts.length ? `${title}. ${facts.join(". ")}.` : title;
+  }
   if (description.length > 5000) description = description.slice(0, 4997) + "...";
   if (!description) description = title;
 
