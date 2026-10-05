@@ -15,12 +15,15 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const isRu = locale === "ru";
   return {
-    title: isRu ? "Контакты" : "Контакти",
-    description: isRu
-      ? `Контакты Pro-Optics (Про Оптикс): телефон ${STORE_PHONE_DISPLAY}, Telegram, Viber, WhatsApp. Консультация по тепловизорам и доставка по Украине.`
-      : `Контакти Pro-Optics (Про Оптікс): телефон ${STORE_PHONE_DISPLAY}, Telegram, Viber, WhatsApp. Консультація щодо тепловізорів і доставка по Україні.`,
+    title:
+      locale === "ru" ? "Контакты" : locale === "en" ? "Contacts" : "Контакти",
+    description:
+      locale === "ru"
+        ? `Контакты Pro-Optics (Про Оптикс): телефон ${STORE_PHONE_DISPLAY}, Telegram, Viber, WhatsApp. Консультация по тепловизорам и доставка по Украине.`
+        : locale === "en"
+          ? `Contact Pro-Optics: phone ${STORE_PHONE_DISPLAY}, Telegram, Viber and WhatsApp. Advice on thermal imagers and night vision devices, plus delivery across Ukraine.`
+          : `Контакти Pro-Optics (Про Оптікс): телефон ${STORE_PHONE_DISPLAY}, Telegram, Viber, WhatsApp. Консультація щодо тепловізорів і доставка по Україні.`,
     alternates: pageAlternates(locale, "/contacts"),
   };
 }
@@ -33,7 +36,7 @@ export default async function ContactsPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("pages");
-  const isRu = locale === "ru";
+  const en = locale === "en";
 
   return (
     <InfoPage title={t("contactsTitle")} wide>
@@ -59,8 +62,8 @@ export default async function ContactsPage({
           </a>
         </div>
         <p className="text-[0.9375rem] leading-relaxed text-secondary">
-          {isRu
-            ? "Пн–Пт 9:00–18:00 · Сб 12:00–15:00"
+          {en
+            ? "Mon–Fri 9:00–18:00 · Sat 12:00–15:00"
             : "Пн–Пт 9:00–18:00 · Сб 12:00–15:00"}
         </p>
       </div>
