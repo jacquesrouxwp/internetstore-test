@@ -17,7 +17,7 @@ import {
   stripWeaponSentences,
 } from "@/lib/merchant-description";
 import { isBrandHidden } from "@/lib/brand-priority";
-import { isMerchantEligible } from "@/lib/merchant-eligibility";
+import { isMerchantEligible, merchantItemId } from "@/lib/merchant-eligibility";
 import {
   productDetails,
   productHighlights,
@@ -108,12 +108,6 @@ function formatPriceUah(price: number): string {
   return `${n.toFixed(2)} UAH`;
 }
 
-function itemId(p: Product): string {
-  const sku = (p.sku && String(p.sku).trim()) || "";
-  // Prefer stable SKU; fall back to slug (unique)
-  return (sku || p.slug).slice(0, 50);
-}
-
 /** One feed entry: flat tags, plus the repeated and nested ones. */
 export interface MerchantItem {
   fields: Record<string, string>;
@@ -138,7 +132,7 @@ export function productToMerchantItem(
   if (p.published === false) return null;
   if (isBrandHidden(p.brandSlug) || isBrandHidden(p.brandName)) return null;
   // Weapon-mounted optics breach Google's firearms policy — see lib/merchant-eligibility
-  if (!isMerchantEligible(p, itemId(p))) return null;
+  if (!isMerchantEligible(p, merchantItemId(p))) return null;
 
   const images = absoluteProductImageUrls(p.images || [], siteUrl);
   if (!images.length) return null; // image_link required
@@ -175,7 +169,7 @@ export function productToMerchantItem(
   const mpn = (p.sku && String(p.sku).trim()) || p.slug;
 
   const fields: Record<string, string> = {
-    id: itemId(p),
+    id: merchantItemId(p),
     title: title.slice(0, 150),
     description,
     link,

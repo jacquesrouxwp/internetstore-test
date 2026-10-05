@@ -10,7 +10,8 @@
  * accessories.
  *
  * The shop keeps selling everything: this filter decides what Google is
- * offered, not what the site shows.
+ * offered. What the pages of those products say is decided in
+ * lib/merchant-description.
  */
 
 import type { Product } from "@/types";
@@ -23,6 +24,9 @@ export const WEAPON_CATEGORY_SLUGS: ReadonlySet<string> = new Set([
   "nasadky",
   "kolimatronie",
 ]);
+
+/** The one category whose products are not observation devices. */
+export const ACCESSORY_SLUG = "aksesuary";
 
 /** deviceType values for weapon-mounted optics. */
 const WEAPON_DEVICE_TYPES: ReadonlySet<string> = new Set(["scope", "clipon"]);
@@ -58,11 +62,29 @@ const WEAPON_NAME = new RegExp(
   "i",
 );
 
+/**
+ * An accessory whose own text describes rail mounting is a weapon accessory,
+ * whatever it is called. The Armasight external power supply taught this:
+ * named "Джерело зовнішнього живлення", described as a block that rides on
+ * the Picatinny rail beside the sight, "на зброї", "на цівці".
+ *
+ * Devices are exempt — a night-vision monocular with a Weaver rail for an IR
+ * illuminator is still an observation device.
+ */
+const RAIL_MOUNT = /picatinny|weaver|п[іи]катін|пикатин|ц[іи]вц|цевь/i;
+
 export type MerchantBlockReason =
   | "weapon-category"
   | "weapon-device"
   | "weapon-name"
+  | "weapon-rail"
   | "disapproved";
+
+/** The id the feed publishes: the SKU, or the slug when there is none. */
+export function merchantItemId(product: Pick<Product, "sku" | "slug">): string {
+  const sku = (product.sku && String(product.sku).trim()) || "";
+  return (sku || product.slug).slice(0, 50);
+}
 
 /**
  * Why Google must not be offered this product, or null when it may be.
@@ -85,6 +107,13 @@ export function merchantBlockReason(
     .filter(Boolean)
     .join(" ");
   if (WEAPON_NAME.test(names)) return "weapon-name";
+
+  if (category === ACCESSORY_SLUG) {
+    const text = [product.descriptionUk, product.descriptionRu]
+      .filter(Boolean)
+      .join(" ");
+    if (RAIL_MOUNT.test(text)) return "weapon-rail";
+  }
 
   return null;
 }

@@ -1,3 +1,11 @@
+import type { Locale, Product } from "@/types";
+import { productDescription } from "@/types";
+import {
+  ACCESSORY_SLUG,
+  isMerchantEligible,
+  merchantItemId,
+} from "@/lib/merchant-eligibility";
+
 /**
  * Weapon vocabulary must not travel into the Merchant Center feed.
  *
@@ -12,10 +20,16 @@
  * недостатньо — потрібен тепловізійний приціл"). Google read that and
  * disapproved 15 observation devices under the firearms policy.
  *
- * The sentence is useful to a buyer, so it stays on the site. It simply does
- * not go to Google: this strips any sentence carrying the vocabulary and, when
- * too little is left to be worth sending, hands back nothing so the caller can
- * fall back to a summary built from the spec sheet.
+ * This strips any sentence carrying the vocabulary and, when too little is
+ * left to be worth sending, hands back nothing so the caller can fall back to
+ * a summary built from the spec sheet.
+ *
+ * The feed alone was not enough. Google reviews the landing page too, and on
+ * 5 October, with the feed already clean, the pages of the 15 disapproved
+ * monoculars still said "Для стрільби цього формфактора недостатньо" and that
+ * the device "сяде в рюкзак чи на зброю" — 378 of the 494 feed products
+ * carried such sentences. So the pages of feed products drop them as well;
+ * see productPageDescription below.
  */
 
 const WEAPON_WORDS = new RegExp(
@@ -49,6 +63,36 @@ const WEAPON_WORDS = new RegExp(
   "i",
 );
 
+/**
+ * The narrower set: words that name a weapon or its use, without the mounting
+ * vocabulary. An accessory page is held to this one — "кріплення" on a helmet
+ * adapter is what the product is, while "сяде … на зброю" on a battery pack is
+ * the same generator phrase that sits on the monoculars.
+ */
+const WEAPON_USE = new RegExp(
+  [
+    "зброй",
+    "зброї",
+    "зброю",
+    "зброя",
+    "оруж",
+    "приц[іи]л",
+    "прицел",
+    "стр[іи]льб",
+    "стрельб",
+    "постр[іи]л",
+    "выстрел",
+    "в[іи]ддач",
+    "отдач",
+    "насадк",
+    "кал[іи]бр",
+    "калибр",
+    "ц[іи]вц",
+    "цевь",
+  ].join("|"),
+  "i",
+);
+
 /** Below this a description is not worth sending — the caller builds its own. */
 export const MIN_FEED_DESCRIPTION = 200;
 
@@ -71,9 +115,12 @@ export interface SanitizeResult {
 }
 
 /** Drops every sentence that mentions a weapon, a sight or a mount. */
-export function stripWeaponSentences(description: string): SanitizeResult {
+export function stripWeaponSentences(
+  description: string,
+  vocabulary: RegExp = WEAPON_WORDS,
+): SanitizeResult {
   const parts = sentences(description || "");
-  const kept = parts.filter((s) => !WEAPON_WORDS.test(s));
+  const kept = parts.filter((s) => !vocabulary.test(s));
   return {
     text: kept.join(" ").replace(/\s+/g, " ").trim(),
     removed: parts.length - kept.length,
@@ -83,4 +130,47 @@ export function stripWeaponSentences(description: string): SanitizeResult {
 /** True when the text still carries vocabulary Google refuses. */
 export function mentionsWeapon(text: string): boolean {
   return WEAPON_WORDS.test(text || "");
+}
+
+/**
+ * The same filter for a product page, which renders line breaks: each line is
+ * cleaned on its own, a line left empty disappears with its break, and a
+ * blank line between paragraphs stays.
+ */
+export function stripWeaponSentencesKeepingParagraphs(
+  text: string,
+  vocabulary: RegExp = WEAPON_WORDS,
+): string {
+  const out: string[] = [];
+  for (const line of (text || "").split("\n")) {
+    if (!line.trim()) {
+      out.push("");
+      continue;
+    }
+    const kept = stripWeaponSentences(line, vocabulary).text;
+    if (kept) out.push(kept);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * The description a product page shows and puts into its JSON-LD.
+ *
+ * A product Google is offered loses its weapon sentences here, so the page
+ * agrees with the feed: an observation device loses every one of them, an
+ * accessory only those that name a weapon or shooting (see WEAPON_USE).
+ * Everything outside the feed keeps its text as written — on a sight or a
+ * clip-on those words are the point.
+ *
+ * The stored description is not touched — rewriting it is the job of the
+ * description work, and this keeps the page safe until then.
+ */
+export function productPageDescription(product: Product, locale: Locale): string {
+  const text = productDescription(product, locale);
+  if (!isMerchantEligible(product, merchantItemId(product))) return text;
+  const accessory = (product.categorySlug || "").toLowerCase() === ACCESSORY_SLUG;
+  return stripWeaponSentencesKeepingParagraphs(
+    text,
+    accessory ? WEAPON_USE : WEAPON_WORDS,
+  );
 }

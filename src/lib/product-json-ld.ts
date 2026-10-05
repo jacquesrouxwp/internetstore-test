@@ -4,11 +4,8 @@
  */
 
 import type { Product } from "@/types";
-import {
-  productName,
-  productDescription,
-  productShort,
-} from "@/types";
+import { productName, productShort } from "@/types";
+import { productPageDescription } from "@/lib/merchant-description";
 import type { DeliverySettings } from "@/lib/store-settings";
 import { absoluteUrl } from "@/lib/site-url";
 import { absoluteProductImageUrls } from "@/lib/product-image-alt";
@@ -32,7 +29,7 @@ export function productJsonLdDescription(
   product: Product,
   locale: "uk" | "ru"
 ): string {
-  const full = (productDescription(product, locale) || "").replace(/\s+/g, " ").trim();
+  const full = (productPageDescription(product, locale) || "").replace(/\s+/g, " ").trim();
   const short = (productShort(product, locale) || "").replace(/\s+/g, " ").trim();
   const name = productName(product, locale);
   const brand = product.brandName || product.brandSlug || "";

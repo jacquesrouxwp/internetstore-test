@@ -8,12 +8,12 @@ import { Link } from "@/i18n/routing";
 import {
   categoryName,
   productName,
-  productDescription,
   productShort,
   displayOldPrice,
   salePercent,
 } from "@/types";
 import { breadcrumbJsonLd, jsonLdScript, type Crumb } from "@/lib/breadcrumbs";
+import { productPageDescription } from "@/lib/merchant-description";
 import { cn, formatPrice } from "@/lib/utils";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import {
@@ -98,7 +98,7 @@ export default async function ProductPage({ params }: Props) {
   const tn = await getTranslations("nav");
   const loc = locale as "uk" | "ru";
   const name = productName(product, loc);
-  const desc = productDescription(product, loc);
+  const desc = productPageDescription(product, loc);
   const sale = salePercent(product.price, product.oldPrice);
   const spotlight = isSpotlightProduct(product.slug);
 

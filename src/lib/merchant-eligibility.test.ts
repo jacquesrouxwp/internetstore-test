@@ -5,6 +5,7 @@ import { MERCHANT_DISAPPROVED_IDS } from "@/data/merchant-disapproved-ids";
 import {
   isMerchantEligible,
   merchantBlockReason,
+  merchantItemId,
 } from "./merchant-eligibility";
 
 function product(over: Partial<Product> = {}): Product {
@@ -90,5 +91,58 @@ describe("merchant eligibility", () => {
       MERCHANT_DISAPPROVED_IDS.size > 600,
       `expected the 2026-09-26 export, got ${MERCHANT_DISAPPROVED_IDS.size}`,
     );
+  });
+});
+
+describe("accessories on a weapon rail", () => {
+  const powerSupply = product({
+    sku: "ARMASIGHT-EPS",
+    slug: "armasight-dzherelo-zhyvlennya",
+    categorySlug: "aksesuary",
+    deviceType: null,
+    nameUk: "Джерело зовнішнього живлення Armasight",
+    nameRu: "Источник внешнего питания Armasight",
+    descriptionUk:
+      "Кріплення типу Picatinny та Weaver ставить блок на ту саму рейку поруч із оптикою. " +
+      "Корпус займає короткий відрізок рейки, тож блок лишається на зброї.",
+  });
+
+  it("refuses an accessory whose own text puts it on the rail", () => {
+    assert.equal(merchantBlockReason(powerSupply, "ARMASIGHT-EPS"), "weapon-rail");
+  });
+
+  it("keeps an accessory that mounts on a helmet", () => {
+    const helmet = product({
+      sku: "UDAPT-THM-2",
+      slug: "udapt-thm-2",
+      categorySlug: "aksesuary",
+      deviceType: null,
+      nameUk: "Адаптер для встановлення тепловізорів на шолом Udapt THM-2",
+      nameRu: "Адаптер для установки тепловизоров на шлем Udapt THM-2",
+      descriptionUk:
+        "Кріплення потрібне, щоб зафіксувати тепловізійний прилад на шоломі. " +
+        "Габарит тримає кронштейн близько до шолома.",
+    });
+    assert.equal(merchantBlockReason(helmet, "UDAPT-THM-2"), null);
+  });
+
+  it("does not hold a rail against a device", () => {
+    // Pulsar Digiforce X970: a Weaver rail for an IR illuminator.
+    const nightVision = product({
+      sku: "PULSAR-X970",
+      categorySlug: "pnb",
+      deviceType: "mono",
+      nameUk: "Цифровий монокуляр нічного бачення Pulsar Digiforce X970",
+      descriptionUk: "У паспорті також є позиція «Кріплення»: Планка Weaver для дод.",
+    });
+    assert.equal(merchantBlockReason(nightVision, "PULSAR-X970"), null);
+  });
+});
+
+describe("feed ids", () => {
+  it("publishes the SKU as the id, or the slug when there is none", () => {
+    assert.equal(merchantItemId({ sku: " HM-LH19 ", slug: "x" }), "HM-LH19");
+    assert.equal(merchantItemId({ sku: null, slug: "hikmicro-lynx" } as never), "hikmicro-lynx");
+    assert.equal(merchantItemId({ sku: "", slug: "a".repeat(80) }).length, 50);
   });
 });
