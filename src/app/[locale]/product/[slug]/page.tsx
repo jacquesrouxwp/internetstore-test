@@ -282,7 +282,18 @@ export default async function ProductPage({ params }: Props) {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
             <AddToCartButton
-              product={product}
+              // A client component: whatever it receives is serialized into the
+              // page. The cart needs id, slug, names, price, photo and stock —
+              // the stored descriptions would otherwise ride along unfiltered,
+              // weapon sentences included (see lib/merchant-description).
+              product={{
+                ...product,
+                descriptionUk: "",
+                descriptionRu: "",
+                shortUk: null,
+                shortRu: null,
+                specs: {},
+              }}
               className="btn-buy min-w-[200px] w-full sm:w-auto"
             />
           </div>
