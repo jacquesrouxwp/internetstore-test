@@ -132,6 +132,11 @@ export function mentionsWeapon(text: string): boolean {
   return WEAPON_WORDS.test(text || "");
 }
 
+/** True when the text names a weapon or shooting — the accessory standard. */
+export function mentionsWeaponUse(text: string): boolean {
+  return WEAPON_USE.test(text || "");
+}
+
 /**
  * The same filter for a product page, which renders line breaks: each line is
  * cleaned on its own, a line left empty disappears with its break, and a
