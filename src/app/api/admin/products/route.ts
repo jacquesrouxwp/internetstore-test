@@ -139,9 +139,12 @@ function buildProduct(
     categoryId,
     categorySlug,
     resolution: (body.resolution as string) ?? existing?.resolution ?? null,
-    deviceType: ((body.deviceType as DeviceType) ||
-      existing?.deviceType ||
-      "mono") as DeviceType,
+    // A body without deviceType keeps the stored one, null included: a PUT
+    // that only carries new descriptions must not turn an accessory (no
+    // device type) into a monocular. New products still default to "mono".
+    deviceType: (body.deviceType === undefined && existing
+      ? existing.deviceType ?? null
+      : (body.deviceType as DeviceType) || existing?.deviceType || "mono") as DeviceType,
     detectionRangeM:
       detectionRangeM != null && !Number.isNaN(detectionRangeM)
         ? detectionRangeM
