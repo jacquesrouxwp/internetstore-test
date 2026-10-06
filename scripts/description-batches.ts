@@ -8,8 +8,11 @@
  *       один раз: кладёт выгрузку в папку, делает нетронутую копию-бэкап и
  *       строит очередь — товары фида, которые сейчас не проходят проверку
  *   npx tsx scripts/description-batches.ts status
- *   npx tsx scripts/description-batches.ts next [N=10]
- *       данные следующих N товаров для написания и номер файла партии
+ *   npx tsx scripts/description-batches.ts next [N=10] [--ahead]
+ *       данные следующих N товаров для написания и номер файла партии.
+ *       --ahead: готовить впрок, пока предыдущие партии не записаны на сайт
+ *       (запись в базу недоступна или ждёт проверки): подготовленные товары
+ *       пропускаются, их зачины считаются занятыми
  *   npx tsx scripts/description-batches.ts check <NNN>
  *       проверяет batches/NNN.json; если прошла — пишет batches/NNN.upload.json
  *   npx tsx scripts/description-batches.ts apply <NNN>
@@ -83,6 +86,22 @@ function openBatches(state: State): string[] {
     .map((f) => f.slice(0, 3));
 }
 
+/**
+ * Тексты из партий, которые написаны, но ещё не записаны на сайт. Нужны, пока
+ * запись в базу недоступна или ждёт проверки: партии готовятся впрок, а
+ * повторы зачинов должны считаться по всем сразу, не по одной.
+ */
+function preparedItems(state: State): Map<string, BatchItem> {
+  const out = new Map<string, BatchItem>();
+  if (!existsSync(BATCHES)) return out;
+  for (const f of readdirSync(BATCHES).filter((x) => /^\d{3}\.json$/.test(x)).sort()) {
+    for (const item of readJson<BatchItem[]>(join(BATCHES, f))) {
+      if (!state.done[item.slug]) out.set(item.slug, item);
+    }
+  }
+  return out;
+}
+
 function warnOpen(state: State): boolean {
   const open = openBatches(state);
   if (!open.length) return false;
@@ -92,15 +111,19 @@ function warnOpen(state: State): boolean {
 
 // ------------------------------------------------------------------- init
 /**
- * Ids the live feed publishes. The queue is cut to them: eligibility alone
- * would also take in unpublished drafts and hidden brands, whose pages do not
- * exist and could never pass apply.
+ * Slugs of the products the live feed publishes, read from their links. The
+ * queue is cut to them: eligibility alone would also take in unpublished
+ * drafts and hidden brands, whose pages do not exist and could never pass
+ * apply. Slugs, not ids: when two products clash on an id the feed publishes
+ * their slugs instead (9a994eb), so an id match would drop both of them.
  */
-async function liveFeedIds(): Promise<Set<string>> {
+async function liveFeedSlugs(): Promise<Set<string>> {
   const xml = await (await fetch(`${SITE}/feed/google-merchant.xml?v=${Date.now()}`)).text();
-  const ids = Array.from(xml.matchAll(/<g:id>([\s\S]*?)<\/g:id>/g)).map((m) => m[1].trim());
-  if (ids.length < 100) throw new Error(`в живом фиде ${ids.length} позиций — что-то не так, init остановлен`);
-  return new Set(ids);
+  const slugs = Array.from(xml.matchAll(/<g:link>([\s\S]*?)<\/g:link>/g))
+    .map((m) => m[1].trim().split("/product/")[1])
+    .filter(Boolean);
+  if (slugs.length < 100) throw new Error(`в живом фиде ${slugs.length} позиций — что-то не так, init остановлен`);
+  return new Set(slugs);
 }
 
 async function init(exportPath: string) {
@@ -114,10 +137,8 @@ async function init(exportPath: string) {
   copyFileSync(exportPath, join(DIR, `backup-${stamp}.json`));
   writeJson(CATALOG, list);
 
-  const feedIds = await liveFeedIds();
-  const feed = list.filter(
-    (p) => inFeed(p) && feedIds.has(merchantItemId(p as unknown as Product)),
-  );
+  const feedSlugs = await liveFeedSlugs();
+  const feed = list.filter((p) => inFeed(p) && feedSlugs.has(p.slug));
   const failing = feed
     .map((p) => ({ p, issues: lintProduct(p) }))
     .filter((r) => r.issues.length)
@@ -128,7 +149,10 @@ async function init(exportPath: string) {
     });
 
   writeJson(STATE, { createdAt: new Date().toISOString(), queue: failing.map((r) => r.p.slug), done: {} } as State);
-  console.log(`выгрузка: ${list.length} товаров, в фиде ${feed.length} (живой фид: ${feedIds.size})`);
+  console.log(`выгрузка: ${list.length} товаров, в фиде ${feed.length} (живой фид: ${feedSlugs.size})`);
+  if (feed.length !== feedSlugs.size) {
+    console.log(`ВНИМАНИЕ: в фиде ${feedSlugs.size} позиций, а в выгрузке подошло ${feed.length} — проверьте, каких не хватает`);
+  }
   console.log(`в очереди: ${failing.length} (сначала тексты генератора, внутри — по цене)`);
   console.log(`бэкап: ${join(DIR, `backup-${stamp}.json`)}`);
 }
@@ -138,7 +162,12 @@ function status() {
   const state = loadState();
   const done = Object.keys(state.done).length;
   console.log(`сделано ${done} из ${state.queue.length}, осталось ${state.queue.length - done}`);
+  const prepared = preparedItems(state);
+  if (prepared.size) {
+    console.log(`подготовлено, но не записано на сайт: ${prepared.size} товаров (партии ${openBatches(state).join(", ")})`);
+  }
   if (!warnOpen(state)) console.log(`следующая партия: ${nextBatchNumber()}`);
+  else console.log(`готовить впрок, не записывая: next --ahead (следующая партия ${nextBatchNumber()})`);
 }
 
 // ------------------------------------------------------------------- next
@@ -148,21 +177,28 @@ function specLines(specs: unknown): string[] {
     .map(([k, v]) => `    ${k}: ${String(v).replace(/\s+/g, " ").trim()}`);
 }
 
-function next(n: number) {
+function next(n: number, ahead: boolean) {
   const state = loadState();
   const catalog = new Map(loadCatalog().map((p) => [p.slug, p]));
-  if (warnOpen(state)) process.exit(1);
-  const pending = state.queue.filter((s) => !state.done[s]).slice(0, n);
+  if (!ahead && warnOpen(state)) process.exit(1);
+  // --ahead: партии готовятся впрок, без записи на сайт — подготовленные
+  // товары пропускаем, а их зачины считаем занятыми.
+  const prepared = preparedItems(state);
+  const pending = state.queue.filter((s) => !state.done[s] && !prepared.has(s)).slice(0, n);
   if (!pending.length) {
-    console.log("очередь пуста — всё сделано");
+    console.log("очередь пуста — всё сделано или подготовлено");
     return;
   }
 
   // Зачины, которые уже заняты новыми текстами: их не повторять.
   const counts = new Map<string, number>();
-  for (const slug of Object.keys(state.done)) {
+  const used: (string | null | undefined)[][] = Object.keys(state.done).map((slug) => {
     const p = catalog.get(slug);
-    for (const text of [p?.descriptionUk, p?.descriptionRu]) {
+    return [p?.descriptionUk as string | undefined, p?.descriptionRu as string | undefined];
+  });
+  prepared.forEach((item) => used.push([item.descriptionUk, item.descriptionRu]));
+  for (const texts of used) {
+    for (const text of texts) {
       const seen = new Set<string>();
       for (const s of sentences(String(text || ""))) {
         const lead = sentenceLead(s);
@@ -206,8 +242,13 @@ function check(n: string) {
   const unknown = batch.filter((b) => !bySlug.has(b.slug)).map((b) => b.slug);
   if (unknown.length) throw new Error(`в партии slug, которых нет в каталоге: ${unknown.join(", ")}`);
 
+  // Повторы зачинов — по всему каталогу вместе со всеми подготовленными, но ещё
+  // не записанными партиями, иначе две соседние партии могли бы начинать
+  // предложения одинаково и ни одна проверка этого не увидела бы.
+  const overlay = preparedItems(loadState());
+  for (const b of batch) overlay.set(b.slug, b);
   const merged = catalog.map((p) => {
-    const b = batch.find((x) => x.slug === p.slug);
+    const b = overlay.get(p.slug);
     return b ? { ...p, descriptionUk: b.descriptionUk, descriptionRu: b.descriptionRu } : p;
   });
   const batchSlugs = new Set(batch.map((b) => b.slug));
@@ -313,7 +354,10 @@ async function main() {
   const [cmd, arg] = process.argv.slice(2);
   if (cmd === "init" && arg) return init(arg);
   if (cmd === "status") return status();
-  if (cmd === "next") return next(Number(arg || 10));
+  if (cmd === "next") {
+    const count = arg && !arg.startsWith("--") ? Number(arg) : 10;
+    return next(count, process.argv.includes("--ahead"));
+  }
   if (cmd === "check" && arg) return check(arg);
   if (cmd === "apply" && arg) return apply(arg);
   console.error("команды: init <выгрузка.json> | status | next [N] | check <NNN> | apply <NNN>");

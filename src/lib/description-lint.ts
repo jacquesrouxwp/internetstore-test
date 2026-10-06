@@ -158,18 +158,20 @@ function figures(text: string): string[] {
   return joined.match(/\d+(?:\.\d+)?/g) || [];
 }
 
-/** Everything a description may legitimately quote: the product minus its prose. */
+/**
+ * What a description may quote: the product's name and its spec sheet, and
+ * nothing else. The admin export carries ids, image URLs, timestamps and stock
+ * counts too, and every one of them holds digit runs — measured on the 1224
+ * products of 6 October, a record "knew" 54 figures on average against 25 real
+ * ones, and on ATN OTS-HD 640 5-50X the invented "ідентифікацію на 600 м"
+ * passed as known. The price is left out on purpose: it changes, and a
+ * description that quotes it goes stale.
+ */
+const FIGURE_SOURCES = ["nameUk", "nameRu", "resolution", "detectionRangeM", "specs"] as const;
+
 function knownFigures(product: LintProduct): Set<string> {
-  const prose = new Set([
-    "descriptionUk",
-    "descriptionRu",
-    "shortUk",
-    "shortRu",
-    "metaDescriptionUk",
-    "metaDescriptionRu",
-  ]);
-  const rest = Object.fromEntries(Object.entries(product).filter(([k]) => !prose.has(k)));
-  return new Set(figures(JSON.stringify(rest)).map((f) => String(Number(f))));
+  const sources = Object.fromEntries(FIGURE_SOURCES.map((k) => [k, product[k]]));
+  return new Set(figures(JSON.stringify(sources)).map((f) => String(Number(f))));
 }
 
 /**

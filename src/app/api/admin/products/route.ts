@@ -12,8 +12,10 @@ import {
   adminListCategories,
   adminListProducts,
   adminPatchProductFields,
+  adminSetProductDescriptions,
   adminUpsertProduct,
 } from "@/lib/db/admin-repo";
+import { parseDescriptionPatch } from "@/lib/admin-description-patch";
 import {
   deleteRuntimeProduct,
   getRuntimeBrands,
@@ -388,6 +390,25 @@ export async function PATCH(req: NextRequest) {
         published:
           body.published != null ? Boolean(body.published) : undefined,
       });
+      return NextResponse.json({ product });
+    }
+
+    // Bulk work on texts: two columns, nothing recomputed (see
+    // lib/admin-description-patch for why PUT is the wrong tool for it).
+    if (action === "descriptions") {
+      const parsed = parseDescriptionPatch(body);
+      if (!parsed.ok) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
+      }
+      const { id, descriptionUk, descriptionRu } = parsed.patch;
+      const product = await adminSetProductDescriptions(
+        id,
+        descriptionUk,
+        descriptionRu
+      );
+      if (!product) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
       return NextResponse.json({ product });
     }
 

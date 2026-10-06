@@ -119,11 +119,36 @@ describe("description gate", () => {
     assert.ok(!codes(product()).includes("figure"));
   });
 
-  it("does not count small numbers, years or grouped thousands as figures", () => {
+  it("does not count small numbers or years as figures, and reads grouped thousands", () => {
     const text =
       fit(CLEAN_UK).slice(0, 1300) +
-      " У комплекті 2 акумулятори, модель 2025 року. Ціна — 52 000 грн.";
-    assert.ok(!codes(product({ descriptionUk: text, price: 52000 })).includes("figure"));
+      " У комплекті 2 акумулятори, модель 2025 року. Розпізнавання — до 2 500 м.";
+    const withRange = product({
+      descriptionUk: text,
+      specs: { ...SPECS, "Дальність розпізнавання, м": "2 500" },
+    });
+    assert.ok(!codes(withRange).includes("figure"));
+  });
+
+  it("knows figures only from the name and the spec sheet", () => {
+    // The admin export also holds ids, image URLs, dates and stock; their digit
+    // runs must not make an invented range look known (ATN OTS-HD 640 5-50X).
+    const noisy = product({
+      id: "d3c1f600-79df-4673-9cc9-8c6e1b2e4054",
+      images: ["https://x.supabase.co/storage/v1/object/public/product-images/optics-pro/img-600.jpg"],
+      createdAt: "2026-06-00T09:40:24.822+00:00",
+      stock: 600,
+      descriptionUk: fit(CLEAN_UK).slice(0, 1300) + " Ідентифікацію людини він дає на 600 м.",
+    });
+    const issue = lintProduct(noisy).find((i) => i.code === "figure" && i.locale === "uk");
+    assert.ok(issue, "600 appears only outside the spec sheet");
+    assert.match(issue!.detail, /600/);
+  });
+
+  it("does not let a description quote the price", () => {
+    const text = fit(CLEAN_UK).slice(0, 1300) + " Коштує близько 118700 грн.";
+    const issue = lintProduct(product({ descriptionUk: text, price: 118700 })).find((i) => i.code === "figure");
+    assert.ok(issue, "the price is not a spec");
   });
 
   it("asks for the model in the opening", () => {

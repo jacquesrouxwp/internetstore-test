@@ -443,6 +443,33 @@ export async function adminDuplicateProduct(
   return adminUpsertProduct(copy, true);
 }
 
+/**
+ * Writes the two descriptions and nothing else. PUT rebuilds the whole product
+ * and recomputes fields a partial body never carried (the detection-range spec
+ * row, the sale flag), so bulk text work goes through here. Returns null when
+ * no product has this id.
+ */
+export async function adminSetProductDescriptions(
+  id: string,
+  descriptionUk: string,
+  descriptionRu: string
+): Promise<Product | null> {
+  if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("products")
+    .update({
+      description_uk: descriptionUk,
+      description_ru: descriptionRu,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("*, brands(slug, name), categories(slug)")
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapDbProduct(data as Record<string, unknown>) : null;
+}
+
 export async function adminPatchProductFields(
   id: string,
   fields: { price?: number; stock?: number; published?: boolean }
