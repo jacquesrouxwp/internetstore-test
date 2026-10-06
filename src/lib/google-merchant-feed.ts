@@ -239,12 +239,25 @@ export function renderGoogleMerchantXml(
 ): string {
   const { locale, siteUrl } = opts;
   const base = siteUrl.replace(/\/$/, "");
-  const items: string[] = [];
+  const built: { p: Product; item: MerchantItem }[] = [];
   for (const p of products) {
     const item = productToMerchantItem(p, locale, base);
-    if (!item) continue;
-    items.push(renderItem(item));
+    if (item) built.push({ p, item });
   }
+
+  // Two products must never share an id: Merchant Center keeps one and drops
+  // the other. The import wrote the LD50S SKU onto the Pulsar Quantum LD38S
+  // as well (found 2026-10-06), so both went out as one item. When ids clash,
+  // every product in the clash falls back to its slug, which is unique —
+  // all of them, so the result does not depend on the order of the rows.
+  const uses = new Map<string, number>();
+  for (const { item } of built) {
+    uses.set(item.fields.id, (uses.get(item.fields.id) || 0) + 1);
+  }
+  const items = built.map(({ p, item }) => {
+    if ((uses.get(item.fields.id) || 0) > 1) item.fields.id = p.slug.slice(0, 50);
+    return renderItem(item);
+  });
 
   const channelTitle =
     locale === "ru"

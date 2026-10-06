@@ -118,6 +118,21 @@ describe("renderGoogleMerchantXml", () => {
     assert.doesNotMatch(xml, /<script/i);
     assert.doesNotMatch(xml, /<!DOCTYPE/i);
   });
+
+  it("never lets two products share an id", () => {
+    // The Pulsar Quantum LD38S carried the LD50S SKU after the import.
+    const sku = "Тепловизор PULSAR Quantum LD50S (9 Гц)";
+    const xml = renderGoogleMerchantXml(
+      [
+        baseProduct({ id: "a", slug: "pulsar-quantum-ld38s", sku }),
+        baseProduct({ id: "b", slug: "pulsar-quantum-ld50s", sku }),
+        baseProduct({ id: "c", slug: "hikmicro-lynx-lh19" }),
+      ],
+      { locale: "uk", siteUrl: "https://pro-optics.com.ua" },
+    );
+    const ids = Array.from(xml.matchAll(/<g:id>([^<]*)<\/g:id>/g)).map((m) => m[1]);
+    assert.deepEqual(ids, ["pulsar-quantum-ld38s", "pulsar-quantum-ld50s", "HM-LH19"]);
+  });
 });
 
 describe("productToMerchantItem extras", () => {

@@ -91,7 +91,19 @@ function warnOpen(state: State): boolean {
 }
 
 // ------------------------------------------------------------------- init
-function init(exportPath: string) {
+/**
+ * Ids the live feed publishes. The queue is cut to them: eligibility alone
+ * would also take in unpublished drafts and hidden brands, whose pages do not
+ * exist and could never pass apply.
+ */
+async function liveFeedIds(): Promise<Set<string>> {
+  const xml = await (await fetch(`${SITE}/feed/google-merchant.xml?v=${Date.now()}`)).text();
+  const ids = Array.from(xml.matchAll(/<g:id>([\s\S]*?)<\/g:id>/g)).map((m) => m[1].trim());
+  if (ids.length < 100) throw new Error(`в живом фиде ${ids.length} позиций — что-то не так, init остановлен`);
+  return new Set(ids);
+}
+
+async function init(exportPath: string) {
   const raw = readJson<unknown>(exportPath);
   const list = (Array.isArray(raw) ? raw : (raw as { products?: unknown[] }).products) as LintProduct[] | undefined;
   if (!Array.isArray(list) || !list.length) throw new Error("выгрузка пустая или не того формата");
@@ -102,7 +114,10 @@ function init(exportPath: string) {
   copyFileSync(exportPath, join(DIR, `backup-${stamp}.json`));
   writeJson(CATALOG, list);
 
-  const feed = list.filter(inFeed);
+  const feedIds = await liveFeedIds();
+  const feed = list.filter(
+    (p) => inFeed(p) && feedIds.has(merchantItemId(p as unknown as Product)),
+  );
   const failing = feed
     .map((p) => ({ p, issues: lintProduct(p) }))
     .filter((r) => r.issues.length)
@@ -113,7 +128,7 @@ function init(exportPath: string) {
     });
 
   writeJson(STATE, { createdAt: new Date().toISOString(), queue: failing.map((r) => r.p.slug), done: {} } as State);
-  console.log(`выгрузка: ${list.length} товаров, в фиде ${feed.length}`);
+  console.log(`выгрузка: ${list.length} товаров, в фиде ${feed.length} (живой фид: ${feedIds.size})`);
   console.log(`в очереди: ${failing.length} (сначала тексты генератора, внутри — по цене)`);
   console.log(`бэкап: ${join(DIR, `backup-${stamp}.json`)}`);
 }
