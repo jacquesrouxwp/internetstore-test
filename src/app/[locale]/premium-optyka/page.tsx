@@ -106,9 +106,9 @@ export default async function PremiumOpticsPage({ params }: Props) {
 
       <p className="mb-5 max-w-3xl text-[0.9375rem] leading-relaxed text-secondary">
         {L(
-          "Тепловізори, біноклі, приціли, далекоміри та підзорні труби топових європейських брендів — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — яких рідко знайдеш у наявності в Україні. Привеземо під замовлення.",
-          "Тепловизоры, бинокли, прицелы, дальномеры и подзорные трубы топовых европейских брендов — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — которых редко найдёшь в наличии в Украине. Привезём под заказ.",
-          "Thermal imagers, binoculars, riflescopes, rangefinders and spotting scopes from top European brands — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — rarely in stock in Ukraine. We bring them in to order.",
+          "Тепловізори, біноклі, приціли, далекоміри та підзорні труби топових європейських брендів — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — яких рідко знайдеш у наявності в Україні. А також менш відомих у нас європейських марок: Liemke, NOBLEX (Docter), Eschenbach, DDoptics, Vectronix, Hawke, Meopta, GPO. Привеземо під замовлення.",
+          "Тепловизоры, бинокли, прицелы, дальномеры и подзорные трубы топовых европейских брендов — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — которых редко найдёшь в наличии в Украине. А также менее известных у нас европейских марок: Liemke, NOBLEX (Docter), Eschenbach, DDoptics, Vectronix, Hawke, Meopta, GPO. Привезём под заказ.",
+          "Thermal imagers, binoculars, riflescopes, rangefinders and spotting scopes from top European brands — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — rarely in stock in Ukraine. And from European makers few here know: Liemke, NOBLEX (Docter), Eschenbach, DDoptics, Vectronix, Hawke, Meopta, GPO. We bring them in to order.",
         )}
       </p>
 

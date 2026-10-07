@@ -31,10 +31,29 @@ export const KIND_LABEL: Record<PremiumKind, Tri> = {
   spotting: { uk: "Підзорні труби", ru: "Подзорные трубы", en: "Spotting scopes" },
 };
 
+/**
+ * How the page groups the brands. "europe" is the shelf for makers Ukrainians
+ * hardly search for — measured on 7 October 2026 by Google suggestions with
+ * gl=ua: none or almost none of them came back in Cyrillic.
+ */
+export const BRAND_GROUPS = ["top", "europe", "us"] as const;
+export type BrandGroup = (typeof BRAND_GROUPS)[number];
+
+export const GROUP_LABEL: Record<BrandGroup, Tri> = {
+  top: { uk: "Топові бренди", ru: "Топовые бренды", en: "Top brands" },
+  europe: {
+    uk: "Європейські бренди, яких майже немає в Україні",
+    ru: "Европейские бренды, которых почти нет в Украине",
+    en: "European brands you rarely find in Ukraine",
+  },
+  us: { uk: "Також зі США", ru: "Также из США", en: "Also from the USA" },
+};
+
 export interface PremiumBrand {
   name: string;
   /** How the brand is written before a model: "Swarovski NL Pure 10x42". */
   short: string;
+  group: BrandGroup;
   country: Tri;
   /** One line on what the maker makes, for brands with or without a model list. */
   lines: Tri;
@@ -43,12 +62,14 @@ export interface PremiumBrand {
 
 const DE: Tri = { uk: "Німеччина", ru: "Германия", en: "Germany" };
 const AT: Tri = { uk: "Австрія", ru: "Австрия", en: "Austria" };
+const UK: Tri = { uk: "Велика Британія", ru: "Великобритания", en: "United Kingdom" };
 const US: Tri = { uk: "США", ru: "США", en: "USA" };
 
 export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Swarovski Optik",
     short: "Swarovski",
+    group: "top",
     country: AT,
     lines: {
       uk: "біноклі, біноклі-далекоміри, приціли, підзорні труби, тепловізійна оптика",
@@ -74,6 +95,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "ZEISS",
     short: "ZEISS",
+    group: "top",
     country: DE,
     lines: {
       uk: "біноклі, далекоміри, приціли, тепловізори, підзорні труби",
@@ -105,6 +127,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Leica",
     short: "Leica",
+    group: "top",
     country: DE,
     lines: {
       uk: "біноклі, біноклі-далекоміри, далекоміри, тепловізори, приціли",
@@ -130,6 +153,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Steiner",
     short: "Steiner",
+    group: "top",
     country: DE,
     lines: {
       uk: "морські та мисливські біноклі, приціли, тепловізійна оптика",
@@ -147,6 +171,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Kahles",
     short: "Kahles",
+    group: "top",
     country: AT,
     lines: {
       uk: "приціли, біноклі, біноклі-далекоміри",
@@ -162,6 +187,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Schmidt & Bender",
     short: "Schmidt & Bender",
+    group: "top",
     country: DE,
     lines: { uk: "приціли", ru: "прицелы", en: "riflescopes" },
     models: [
@@ -174,6 +200,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Meopta",
     short: "Meopta",
+    group: "europe",
     country: { uk: "Чехія", ru: "Чехия", en: "Czech Republic" },
     lines: { uk: "біноклі та приціли", ru: "бинокли и прицелы", en: "binoculars and riflescopes" },
     models: [
@@ -184,6 +211,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "GPO German Precision Optics",
     short: "GPO",
+    group: "europe",
     country: DE,
     lines: { uk: "біноклі, далекоміри, приціли", ru: "бинокли, дальномеры, прицелы", en: "binoculars, rangefinders, riflescopes" },
     models: [
@@ -194,31 +222,110 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Liemke",
     short: "Liemke",
+    group: "europe",
     country: DE,
     lines: {
-      uk: "тепловізійна оптика серій Keiler і Merlin",
-      ru: "тепловизионная оптика серий Keiler и Merlin",
-      en: "thermal optics, Keiler and Merlin series",
+      uk: "тепловізори з Вецлара: монокуляри Keiler PRO, Challenger, Bussard, насадки Luchs",
+      ru: "тепловизоры из Вецлара: монокуляры Keiler PRO, Challenger, Bussard, насадки Luchs",
+      en: "thermal imagers from Wetzlar: Keiler PRO, Challenger and Bussard monoculars, Luchs clip-ons",
     },
-    models: [],
+    models: [
+      {
+        kind: "thermal",
+        items: ["Keiler-13 PRO", "Keiler-18 PRO", "Keiler-26 PRO", "Keiler-35 PRO", "Keiler-50 PRO", "Challenger-15", "Bussard-42"],
+      },
+    ],
   },
   {
     name: "Minox",
     short: "Minox",
+    group: "europe",
     country: DE,
     lines: { uk: "біноклі та приціли", ru: "бинокли и прицелы", en: "binoculars and riflescopes" },
     models: [],
   },
   {
-    name: "Docter",
-    short: "Docter",
+    name: "NOBLEX (Docter)",
+    short: "NOBLEX",
+    group: "europe",
     country: DE,
-    lines: { uk: "біноклі та приціли", ru: "бинокли и прицелы", en: "binoculars and riflescopes" },
-    models: [],
+    lines: {
+      uk: "біноклі, приціли, підзорні труби з Айсфельда; з 2018 року компанії належить марка Docter",
+      ru: "бинокли, прицелы, подзорные трубы из Айсфельда; с 2018 года компании принадлежит марка Docter",
+      en: "binoculars, riflescopes and spotting scopes from Eisfeld; owns the Docter trademark since 2018",
+    },
+    models: [{ kind: "binoculars", items: ["Inception 8x42", "Inception 10x42", "Inception 10x25"] }],
+  },
+  {
+    name: "Eschenbach",
+    short: "Eschenbach",
+    group: "europe",
+    country: DE,
+    lines: {
+      uk: "біноклі з Нюрнберга, компанія працює з 1913 року: серії Trophy, Arena, Farlux",
+      ru: "бинокли из Нюрнберга, компания работает с 1913 года: серии Trophy, Arena, Farlux",
+      en: "binoculars from Nuremberg, in business since 1913: Trophy, Arena, Farlux series",
+    },
+    models: [{ kind: "binoculars", items: ["Trophy D 8x42 ED", "Arena D 8x42"] }],
+  },
+  {
+    name: "DDoptics",
+    short: "DDoptics",
+    group: "europe",
+    country: DE,
+    lines: {
+      uk: "сімейна компанія з Дрездена, тепер у Хемніці: біноклі та монокуляри",
+      ru: "семейная компания из Дрездена, теперь в Хемнице: бинокли и монокуляры",
+      en: "a family company from Dresden, now in Chemnitz: binoculars and monoculars",
+    },
+    models: [{ kind: "binoculars", items: ["Ultralight 10x50", "Ultralight 12x50"] }],
+  },
+  {
+    name: "Vectronix",
+    short: "Vectronix",
+    group: "europe",
+    country: { uk: "Швейцарія", ru: "Швейцария", en: "Switzerland" },
+    lines: {
+      uk: "лазерні далекоміри та біноклі-далекоміри Safran Vectronix",
+      ru: "лазерные дальномеры и бинокли-дальномеры Safran Vectronix",
+      en: "laser rangefinders and rangefinding binoculars by Safran Vectronix",
+    },
+    models: [{ kind: "rangefinders", items: ["Terrapin X", "Vector X 8x42", "Vector X 10x42", "Vector X 12x42"] }],
+  },
+  {
+    name: "Hawke Sport Optics",
+    short: "Hawke",
+    group: "europe",
+    country: UK,
+    lines: {
+      uk: "біноклі, зокрема з далекоміром",
+      ru: "бинокли, в том числе с дальномером",
+      en: "binoculars, including rangefinding models",
+    },
+    models: [
+      {
+        kind: "binoculars",
+        items: ["Frontier ED X 8x42", "Frontier ED X 10x42", "Frontier ED X 8x32", "Frontier ED X 10x32", "Endurance ED 8x42", "Nature-Trek 10x50"],
+      },
+      { kind: "rangefinders", items: ["Frontier LRF 8x42", "Frontier LRF 10x42"] },
+    ],
+  },
+  {
+    name: "Viking Optical",
+    short: "Viking",
+    group: "europe",
+    country: UK,
+    lines: {
+      uk: "британська компанія з 1986 року: біноклі для спостереження за природою",
+      ru: "британская компания с 1986 года: бинокли для наблюдения за природой",
+      en: "a British company since 1986: binoculars for watching wildlife",
+    },
+    models: [{ kind: "binoculars", items: ["Peregrine ED 8x42", "Badger 8x21"] }],
   },
   {
     name: "Kite Optics",
     short: "Kite",
+    group: "europe",
     country: { uk: "Бельгія", ru: "Бельгия", en: "Belgium" },
     lines: {
       uk: "біноклі, зокрема зі стабілізацією зображення",
@@ -230,7 +337,8 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Opticron",
     short: "Opticron",
-    country: { uk: "Велика Британія", ru: "Великобритания", en: "United Kingdom" },
+    group: "europe",
+    country: UK,
     lines: { uk: "біноклі та підзорні труби", ru: "бинокли и подзорные трубы", en: "binoculars and spotting scopes" },
     models: [
       { kind: "binoculars", items: ["Traveller BGA ED", "Discovery WP PC"] },
@@ -240,6 +348,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Leupold",
     short: "Leupold",
+    group: "us",
     country: US,
     lines: { uk: "приціли та біноклі", ru: "прицелы и бинокли", en: "riflescopes and binoculars" },
     models: [
@@ -250,6 +359,7 @@ export const PREMIUM_BRANDS: PremiumBrand[] = [
   {
     name: "Nightforce",
     short: "Nightforce",
+    group: "us",
     country: US,
     lines: { uk: "приціли", ru: "прицелы", en: "riflescopes" },
     models: [{ kind: "sights", items: ["ATACR 5-25x56", "NX8 2.5-20x50", "NXS 5.5-22x56"] }],

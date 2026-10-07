@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { KIND_LABEL, PREMIUM_BRANDS, type PremiumBrand } from "@/lib/premium-order";
+import { BRAND_GROUPS, GROUP_LABEL, KIND_LABEL, PREMIUM_BRANDS, type PremiumBrand } from "@/lib/premium-order";
 import { PICK_EVENT } from "@/components/premium/PremiumOrderForm";
 import type { Locale } from "@/types";
 
@@ -74,17 +74,30 @@ function BrandCard({ brand, locale }: { brand: PremiumBrand; locale: Locale }) {
 }
 
 /**
- * Brands as a compact grid. Each card opens to the maker's best-known models;
- * a click on a model puts it into the order form at the top of the page. The
- * lists stay in the page when a card is closed, so search engines read every
- * model name.
+ * Brands as compact grids, one per group. Each card opens to the maker's
+ * best-known models; a click on a model puts it into the order form at the top
+ * of the page. The lists stay in the page when a card is closed, so search
+ * engines read every model name.
  */
 export function PremiumBrandGrid({ locale }: { locale: Locale }) {
   return (
-    <div className="grid items-start gap-3 sm:grid-cols-2">
-      {PREMIUM_BRANDS.map((b) => (
-        <BrandCard key={b.name} brand={b} locale={locale} />
-      ))}
+    <div className="space-y-6">
+      {BRAND_GROUPS.map((group) => {
+        const brands = PREMIUM_BRANDS.filter((b) => b.group === group);
+        if (!brands.length) return null;
+        return (
+          <div key={group}>
+            <h3 className="mb-2.5 text-sm font-semibold uppercase tracking-wide text-secondary">
+              {GROUP_LABEL[group][locale]}
+            </h3>
+            <div className="grid items-start gap-3 sm:grid-cols-2">
+              {brands.map((b) => (
+                <BrandCard key={b.name} brand={b} locale={locale} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  BRAND_GROUPS,
   PREMIUM_BRANDS,
   allPremiumModels,
   formatPremiumOrderTelegramHtml,
@@ -59,6 +60,19 @@ describe("premium brand list", () => {
         assert.ok(b.country[l] && b.lines[l], `${b.name} ${l}`);
       }
     }
+  });
+
+  it("puts every brand on a shelf, and the lesser-known European makers on their own", () => {
+    for (const b of PREMIUM_BRANDS) assert.ok(BRAND_GROUPS.includes(b.group), b.name);
+    const europe = PREMIUM_BRANDS.filter((b) => b.group === "europe").map((b) => b.short);
+    for (const s of ["Liemke", "NOBLEX", "Eschenbach", "DDoptics", "Vectronix", "Hawke", "Viking"]) {
+      assert.ok(europe.includes(s), s);
+    }
+  });
+
+  it("keeps Docter as one card with NOBLEX, which owns the name", () => {
+    assert.equal(PREMIUM_BRANDS.filter((b) => /Docter/.test(b.name)).length, 1);
+    assert.equal(PREMIUM_BRANDS.find((b) => b.short === "Docter"), undefined);
   });
 
   it("lists every model once", () => {
