@@ -7,14 +7,21 @@
  * Links are written without locale; `categorySeo` prefixes them for /ru.
  */
 
+import type { Locale as AppLocale } from "@/types";
+
+/** Category guides exist in uk and ru only; English pages get none. */
 type Locale = "uk" | "ru";
 type Entry = { title: string; html: string };
 
-const SERVICE: Record<Locale, string> = {
+// The English entry is needed: without it /en/porivniannia/* answered 500
+// (October 2026), because the block rendered as `__html: undefined`.
+const SERVICE: Record<AppLocale, string> = {
   uk: `<h3>Купівля в Pro-Optics</h3>
 <p>Доставляємо Новою Поштою по всій Україні, оплата можлива при отриманні (накладений платіж). На прилади діє <a href="/warranty">гарантія</a>, повернення — протягом 14 днів за <a href="/returns">умовами повернення</a>. Консультант допоможе підібрати модель під ваші дистанції та бюджет: <strong>063 789-76-99</strong>. Для військових діють <a href="/viyskovym">спеціальні умови</a>.</p>`,
   ru: `<h3>Покупка в Pro-Optics</h3>
 <p>Доставляем Новой Почтой по всей Украине, оплата возможна при получении (наложенный платёж). На приборы действует <a href="/warranty">гарантия</a>, возврат — в течение 14 дней по <a href="/returns">условиям возврата</a>. Консультант поможет подобрать модель под ваши дистанции и бюджет: <strong>063 789-76-99</strong>. Для военных действуют <a href="/viyskovym">специальные условия</a>.</p>`,
+  en: `<h3>Buying at Pro-Optics</h3>
+<p>We deliver by Nova Poshta across Ukraine, and you can pay on receipt (cash on delivery). Devices come with a <a href="/warranty">warranty</a>; returns within 14 days under our <a href="/returns">returns policy</a>. A consultant will help you pick a model for your distances and budget: <strong>063 789-76-99</strong>. <a href="/viyskovym">Special terms</a> apply for the military.</p>`,
 };
 
 const CONTENT: Record<string, Record<Locale, Entry>> = {
@@ -176,13 +183,13 @@ function linkBrands(html: string): string {
   return intro + html.slice(end);
 }
 
-function localizeLinks(html: string, locale: Locale): string {
-  if (locale !== "ru") return html;
-  return html.replace(/href="\/(?!ru\/)/g, 'href="/ru/');
+function localizeLinks(html: string, locale: AppLocale): string {
+  if (locale === "uk") return html;
+  return html.replace(/href="\/(?!(?:ru|en)\/)/g, `href="/${locale}/`);
 }
 
 /** "Купівля в Pro-Optics" block — shared by category and brand pages. */
-export function serviceBlockHtml(locale: Locale): string {
+export function serviceBlockHtml(locale: AppLocale): string {
   return localizeLinks(SERVICE[locale], locale);
 }
 

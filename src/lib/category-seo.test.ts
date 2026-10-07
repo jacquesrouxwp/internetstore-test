@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { categorySeo } from "./category-seo";
+import { categorySeo, serviceBlockHtml } from "./category-seo";
 
 describe("categorySeo", () => {
   it("has uk and ru copy for the main categories", () => {
@@ -35,5 +35,26 @@ describe("categorySeo brand links", () => {
     assert.match(uk, /<a href="\/brand\/agm">AGM<\/a>/);
     const ru = categorySeo("pricili", "ru")!.html;
     assert.match(ru, /<a href="\/ru\/brand\/atn">ATN<\/a>/);
+  });
+});
+
+describe("buying block", () => {
+  it("exists in every locale, so no page renders __html: undefined", () => {
+    for (const l of ["uk", "ru", "en"] as const) {
+      const html = serviceBlockHtml(l);
+      assert.equal(typeof html, "string", l);
+      assert.match(html, /<h3>/, l);
+    }
+  });
+
+  it("points links at the page's own language", () => {
+    assert.match(serviceBlockHtml("uk"), /href="\/warranty"/);
+    assert.match(serviceBlockHtml("ru"), /href="\/ru\/warranty"/);
+    assert.match(serviceBlockHtml("en"), /href="\/en\/warranty"/);
+    assert.doesNotMatch(serviceBlockHtml("en"), /[А-Яа-яІіЇїЄєҐґ]/);
+  });
+
+  it("gives English category pages no guide rather than a broken one", () => {
+    assert.equal(categorySeo("teplovizori", "en" as "uk"), null);
   });
 });
