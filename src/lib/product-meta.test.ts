@@ -36,8 +36,16 @@ describe("productMetaDescription", () => {
     assert.ok(!d.includes("купити"));
   });
 
+  it("has English copy, so the /en product page renders instead of failing", () => {
+    const d = productMetaDescription(P, "AGM Rattler V2 35-384", "en");
+    assert.ok(d.startsWith("AGM Rattler V2 35-384 — buy at Pro-Optics."), d);
+    assert.ok(d.includes("1800 m"), d);
+    assert.ok(d.includes("45 000 UAH"), d);
+    assert.doesNotMatch(d, /[А-Яа-яІіЇїЄєҐґ]/);
+  });
+
   it("stays within Google's snippet length", () => {
-    for (const loc of ["uk", "ru"] as const) {
+    for (const loc of ["uk", "ru", "en"] as const) {
       const d = productMetaDescription(P, NAME, loc);
       assert.ok(d.length <= META_DESCRIPTION_MAX, `${loc}: ${d.length} chars`);
     }

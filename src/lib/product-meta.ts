@@ -12,12 +12,10 @@
  * mid-sentence.
  */
 
-import type { Product } from "@/types";
+import type { Locale, Product } from "@/types";
 
 /** Google renders roughly this many characters before truncating. */
 export const META_DESCRIPTION_MAX = 160;
-
-type Locale = "uk" | "ru";
 
 const COPY = {
   uk: {
@@ -36,7 +34,23 @@ const COPY = {
     inStock: "В наличии.",
     service: "Доставка Новой Почтой по Украине, гарантия.",
   },
-} as const;
+  // The English pages went live without this entry, and every /en product
+  // page answered 500 (October 2026) — Googlebot was crawling them.
+  en: {
+    buy: "buy at Pro-Optics.",
+    matrix: "Sensor",
+    range: "detection range",
+    price: "Price",
+    inStock: "In stock.",
+    service: "Nova Poshta delivery across Ukraine, warranty.",
+  },
+} as const satisfies Record<Locale, Record<string, string>>;
+
+const UNITS: Record<Locale, { uah: string; m: string }> = {
+  uk: { uah: "грн.", m: "м" },
+  ru: { uah: "грн.", m: "м" },
+  en: { uah: "UAH.", m: "m" },
+};
 
 /** 45000 → "45 000" with a plain space (stable across Node/ICU versions). */
 function formatUah(price: number): string {
@@ -60,11 +74,11 @@ export function productMetaDescription(
     specs.push(`${c.matrix} ${normalizeResolution(product.resolution)}`);
   }
   if (product.detectionRangeM && product.detectionRangeM > 0) {
-    specs.push(`${c.range} ${Math.round(product.detectionRangeM)} м`);
+    specs.push(`${c.range} ${Math.round(product.detectionRangeM)} ${UNITS[locale].m}`);
   }
   if (specs.length) parts.push(`${specs.join(", ")}.`);
 
-  if (product.price > 0) parts.push(`${c.price} ${formatUah(product.price)} грн.`);
+  if (product.price > 0) parts.push(`${c.price} ${formatUah(product.price)} ${UNITS[locale].uah}`);
   if (product.stock > 0) parts.push(c.inStock);
   parts.push(c.service);
 
