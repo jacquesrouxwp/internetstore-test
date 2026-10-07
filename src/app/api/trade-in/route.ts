@@ -7,6 +7,7 @@ import {
   validateTradeIn,
   type TradeInRequest,
 } from "@/lib/trade-in";
+import { clientIp, createIpBudget, notifyTelegram } from "@/lib/public-form";
 
 /**
  * POST /api/trade-in — a seller offers us their device.
@@ -19,57 +20,8 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Per-IP budget. Serverless recycles instances, so this thins floods rather than stopping a determined one. */
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_PER_WINDOW = 5;
-const seen = new Map<string, number[]>();
-
-function overBudget(ip: string): boolean {
-  const now = Date.now();
-  const hits = (seen.get(ip) || []).filter((t) => now - t < WINDOW_MS);
-  hits.push(now);
-  seen.set(ip, hits);
-  if (seen.size > 5000) seen.clear(); // keep the map from growing unbounded
-  return hits.length > MAX_PER_WINDOW;
-}
-
-function clientIp(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
-
-async function notifyTelegram(html: string): Promise<boolean> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) {
-    console.warn("[trade-in] TELEGRAM_BOT_TOKEN/CHAT_ID not set — request only logged");
-    return false;
-  }
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: html,
-        parse_mode: "HTML",
-        disable_web_page_preview: true,
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) {
-      console.error("[trade-in] telegram", res.status, (await res.text()).slice(0, 300));
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.error("[trade-in] telegram error", e);
-    return false;
-  }
-}
+/** Five requests per IP per ten minutes. */
+const overBudget = createIpBudget(5, 10 * 60 * 1000);
 
 export async function POST(req: NextRequest) {
   if (overBudget(clientIp(req))) {
@@ -130,7 +82,7 @@ export async function POST(req: NextRequest) {
   }
 
   const request: TradeInRequest = { ...checked.value, photoUrls };
-  const delivered = await notifyTelegram(formatTradeInTelegramHtml(request));
+  const delivered = await notifyTelegram(formatTradeInTelegramHtml(request), "trade-in");
 
   if (!delivered) {
     // The lead must not vanish just because Telegram is down.

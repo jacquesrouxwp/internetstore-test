@@ -3,6 +3,7 @@ import { ProductRail } from "@/components/ui/ProductRail";
 import { BrandGrid } from "@/components/ui/BrandGrid";
 import { HowWeWork } from "@/components/trust/HowWeWork";
 import { SimulatorPromo } from "@/components/simulator/SimulatorCta";
+import { PremiumPromo } from "@/components/premium/PremiumPromo";
 import {
   getProductBySlug,
   getProductsByFlag,
@@ -116,6 +117,8 @@ export default async function HomePage({
           viewAllLabel={t("viewAll")}
         />
       )}
+
+      <PremiumPromo locale={locale as "uk" | "ru" | "en"} />
 
       {railIsWorthShowing(top) && (
         <ProductRail

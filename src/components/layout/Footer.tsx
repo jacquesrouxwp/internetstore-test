@@ -141,6 +141,11 @@ export async function Footer() {
               </Link>
             </li>
             <li>
+              <Link href="/premium-optyka" className="hover:text-[var(--accent)]">
+                {t("premium")}
+              </Link>
+            </li>
+            <li>
               <Link href="/oferta" className="hover:text-[var(--accent)]">
                 {t("offer")}
               </Link>
