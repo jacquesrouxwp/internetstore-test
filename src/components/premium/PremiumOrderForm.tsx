@@ -1,100 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Phone } from "lucide-react";
-import {
-  CATEGORY_LABEL,
-  PREMIUM_BRANDS,
-  PREMIUM_BRANDS_US,
-  PREMIUM_CATEGORIES,
-  type PremiumCategory,
-} from "@/lib/premium-order";
 import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
 import type { Locale } from "@/types";
 
+/** Fired by the brand list when a visitor clicks a model. */
+export const PICK_EVENT = "premium-pick";
+
 const T = {
   uk: {
-    heading: "Замовити прилад",
-    lead: "Напишіть, яку модель шукаєте. Консультант знайде її, назве ціну й термін постачання та зв'яжеться з вами — без передоплати на цьому етапі.",
-    callInstead: "Зручніше голосом — телефонуйте",
-    category: "Що шукаєте",
-    brand: "Бренд",
-    brandPlaceholder: "Наприклад: Swarovski Optik",
-    model: "Модель або що саме потрібно",
-    modelPlaceholder: "Наприклад: бінокль 10x42 з далекоміром",
-    modelHint: "Якщо точної моделі не знаєте — опишіть задачу, підберемо.",
-    budget: "Бюджет, грн",
-    budgetHint: "Необов'язково, але так консультант одразу запропонує доречні варіанти.",
-    comment: "Коментар",
-    commentPlaceholder: "Для чого прилад, коли потрібен, чи важлива комплектація",
+    heading: "Яку модель шукаєте?",
+    lead: "Напишіть модель — наш співробітник зв'яжеться з вами.",
+    model: "Модель",
+    modelPlaceholder: "Наприклад: Swarovski NL Pure 10x42",
+    modelHint: "Або оберіть модель у списку брендів нижче.",
     name: "Ім'я",
     phone: "Телефон",
-    contactVia: "Як зручніше зв'язатися",
     submit: "Надіслати заявку",
     sending: "Надсилаємо…",
     okTitle: "Заявку прийнято",
-    okText: "Консультант зв'яжеться з вами, щойно уточнить наявність, ціну й термін постачання.",
+    okText: "Наш співробітник зв'яжеться з вами найближчим часом.",
     again: "Надіслати ще одну",
     fail: "Не вдалося надіслати. Спробуйте ще раз або зателефонуйте нам.",
+    orCall: "Або телефонуйте:",
   },
   ru: {
-    heading: "Заказать прибор",
-    lead: "Напишите, какую модель ищете. Консультант найдёт её, назовёт цену и срок поставки и свяжется с вами — без предоплаты на этом этапе.",
-    callInstead: "Удобнее голосом — звоните",
-    category: "Что ищете",
-    brand: "Бренд",
-    brandPlaceholder: "Например: Swarovski Optik",
-    model: "Модель или что именно нужно",
-    modelPlaceholder: "Например: бинокль 10x42 с дальномером",
-    modelHint: "Если точной модели не знаете — опишите задачу, подберём.",
-    budget: "Бюджет, грн",
-    budgetHint: "Необязательно, но так консультант сразу предложит подходящие варианты.",
-    comment: "Комментарий",
-    commentPlaceholder: "Для чего прибор, когда нужен, важна ли комплектация",
+    heading: "Какую модель ищете?",
+    lead: "Напишите модель — наш сотрудник свяжется с вами.",
+    model: "Модель",
+    modelPlaceholder: "Например: Swarovski NL Pure 10x42",
+    modelHint: "Или выберите модель в списке брендов ниже.",
     name: "Имя",
     phone: "Телефон",
-    contactVia: "Как удобнее связаться",
     submit: "Отправить заявку",
     sending: "Отправляем…",
     okTitle: "Заявка принята",
-    okText: "Консультант свяжется с вами, как только уточнит наличие, цену и срок поставки.",
+    okText: "Наш сотрудник свяжется с вами в ближайшее время.",
     again: "Отправить ещё одну",
     fail: "Не удалось отправить. Попробуйте ещё раз или позвоните нам.",
+    orCall: "Или звоните:",
   },
   en: {
-    heading: "Order a device",
-    lead: "Tell us which model you are after. A consultant sources it, names the price and the delivery time and gets back to you — no prepayment at this stage.",
-    callInstead: "Not everyone on our phone line speaks English, so the form is the surest route — an English-speaking colleague picks it up. You can still call",
-    category: "What you are looking for",
-    brand: "Brand",
-    brandPlaceholder: "For example: Swarovski Optik",
-    model: "Model, or what exactly you need",
-    modelPlaceholder: "For example: 10x42 rangefinding binoculars",
-    modelHint: "If you do not know the exact model, describe the task and we will suggest one.",
-    budget: "Budget, UAH",
-    budgetHint: "Optional, but it lets the consultant suggest the right options straight away.",
-    comment: "Comment",
-    commentPlaceholder: "What the device is for, when you need it, whether the kit matters",
+    heading: "Which model are you looking for?",
+    lead: "Name the model — a colleague will get back to you. Not everyone on our phone line speaks English, so the form is the surest route.",
+    model: "Model",
+    modelPlaceholder: "For example: Swarovski NL Pure 10x42",
+    modelHint: "Or pick a model from the brand list below.",
     name: "Name",
     phone: "Phone",
-    contactVia: "Best way to reach you",
     submit: "Send request",
     sending: "Sending…",
     okTitle: "Request received",
-    okText: "A consultant will get back to you once availability, price and delivery time are confirmed.",
+    okText: "A colleague will get back to you shortly.",
     again: "Send another one",
     fail: "Could not send. Please try again or give us a call.",
+    orCall: "Or call:",
   },
 } as const;
 
-const ALL_BRANDS = [...PREMIUM_BRANDS.map((b) => b.name), ...PREMIUM_BRANDS_US];
-
 export function PremiumOrderForm({ locale }: { locale: Locale }) {
   const t = T[locale];
-  const [category, setCategory] = useState<PremiumCategory | "">("");
+  const [model, setModel] = useState("");
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // A model clicked in the brand list lands here, and the visitor is taken
+  // straight to the next empty field.
+  useEffect(() => {
+    const onPick = (e: Event) => {
+      const picked = (e as CustomEvent<string>).detail;
+      if (!picked) return;
+      setDone(false);
+      setModel(picked);
+      setErrors({});
+      document.getElementById("order")?.scrollIntoView({ block: "start", behavior: "smooth" });
+      setTimeout(() => nameRef.current?.focus({ preventScroll: true }), 400);
+    };
+    window.addEventListener(PICK_EVENT, onPick);
+    return () => window.removeEventListener(PICK_EVENT, onPick);
+  }, []);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -102,28 +89,20 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
     setSending(true);
     setErrors({});
     const form = new FormData(e.currentTarget);
-    const body = {
-      category,
-      brand: String(form.get("brand") || ""),
-      model: String(form.get("model") || ""),
-      budget: String(form.get("budget") || ""),
-      comment: String(form.get("comment") || ""),
-      name: String(form.get("name") || ""),
-      phone: String(form.get("phone") || ""),
-      contactVia: String(form.get("contactVia") || ""),
-      website: String(form.get("website") || ""),
-      locale,
-    };
     try {
       const res = await fetch("/api/premium-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          model,
+          name: String(form.get("name") || ""),
+          phone: String(form.get("phone") || ""),
+          website: String(form.get("website") || ""),
+          locale,
+        }),
       });
       if (res.ok) {
         setDone(true);
-        // The long form collapses into a short message; without this the
-        // visitor is left looking at empty space below it.
         requestAnimationFrame(() =>
           document.getElementById("order")?.scrollIntoView({ block: "start", behavior: "smooth" }),
         );
@@ -138,12 +117,11 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
     }
   }
 
+  const box = "scroll-mt-24 rounded-[var(--radius-card)] border border-[var(--accent)]/30 bg-white/[0.03] p-6 sm:p-8";
+
   if (done) {
     return (
-      <section
-        id="order"
-        className="mt-8 scroll-mt-24 rounded-[var(--radius-card)] border border-white/10 bg-white/[0.02] p-8 text-center"
-      >
+      <section id="order" className={`${box} text-center`}>
         <Check className="mx-auto h-10 w-10 text-[var(--accent)]" strokeWidth={2} />
         <h2 className="mt-3 font-display text-xl font-bold text-primary">{t.okTitle}</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-secondary">{t.okText}</p>
@@ -158,7 +136,7 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
             type="button"
             onClick={() => {
               setDone(false);
-              setCategory("");
+              setModel("");
             }}
             className="text-sm text-secondary underline hover:text-primary"
           >
@@ -169,31 +147,15 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
     );
   }
 
-  const chip = (active: boolean) =>
-    `rounded-lg border px-3 py-1.5 text-sm transition ${
-      active
-        ? "border-[var(--accent)] bg-[var(--accent)]/10 font-semibold text-[var(--accent)]"
-        : "border-white/15 text-secondary hover:border-white/30 hover:text-primary"
-    }`;
   const err = (k: string) =>
     errors[k] ? <p className="mt-1 text-xs text-[var(--accent)]">{errors[k]}</p> : null;
 
   return (
-    <section
-      id="order"
-      className="mt-8 scroll-mt-24 rounded-[var(--radius-card)] border border-white/10 bg-white/[0.02] p-6 sm:p-8"
-    >
+    <section id="order" className={box}>
       <h2 className="font-display text-xl font-bold text-primary">{t.heading}</h2>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-secondary">{t.lead}</p>
-      <p className="mt-1.5 text-sm text-secondary">
-        {t.callInstead}{" "}
-        <a href={STORE_PHONE_TEL} className="font-semibold text-[var(--accent)] hover:underline">
-          {STORE_PHONE_DISPLAY}
-        </a>
-        .
-      </p>
 
-      <form onSubmit={submit} className="mt-6 grid gap-5" noValidate>
+      <form onSubmit={submit} className="mt-5 grid gap-4" noValidate>
         {/* honeypot — hidden from people, irresistible to bots */}
         <input
           type="text"
@@ -206,54 +168,18 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
 
         <div>
           <label className="mb-1.5 block text-sm font-semibold text-primary">
-            {t.category} <span className="text-[var(--accent)]">*</span>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {PREMIUM_CATEGORIES.map((c) => (
-              <button key={c} type="button" className={chip(category === c)} onClick={() => setCategory(c)}>
-                {CATEGORY_LABEL[c][locale]}
-              </button>
-            ))}
-          </div>
-          {err("category")}
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-primary">{t.brand}</label>
-            <input
-              className="input"
-              name="brand"
-              list="premium-brands"
-              placeholder={t.brandPlaceholder}
-              autoComplete="off"
-            />
-            <datalist id="premium-brands">
-              {ALL_BRANDS.map((b) => (
-                <option key={b} value={b} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-primary">{t.budget}</label>
-            <input className="input" name="budget" inputMode="numeric" placeholder="150000" />
-            <p className="mt-1 text-xs text-muted-ui">{t.budgetHint}</p>
-            {err("budget")}
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-primary">
             {t.model} <span className="text-[var(--accent)]">*</span>
           </label>
-          <input className="input" name="model" placeholder={t.modelPlaceholder} autoComplete="off" />
+          <input
+            className="input"
+            name="model"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder={t.modelPlaceholder}
+            autoComplete="off"
+          />
           <p className="mt-1 text-xs text-muted-ui">{t.modelHint}</p>
           {err("model")}
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-primary">{t.comment}</label>
-          <textarea className="input min-h-[90px]" name="comment" rows={3} placeholder={t.commentPlaceholder} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -261,7 +187,7 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
             <label className="mb-1.5 block text-sm font-semibold text-primary">
               {t.name} <span className="text-[var(--accent)]">*</span>
             </label>
-            <input className="input" name="name" autoComplete="name" />
+            <input ref={nameRef} className="input" name="name" autoComplete="name" />
             {err("name")}
           </div>
           <div>
@@ -273,23 +199,9 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
           </div>
         </div>
 
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-primary">{t.contactVia}</label>
-          <div className="flex flex-wrap gap-2">
-            {[locale === "en" ? "Phone" : "Телефон", "Telegram", "Viber", "WhatsApp"].map((c) => (
-              <label key={c} className="cursor-pointer">
-                <input type="radio" name="contactVia" value={c} className="peer sr-only" />
-                <span className="inline-block rounded-lg border border-white/15 px-3 py-1.5 text-sm text-secondary transition peer-checked:border-[var(--accent)] peer-checked:font-semibold peer-checked:text-[var(--accent)]">
-                  {c}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
         {errors._ && <p className="text-sm text-[var(--accent)]">{errors._}</p>}
 
-        <div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <button type="submit" disabled={sending} className="btn-buy w-full sm:w-auto">
             {sending ? (
               <>
@@ -299,6 +211,12 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
               t.submit
             )}
           </button>
+          <span className="text-sm text-secondary">
+            {t.orCall}{" "}
+            <a href={STORE_PHONE_TEL} className="font-semibold text-[var(--accent)] hover:underline">
+              {STORE_PHONE_DISPLAY}
+            </a>
+          </span>
         </div>
       </form>
     </section>

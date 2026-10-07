@@ -4,17 +4,11 @@ import type { Locale } from "@/types";
 import { Link } from "@/i18n/routing";
 import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 import { PremiumOrderForm } from "@/components/premium/PremiumOrderForm";
+import { PremiumBrandGrid } from "@/components/premium/PremiumBrandGrid";
 import { localizedPath, pageAlternates } from "@/lib/seo-alternates";
 import { absoluteUrl } from "@/lib/site-url";
 import { breadcrumbJsonLd, jsonLdScript } from "@/lib/breadcrumbs";
 import { faqPageJsonLd } from "@/lib/faq-json-ld";
-import {
-  CATEGORY_LABEL,
-  PREMIUM_BRANDS,
-  PREMIUM_BRANDS_US,
-  brandsFor,
-  type PremiumCategory,
-} from "@/lib/premium-order";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -31,49 +25,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           : "Люкс-оптика під замовлення: тепловізори, біноклі, приціли Swarovski, ZEISS, Leica",
     description:
       locale === "ru"
-        ? "Премиальные тепловизоры, бинокли, прицелы и дальномеры европейских брендов под заказ: Swarovski, ZEISS, Leica, Steiner, Kahles. Заявка онлайн за минуту."
+        ? "Премиальные тепловизоры, бинокли, прицелы, дальномеры и подзорные трубы Swarovski, ZEISS, Leica, Steiner, Kahles под заказ. Напишите модель — мы свяжемся с вами."
         : locale === "en"
-          ? "Premium thermal imagers, binoculars, riflescopes and rangefinders from European makers, sourced to order: Swarovski, ZEISS, Leica, Steiner, Kahles."
-          : "Преміальні тепловізори, біноклі, приціли й далекоміри європейських брендів під замовлення: Swarovski, ZEISS, Leica, Steiner, Kahles. Заявка онлайн за хвилину.",
+          ? "Premium thermal imagers, binoculars, riflescopes, rangefinders and spotting scopes from Swarovski, ZEISS, Leica, Steiner, Kahles, to order. Name the model."
+          : "Преміальні тепловізори, біноклі, приціли, далекоміри й підзорні труби Swarovski, ZEISS, Leica, Steiner, Kahles під замовлення. Напишіть модель — ми зв'яжемося.",
     alternates: pageAlternates(locale, PATH),
   };
 }
 
-/** Category sections, in the order people search for them. */
-const SECTIONS: {
-  category: PremiumCategory;
-  catalog?: { href: string; label: { uk: string; ru: string; en: string } };
-}[] = [
-  {
-    category: "thermal",
-    catalog: {
-      href: "/catalog/teplovizori",
-      label: { uk: "тепловізори в каталозі", ru: "тепловизоры в каталоге", en: "thermal imagers in the catalogue" },
-    },
-  },
-  {
-    category: "binoculars",
-    catalog: {
-      href: "/catalog/binokli",
-      label: { uk: "тепловізійні біноклі в каталозі", ru: "тепловизионные бинокли в каталоге", en: "thermal binoculars in the catalogue" },
-    },
-  },
-  {
-    category: "sights",
-    catalog: {
-      href: "/catalog/pricili",
-      label: { uk: "тепловізійні приціли в каталозі", ru: "тепловизионные прицелы в каталоге", en: "thermal sights in the catalogue" },
-    },
-  },
-  { category: "rangefinders" },
-  { category: "spotting" },
-];
-
 /**
- * Premium optics sourced to order. The catalogue stocks thermal and night
- * vision; this page covers the European makers it does not carry and turns a
- * search for "Swarovski", "ZEISS Victory" or "Leica Geovid" into a request
- * the consultant can act on. See lib/premium-order for what it must not claim.
+ * Premium optics to order. The form comes first and asks for one thing — the
+ * model — then the brands follow as a compact grid whose cards open to their
+ * models; a click on a model fills the form. See lib/premium-order for what
+ * the page must not claim.
  */
 export default async function PremiumOpticsPage({ params }: Props) {
   const { locale } = await params;
@@ -85,11 +49,7 @@ export default async function PremiumOpticsPage({ params }: Props) {
     en ? (enText ?? uk) : ru ? ruText : uk;
   const S = (uk: string, ruText: string, enText: string): string => (en ? enText : ru ? ruText : uk);
 
-  const title = S(
-    "Люкс-оптика під замовлення",
-    "Люкс-оптика под заказ",
-    "Premium optics to order",
-  );
+  const title = S("Люкс-оптика під замовлення", "Люкс-оптика под заказ", "Premium optics to order");
 
   const faq = [
     {
@@ -99,37 +59,17 @@ export default async function PremiumOpticsPage({ params }: Props) {
         "Can I order a model that is not on the list?",
       ),
       a: S(
-        "Так. Бренди на цій сторінці — приклади. Напишіть назву моделі або опишіть задачу, і консультант підбере варіанти.",
-        "Да. Бренды на этой странице — примеры. Напишите название модели или опишите задачу, и консультант подберёт варианты.",
-        "Yes. The brands on this page are examples. Name the model or describe the task and a consultant will suggest options.",
-      ),
-    },
-    {
-      q: S("Скільки чекати на прилад?", "Сколько ждать прибор?", "How long does delivery take?"),
-      a: S(
-        "Термін залежить від моделі та її наявності у постачальника. Консультант назве його разом із ціною — до того, як ви підтвердите замовлення.",
-        "Срок зависит от модели и её наличия у поставщика. Консультант назовёт его вместе с ценой — до того, как вы подтвердите заказ.",
-        "It depends on the model and on the supplier's stock. The consultant names the delivery time together with the price, before you confirm the order.",
-      ),
-    },
-    {
-      q: S(
-        "Яка гарантія на прилади під замовлення?",
-        "Какая гарантия на приборы под заказ?",
-        "What warranty do ordered devices have?",
-      ),
-      a: S(
-        "Умови гарантії залежать від моделі та каналу постачання. Консультант назве їх до оформлення замовлення, щоб ви знали їх заздалегідь.",
-        "Условия гарантии зависят от модели и канала поставки. Консультант назовёт их до оформления заказа, чтобы вы знали их заранее.",
-        "Warranty terms depend on the model and on the supply channel. The consultant states them before the order is placed, so you know them in advance.",
+        "Так. Список — лише приклади. Напишіть у формі будь-яку модель, і наш співробітник зв'яжеться з вами.",
+        "Да. Список — лишь примеры. Напишите в форме любую модель, и наш сотрудник свяжется с вами.",
+        "Yes. The list only shows examples. Write any model in the form and a colleague will get back to you.",
       ),
     },
     {
       q: S("Чи зобов'язує мене заявка?", "Обязывает ли меня заявка?", "Does a request commit me to anything?"),
       a: S(
-        "Ні. Заявка — це запит на ціну й термін. Умови оплати консультант узгоджує під кожне замовлення окремо.",
-        "Нет. Заявка — это запрос цены и срока. Условия оплаты консультант согласует под каждый заказ отдельно.",
-        "No. A request asks for a price and a delivery time. Payment terms are agreed for each order separately.",
+        "Ні. Заявка — це лише запит. Усі деталі наш співробітник обговорить з вами особисто.",
+        "Нет. Заявка — это лишь запрос. Все детали наш сотрудник обсудит с вами лично.",
+        "No. A request is just a request. A colleague will talk the details through with you in person.",
       ),
     },
   ];
@@ -153,12 +93,6 @@ export default async function PremiumOpticsPage({ params }: Props) {
   };
   const faqLd = faqPageJsonLd(faq);
 
-  const toOrder = (
-    <a href="#order" className="btn-hero btn-hero-primary !no-underline">
-      {L("Залишити заявку", "Оставить заявку", "Send a request")}
-    </a>
-  );
-
   return (
     <InfoPage title={title}>
       <script
@@ -170,96 +104,41 @@ export default async function PremiumOpticsPage({ params }: Props) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqLd) }} />
       )}
 
-      <InfoPanel>
-        <p>
+      <p className="mb-5 max-w-3xl text-[0.9375rem] leading-relaxed text-secondary">
+        {L(
+          "Тепловізори, біноклі, приціли, далекоміри та підзорні труби топових європейських брендів — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — яких рідко знайдеш у наявності в Україні. Привеземо під замовлення.",
+          "Тепловизоры, бинокли, прицелы, дальномеры и подзорные трубы топовых европейских брендов — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — которых редко найдёшь в наличии в Украине. Привезём под заказ.",
+          "Thermal imagers, binoculars, riflescopes, rangefinders and spotting scopes from top European brands — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender — rarely in stock in Ukraine. We bring them in to order.",
+        )}
+      </p>
+
+      <PremiumOrderForm locale={loc} />
+
+      {/* Outside InfoPanel on purpose: its prose styles would put list
+          bullets and margins on the model chips. */}
+      <section className="mt-8">
+        <h2 className="font-display text-xl font-bold text-primary">
+          {L("Бренди та моделі", "Бренды и модели", "Brands and models")}
+        </h2>
+        <p className="mb-4 mt-2 text-sm leading-relaxed text-secondary">
           {L(
-            "Преміальні тепловізори, біноклі, приціли, далекоміри та зорові труби європейських виробників — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender та інших — рідко бувають у наявності в українських магазинах. Pro-Optics привозить їх під замовлення: ви називаєте модель, консультант знаходить її, називає ціну й термін постачання та зв'язується з вами.",
-            "Премиальные тепловизоры, бинокли, прицелы, дальномеры и зрительные трубы европейских производителей — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender и других — редко бывают в наличии в украинских магазинах. Pro-Optics привозит их под заказ: вы называете модель, консультант находит её, называет цену и срок поставки и связывается с вами.",
-            "Premium thermal imagers, binoculars, riflescopes, rangefinders and spotting scopes from European makers — Swarovski Optik, ZEISS, Leica, Steiner, Kahles, Schmidt & Bender and others — are rarely in stock in Ukrainian shops. Pro-Optics sources them to order: you name the model, a consultant finds it, gives you the price and the delivery time and gets back to you.",
+            "Натисніть на бренд, щоб побачити моделі, а потім на модель — вона з'явиться у формі вгорі.",
+            "Нажмите на бренд, чтобы увидеть модели, а затем на модель — она появится в форме вверху.",
+            "Tap a brand to see its models, then tap a model — it goes into the form at the top.",
           )}
         </p>
+        <PremiumBrandGrid locale={loc} />
+      </section>
+
+      <InfoPanel className="mt-8">
         <p>
-          {L(
-            "Це оптика, яку беруть на роки: світлосильні біноклі для спостереження в сутінках, приціли з точною механікою, біноклі з вбудованим далекоміром, компактні тепловізори від виробників з багаторічною історією. Заявка займає хвилину й ні до чого не зобов'язує.",
-            "Это оптика, которую берут на годы: светосильные бинокли для наблюдения в сумерках, прицелы с точной механикой, бинокли со встроенным дальномером, компактные тепловизоры от производителей с многолетней историей. Заявка занимает минуту и ни к чему не обязывает.",
-            "This is optics people buy for years: bright binoculars for observation at dusk, riflescopes with precise mechanics, binoculars with a built-in rangefinder, compact thermal imagers from makers with a long history. A request takes a minute and commits you to nothing.",
-          )}
+          {L("Шукаєте прилад у наявності? Дивіться ", "Ищете прибор в наличии? Смотрите ", "Looking for something in stock? See ")}
+          <Link href="/catalog/teplovizori">{L("тепловізори", "тепловизоры", "thermal imagers")}</Link>,{" "}
+          <Link href="/catalog/binokli">{L("тепловізійні біноклі", "тепловизионные бинокли", "thermal binoculars")}</Link>{" "}
+          {L("та", "и", "and")}{" "}
+          <Link href="/catalog/pricili">{L("тепловізійні приціли", "тепловизионные прицелы", "thermal sights")}</Link>
+          {L(" у нашому каталозі.", " в нашем каталоге.", " in our catalogue.")}
         </p>
-        <div className="my-5">{toOrder}</div>
-      </InfoPanel>
-
-      <InfoPanel>
-        <h2>{L("Що можна замовити", "Что можно заказать", "What you can order")}</h2>
-        {SECTIONS.map(({ category, catalog }) => {
-          const brands = brandsFor(category);
-          if (!brands.length) return null;
-          return (
-            <div key={category}>
-              <h3>{CATEGORY_LABEL[category][loc]}</h3>
-              <ul>
-                {brands.map((b) => (
-                  <li key={b.name}>
-                    <strong>{b.name}</strong> ({b.country[loc]}) — {b.lines[loc]}
-                  </li>
-                ))}
-              </ul>
-              {catalog && (
-                <p>
-                  {L("У наявності зараз: ", "В наличии сейчас: ", "In stock now: ")}
-                  <Link href={catalog.href}>{catalog.label[loc]}</Link>.
-                </p>
-              )}
-            </div>
-          );
-        })}
-        <p>
-          {L("Також на запит: ", "Также по запросу: ", "Also on request: ")}
-          {PREMIUM_BRANDS_US.join(", ")}
-          {L(" (США) та інші бренди.", " (США) и другие бренды.", " (USA) and other brands.")}
-        </p>
-      </InfoPanel>
-
-      <InfoPanel>
-        <h2>{L("Як працює замовлення", "Как работает заказ", "How ordering works")}</h2>
-        <ol>
-          <li>
-            {L(
-              "Ви залишаєте заявку: модель або задачу, бажаний бюджет і контакт.",
-              "Вы оставляете заявку: модель или задачу, желаемый бюджет и контакт.",
-              "You send a request: the model or the task, your budget and how to reach you.",
-            )}
-          </li>
-          <li>
-            {L(
-              "Консультант уточнює деталі — кратність, об'єктив, комплектацію — і перевіряє наявність у постачальника.",
-              "Консультант уточняет детали — кратность, объектив, комплектацию — и проверяет наличие у поставщика.",
-              "A consultant clarifies the details — magnification, objective, what comes in the box — and checks the supplier's stock.",
-            )}
-          </li>
-          <li>
-            {L(
-              "Ви отримуєте ціну, термін постачання та умови гарантії й оплати.",
-              "Вы получаете цену, срок поставки и условия гарантии и оплаты.",
-              "You get the price, the delivery time and the warranty and payment terms.",
-            )}
-          </li>
-          <li>
-            {L(
-              "Після вашого підтвердження оформлюємо замовлення та доставку Новою Поштою.",
-              "После вашего подтверждения оформляем заказ и доставку Новой Почтой.",
-              "Once you confirm, we place the order and arrange Nova Poshta delivery.",
-            )}
-          </li>
-        </ol>
-
-        <h2>{L("Бренди", "Бренды", "Brands")}</h2>
-        <ul>
-          {PREMIUM_BRANDS.map((b) => (
-            <li key={b.name}>
-              <strong>{b.name}</strong>, {b.country[loc]}
-            </li>
-          ))}
-        </ul>
 
         <h2>{L("Питання та відповіді", "Вопросы и ответы", "Questions and answers")}</h2>
         {faq.map((f) => (
@@ -279,8 +158,6 @@ export default async function PremiumOpticsPage({ params }: Props) {
           )}
         </p>
       </InfoPanel>
-
-      <PremiumOrderForm locale={loc} />
     </InfoPage>
   );
 }
