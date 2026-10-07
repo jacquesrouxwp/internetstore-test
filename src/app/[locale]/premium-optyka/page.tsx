@@ -143,6 +143,21 @@ export default async function PremiumOpticsPage({ params }: Props) {
           .
         </p>
         <p>
+          {L(
+            "Про менш відомі бренди — Meopta, Liemke, NOBLEX, Kite, Hawke, Vectronix — читайте огляд ",
+            "О менее известных брендах — Meopta, Liemke, NOBLEX, Kite, Hawke, Vectronix — читайте обзор ",
+            "For the lesser-known makers — Meopta, Liemke, NOBLEX, Kite, Hawke, Vectronix — read ",
+          )}
+          <Link href="/blog/yevropeiska-optyka-malovidomi-brendy">
+            {L(
+              "«Європейська оптика, про яку в Україні майже не знають»",
+              "«Европейская оптика, о которой в Украине почти не знают»",
+              "“European optics hardly anyone in Ukraine knows”",
+            )}
+          </Link>
+          .
+        </p>
+        <p>
           {L("Шукаєте прилад у наявності? Дивіться ", "Ищете прибор в наличии? Смотрите ", "Looking for something in stock? See ")}
           <Link href="/catalog/teplovizori">{L("тепловізори", "тепловизоры", "thermal imagers")}</Link>,{" "}
           <Link href="/catalog/binokli">{L("тепловізійні біноклі", "тепловизионные бинокли", "thermal binoculars")}</Link>{" "}
