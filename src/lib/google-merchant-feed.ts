@@ -292,16 +292,25 @@ async function fetchAllPublishedProductsFull(
   const select =
     "id, slug, sku, name_uk, name_ru, description_uk, description_ru, short_uk, short_ru, price, old_price, stock, brand_id, category_id, resolution, device_type, detection_range_m, rating, reviews_count, is_hit, is_new, is_top, is_sale, images, image_alts, specs, published, created_at, brands(slug, name), categories(slug)";
 
+  const seen = new Set<string>();
+
   for (;;) {
+    // created_at alone is not unique — the import wrote hundreds of rows in
+    // the same instant — so pages overlapped: one product came twice and
+    // another never (October 2026, a duplicate g:id). id breaks the tie.
     const { data, error } = await supabase
       .from("products")
       .select(select)
       .eq("published", true)
       .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) throw error;
     if (!data?.length) break;
     for (const row of data) {
+      const id = String((row as { id?: unknown }).id ?? "");
+      if (seen.has(id)) continue;
+      seen.add(id);
       all.push(mapDbProduct(row as Record<string, unknown>));
     }
     if (data.length < pageSize) break;

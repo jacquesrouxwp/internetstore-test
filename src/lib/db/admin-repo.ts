@@ -73,6 +73,8 @@ export async function adminListProducts(
     default:
       q = q.order("created_at", { ascending: false });
   }
+  // Unique last key, so paging through the list never repeats or skips rows.
+  q = q.order("id", { ascending: true });
 
   const from = (page - 1) * limit;
   q = q.range(from, from + limit - 1);

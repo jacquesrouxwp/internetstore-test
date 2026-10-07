@@ -148,6 +148,8 @@ async function fetchAllPublishedProducts(
       .select("slug, updated_at, created_at, images, name_uk, brands(slug, name), categories(slug)")
       .eq("published", true)
       .order("created_at", { ascending: false })
+      // Tie-break: many rows share created_at, and without it pages overlap.
+      .order("slug", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) throw error;
     if (!data?.length) break;

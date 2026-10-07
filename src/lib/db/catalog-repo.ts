@@ -203,6 +203,10 @@ export async function dbGetCatalog(
           ascending: false,
         });
     }
+    // Most products share a rating (and many a price or created_at), so
+    // without a unique last key Postgres may order ties differently on each
+    // page: a product shows on page 2 and 3 while another is on none.
+    query = query.order("id", { ascending: true });
 
     const from = (page - 1) * limit;
     query = query.range(from, from + limit - 1);
