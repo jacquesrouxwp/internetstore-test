@@ -132,6 +132,17 @@ export default async function PremiumOpticsPage({ params }: Props) {
 
       <InfoPanel className="mt-8">
         <p>
+          {L("Не знаєте, що обрати? Читайте огляд ", "Не знаете, что выбрать? Читайте обзор ", "Not sure which to pick? Read our overview ")}
+          <Link href="/blog/liuks-brendy-swarovski-zeiss-leica">
+            {L(
+              "«Біноклі Swarovski, ZEISS і Leica: як обрати люкс-оптику»",
+              "«Бинокли Swarovski, ZEISS и Leica: что выбрать»",
+              "“Swarovski, ZEISS and Leica binoculars: how to choose”",
+            )}
+          </Link>
+          .
+        </p>
+        <p>
           {L("Шукаєте прилад у наявності? Дивіться ", "Ищете прибор в наличии? Смотрите ", "Looking for something in stock? See ")}
           <Link href="/catalog/teplovizori">{L("тепловізори", "тепловизоры", "thermal imagers")}</Link>,{" "}
           <Link href="/catalog/binokli">{L("тепловізійні біноклі", "тепловизионные бинокли", "thermal binoculars")}</Link>{" "}
