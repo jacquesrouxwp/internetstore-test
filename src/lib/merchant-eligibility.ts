@@ -130,3 +130,18 @@ export function merchantBlockReason(
 export function isMerchantEligible(product: Product, feedId: string): boolean {
   return merchantBlockReason(product, feedId) === null;
 }
+
+/**
+ * The product rails under a page ("Схожі товари", "З цим купують"). Google
+ * reads the whole landing page, not only the description: a thermal monocular
+ * shown next to cards titled "Тепловізійний приціл" was disapproved as
+ * firearms (InfiRay XEYE 2 E3 MAX V2, October 2026). So under a product we
+ * send to Google the rails hold only products we send too; the pages of
+ * products outside the feed keep their rails as they are.
+ */
+export function productRail(page: Product, rail: Product[], limit: number): Product[] {
+  const others = rail.filter((p) => p.id !== page.id);
+  const inFeed = isMerchantEligible(page, merchantItemId(page));
+  const shown = inFeed ? others.filter((p) => isMerchantEligible(p, merchantItemId(p))) : others;
+  return shown.slice(0, limit);
+}

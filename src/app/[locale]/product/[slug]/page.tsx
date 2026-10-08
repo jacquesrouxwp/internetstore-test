@@ -14,6 +14,7 @@ import {
 } from "@/types";
 import { breadcrumbJsonLd, jsonLdScript, type Crumb } from "@/lib/breadcrumbs";
 import { productPageDescription } from "@/lib/merchant-description";
+import { productRail } from "@/lib/merchant-eligibility";
 import { cn, formatPrice } from "@/lib/utils";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import {
@@ -103,15 +104,18 @@ export default async function ProductPage({ params }: Props) {
   const spotlight = isSpotlightProduct(product.slug);
 
   // Parallel I/O — no price-compare on secondary rails (faster PDP)
-  const [related, hitProducts, settings, category] = await Promise.all([
-    getRelatedProducts(product, 4),
-    getProductsByFlag("hit", 4, { priceCompare: false }),
+  // Fetched with room to spare: productRail drops weapon optics under products
+  // sent to Google, and the rails should still fill up.
+  const [relatedPool, hitProducts, settings, category] = await Promise.all([
+    getRelatedProducts(product, 12),
+    getProductsByFlag("hit", 12, { priceCompare: false }),
     getAllPublicSettings(),
     product.categorySlug
       ? getCategoryBySlug(product.categorySlug)
       : Promise.resolve(null),
   ]);
-  const boughtWith = hitProducts.filter((p) => p.id !== product.id);
+  const related = productRail(product, relatedPool, 4);
+  const boughtWith = productRail(product, hitProducts, 4);
   const siteUrl = getSiteUrl();
 
   // Real category, not a hardcoded "Тепловізори" — see lib/breadcrumbs.ts.

@@ -6,6 +6,7 @@ import {
   isMerchantEligible,
   merchantBlockReason,
   merchantItemId,
+  productRail,
 } from "./merchant-eligibility";
 
 function product(over: Partial<Product> = {}): Product {
@@ -149,5 +150,25 @@ describe("feed ids", () => {
     assert.equal(merchantItemId(long), "hikmicro-battery-hm-3644dc");
     // A Cyrillic SKU that fits in 50 bytes stays as it is.
     assert.equal(merchantItemId({ sku: "Тепловизор PULSAR Quantum XD38S (50 Hz)", slug: "x" }), "Тепловизор PULSAR Quantum XD38S (50 Hz)");
+  });
+});
+
+describe("product rails under a page", () => {
+  const mono = product();
+  const scope = product({ id: "2", slug: "agm-rattler", sku: "RATTLER", nameUk: "Тепловізійний приціл AGM Rattler", categorySlug: "pricili", deviceType: "scope" });
+  const binoc = product({ id: "3", slug: "hikmicro-raptor", sku: "RAPTOR", nameUk: "Тепловізійний бінокль HikMicro Raptor", categorySlug: "binokli", deviceType: "binocular" });
+
+  it("keeps weapon optics off the page of a product sent to Google", () => {
+    assert.deepEqual(productRail(mono, [scope, binoc], 4).map((p) => p.id), ["3"]);
+  });
+
+  it("leaves the rails of products outside the feed as they are", () => {
+    assert.deepEqual(productRail(scope, [mono, binoc, scope], 4).map((p) => p.id), ["1", "3"]);
+  });
+
+  it("never shows the page's own product and respects the limit", () => {
+    const many = Array.from({ length: 6 }, (_, i) => product({ id: `m${i}`, slug: `m${i}`, sku: `M${i}` }));
+    assert.equal(productRail(mono, [mono, ...many], 4).length, 4);
+    assert.ok(!productRail(mono, [mono, ...many], 4).some((p) => p.id === mono.id));
   });
 });
