@@ -144,5 +144,10 @@ describe("feed ids", () => {
     assert.equal(merchantItemId({ sku: " HM-LH19 ", slug: "x" }), "HM-LH19");
     assert.equal(merchantItemId({ sku: null, slug: "hikmicro-lynx" } as never), "hikmicro-lynx");
     assert.equal(merchantItemId({ sku: "", slug: "a".repeat(80) }).length, 50);
+    // 46 characters, 53 bytes: Google counts bytes, so the slug is used instead.
+    const long = { sku: "Батарея HikMicro THUNDER 2.0 Battery HM-3644DC", slug: "hikmicro-battery-hm-3644dc" };
+    assert.equal(merchantItemId(long), "hikmicro-battery-hm-3644dc");
+    // A Cyrillic SKU that fits in 50 bytes stays as it is.
+    assert.equal(merchantItemId({ sku: "Тепловизор PULSAR Quantum XD38S (50 Hz)", slug: "x" }), "Тепловизор PULSAR Quantum XD38S (50 Hz)");
   });
 });

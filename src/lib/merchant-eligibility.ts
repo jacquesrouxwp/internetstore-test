@@ -80,10 +80,19 @@ export type MerchantBlockReason =
   | "weapon-rail"
   | "disapproved";
 
-/** The id the feed publishes: the SKU, or the slug when there is none. */
+/** Google caps g:id at 50 — counted in UTF-8 bytes, not characters. */
+const MAX_ID_BYTES = 50;
+
+/**
+ * The id the feed publishes: the SKU, or the slug when there is none. A SKU
+ * over 50 bytes falls back to the slug (Latin, so bytes = characters): the
+ * Cyrillic "Батарея HikMicro THUNDER 2.0 Battery HM-3644DC" is 46 characters
+ * but 53 bytes, and Merchant Center rejected it as too long (October 2026).
+ */
 export function merchantItemId(product: Pick<Product, "sku" | "slug">): string {
   const sku = (product.sku && String(product.sku).trim()) || "";
-  return (sku || product.slug).slice(0, 50);
+  if (sku && new TextEncoder().encode(sku).length <= MAX_ID_BYTES) return sku;
+  return product.slug.slice(0, MAX_ID_BYTES);
 }
 
 /**
