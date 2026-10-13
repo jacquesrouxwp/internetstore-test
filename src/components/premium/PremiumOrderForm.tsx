@@ -1,5 +1,6 @@
 "use client";
 
+import { reportContactConversion } from "@/lib/analytics/google-ads";
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Phone } from "lucide-react";
 import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
@@ -102,6 +103,7 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
         }),
       });
       if (res.ok) {
+        reportContactConversion();
         setDone(true);
         requestAnimationFrame(() =>
           document.getElementById("order")?.scrollIntoView({ block: "start", behavior: "smooth" }),

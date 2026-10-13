@@ -1,27 +1,27 @@
 import Script from "next/script";
+import { GOOGLE_ADS_ID } from "@/lib/analytics/google-ads";
 
 export function Analytics() {
   const ga = process.env.NEXT_PUBLIC_GA_ID;
   const pixel = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+  // One gtag.js serves both: Google Ads always, GA4 when its id is set.
+  const tagIds = [GOOGLE_ADS_ID, ga].filter(Boolean) as string[];
 
   return (
     <>
-      {ga && (
-        <>
-          <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${ga}`}
-            strategy="afterInteractive"
-          />
-          <Script id="ga4" strategy="afterInteractive">
-            {`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${ga}');
-            `}
-          </Script>
-        </>
-      )}
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${tagIds[0]}`}
+        strategy="afterInteractive"
+      />
+      <Script id="gtag-init" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          gtag('js', new Date());
+          ${tagIds.map((id) => `gtag('config', '${id}');`).join("\n          ")}
+        `}
+      </Script>
       {pixel && (
         <Script id="fb-pixel" strategy="afterInteractive">
           {`

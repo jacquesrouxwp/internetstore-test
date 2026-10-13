@@ -5,6 +5,8 @@
  * Real inbox stats still live in Telegram / WhatsApp Business.
  */
 
+import { reportContactConversion } from "@/lib/analytics/google-ads";
+
 export type ConsultChannel = "telegram" | "whatsapp" | "phone" | "open_sheet";
 export type ConsultSource =
   | "hero"
@@ -68,6 +70,9 @@ export function trackConsultClick(
   } catch {
     /* ignore */
   }
+
+  // Google Ads: a real contact, not just opening the widget sheet
+  if (channel !== "open_sheet") reportContactConversion();
 
   // Meta Pixel Contact
   try {

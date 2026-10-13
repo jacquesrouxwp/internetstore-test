@@ -1,5 +1,6 @@
 "use client";
 
+import { reportContactConversion } from "@/lib/analytics/google-ads";
 import { useCart } from "@/lib/cart-store";
 import { useLocale, useTranslations } from "next-intl";
 import { formatPrice } from "@/lib/utils";
@@ -270,6 +271,7 @@ export function CheckoutForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Order failed");
+      reportContactConversion();
 
       if (data.paymentUrl) {
         clear();

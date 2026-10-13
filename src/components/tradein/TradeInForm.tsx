@@ -1,5 +1,6 @@
 "use client";
 
+import { reportContactConversion } from "@/lib/analytics/google-ads";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Check, Loader2, Phone, X } from "lucide-react";
 import { CONDITIONS, DEFECTS, EXTRAS, MAX_PHOTOS, label } from "@/lib/trade-in";
@@ -179,6 +180,7 @@ export function TradeInForm({ locale }: { locale: Locale }) {
     try {
       const res = await fetch("/api/trade-in", { method: "POST", body: form });
       if (res.ok) {
+        reportContactConversion();
         setDone(true);
       } else {
         const data = await res.json().catch(() => ({}));
