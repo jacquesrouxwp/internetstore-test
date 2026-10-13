@@ -12,10 +12,10 @@ import type { Locale } from "@/types";
 
 const HREF = "/product/leonardo-drs-iws-teploviziynyy-monokuliar";
 
-const TEXT: Record<Locale, { offer: string; more: string }> = {
-  uk: { offer: "Leonardo DRS IWS — 199 999 грн до Нового року", more: "Тепловізійний монокуляр 640×480 · Детальніше →" },
-  ru: { offer: "Leonardo DRS IWS — 199 999 грн до Нового года", more: "Тепловизионный монокуляр 640×480 · Подробнее →" },
-  en: { offer: "Leonardo DRS IWS — 199 999 UAH until New Year", more: "Thermal monocular 640×480 · Learn more →" },
+const TEXT: Record<Locale, { price: string; until: string; more: string }> = {
+  uk: { price: "199 999 грн", until: "до Нового року", more: "Тепловізійний монокуляр 640×480 · Детальніше →" },
+  ru: { price: "199 999 грн", until: "до Нового года", more: "Тепловизионный монокуляр 640×480 · Подробнее →" },
+  en: { price: "199 999 UAH", until: "until New Year", more: "Thermal monocular 640×480 · Learn more →" },
 };
 
 export function PromoTicker({ locale }: { locale: Locale }) {
@@ -25,7 +25,7 @@ export function PromoTicker({ locale }: { locale: Locale }) {
   return (
     <Link
       href={HREF}
-      aria-label={`${t.offer}. ${t.more}`}
+      aria-label={`Leonardo DRS IWS — ${t.price} ${t.until}. ${t.more}`}
       className="block border-b border-white/10 bg-[var(--accent)]/10 transition hover:bg-[var(--accent)]/15"
     >
       <div
@@ -39,7 +39,9 @@ export function PromoTicker({ locale }: { locale: Locale }) {
           {items.map((i) => (
             <span key={i} className="flex items-center gap-3 whitespace-nowrap text-sm" aria-hidden={i > 0}>
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
-              <span className="font-semibold text-primary">{t.offer}</span>
+              <span className="font-semibold text-primary">
+                Leonardo DRS IWS — <span className="text-green-400">{t.price}</span> {t.until}
+              </span>
               <span className="text-secondary">{t.more}</span>
             </span>
           ))}
