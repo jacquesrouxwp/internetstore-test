@@ -389,6 +389,13 @@ export async function PATCH(req: NextRequest) {
         stock: body.stock != null ? Number(body.stock) : undefined,
         published:
           body.published != null ? Boolean(body.published) : undefined,
+        oldPrice:
+          body.oldPrice === null
+            ? null
+            : body.oldPrice != null
+              ? Number(body.oldPrice)
+              : undefined,
+        isSale: body.isSale != null ? Boolean(body.isSale) : undefined,
       });
       return NextResponse.json({ product });
     }

@@ -474,7 +474,14 @@ export async function adminSetProductDescriptions(
 
 export async function adminPatchProductFields(
   id: string,
-  fields: { price?: number; stock?: number; published?: boolean }
+  fields: {
+    price?: number;
+    stock?: number;
+    published?: boolean;
+    /** null clears the old price; undefined leaves it as it is. */
+    oldPrice?: number | null;
+    isSale?: boolean;
+  }
 ): Promise<Product | null> {
   if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
   const supabase = createServiceClient();
@@ -484,6 +491,8 @@ export async function adminPatchProductFields(
   if (fields.price != null) row.price = fields.price;
   if (fields.stock != null) row.stock = fields.stock;
   if (fields.published != null) row.published = fields.published;
+  if (fields.oldPrice !== undefined) row.old_price = fields.oldPrice;
+  if (fields.isSale != null) row.is_sale = fields.isSale;
   const { error } = await supabase.from("products").update(row).eq("id", id);
   if (error) throw error;
   return adminGetProduct(id);
