@@ -2,6 +2,7 @@
 
 import { Link, usePathname, useRouter } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
+import { PromoTicker } from "@/components/home/PromoTicker";
 import {
   Menu,
   Search,
@@ -295,6 +296,8 @@ export function Header({
             </ul>
           </div>
         </nav>
+        {/* Inside the sticky header, so the offer stays in view while scrolling. */}
+        <PromoTicker locale={locale as "uk" | "ru" | "en"} />
       </header>
 
       {open && (

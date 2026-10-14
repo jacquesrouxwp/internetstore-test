@@ -118,6 +118,21 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * overflow-x: hidden on body and the app shell made them scroll containers,
+ * so the sticky header (and the offer line inside it) scrolled away with the
+ * page. clip blocks sideways drag the same way without creating a scroll
+ * container. Browsers without clip keep the old rule above. html is left as
+ * it is — see the MIUI note there.
+ */
+@supports (overflow-x: clip) {
+  body,
+  .app-shell {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+}
+
 @layer base {
   * {
     border-color: var(--border);

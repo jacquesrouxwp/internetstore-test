@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import type { Locale } from "@/types";
 import { Header } from "@/components/layout/Header";
-import { PromoTicker } from "@/components/home/PromoTicker";
 import { Footer } from "@/components/layout/Footer";
 import { ConsultWidget } from "@/components/layout/ConsultWidget";
 import { SiteBackground } from "@/components/layout/SiteBackground";
@@ -72,9 +71,8 @@ export default async function LocaleLayout({
       {/* min-h-dvh keeps footer at viewport bottom on short pages without
           stretching document height past content on long pages */}
       {/* max-w-full (not 100vw): 100vw breaks vertical scroll on some Android/MIUI WebViews */}
-      <div className="relative z-10 flex min-h-dvh w-full max-w-full flex-col overflow-x-hidden">
+      <div className="relative z-10 app-shell flex min-h-dvh w-full max-w-full flex-col overflow-x-hidden">
         <Header categories={categories} categoryBrandsMap={categoryBrandsMap} />
-        <PromoTicker locale={locale as "uk" | "ru" | "en"} />
         <main className="w-full min-w-0 max-w-full flex-1">
           {children}
         </main>

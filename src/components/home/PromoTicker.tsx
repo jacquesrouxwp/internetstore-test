@@ -26,10 +26,10 @@ export function PromoTicker({ locale }: { locale: Locale }) {
     <Link
       href={HREF}
       aria-label={`Leonardo DRS IWS — ${t.price} ${t.until}. ${t.more}`}
-      className="block border-b border-white/10 bg-[var(--accent)]/10 transition hover:bg-[var(--accent)]/15"
+      className="block border-t border-white/10 bg-[var(--accent)]/10 transition hover:bg-[var(--accent)]/15"
     >
       <div
-        className="overflow-hidden py-2"
+        className="overflow-hidden py-1.5"
         style={{
           maskImage: "linear-gradient(to right, transparent, black 4%, black 96%, transparent)",
           WebkitMaskImage: "linear-gradient(to right, transparent, black 4%, black 96%, transparent)",
