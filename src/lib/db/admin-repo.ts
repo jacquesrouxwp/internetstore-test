@@ -481,6 +481,8 @@ export async function adminPatchProductFields(
     /** null clears the old price; undefined leaves it as it is. */
     oldPrice?: number | null;
     isSale?: boolean;
+    /** Replaces the photo list (URLs already in our storage). */
+    images?: string[];
   }
 ): Promise<Product | null> {
   if (!hasServiceSupabase()) throw new Error("Supabase service not configured");
@@ -493,6 +495,7 @@ export async function adminPatchProductFields(
   if (fields.published != null) row.published = fields.published;
   if (fields.oldPrice !== undefined) row.old_price = fields.oldPrice;
   if (fields.isSale != null) row.is_sale = fields.isSale;
+  if (fields.images) row.images = fields.images;
   const { error } = await supabase.from("products").update(row).eq("id", id);
   if (error) throw error;
   return adminGetProduct(id);

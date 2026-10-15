@@ -396,6 +396,9 @@ export async function PATCH(req: NextRequest) {
               ? Number(body.oldPrice)
               : undefined,
         isSale: body.isSale != null ? Boolean(body.isSale) : undefined,
+        images: Array.isArray(body.images)
+          ? body.images.map((u: unknown) => String(u)).filter(Boolean)
+          : undefined,
       });
       return NextResponse.json({ product });
     }
