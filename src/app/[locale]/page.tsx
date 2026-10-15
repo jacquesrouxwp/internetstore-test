@@ -63,6 +63,7 @@ const RAIL_SIZE = 10;
  */
 const FEATURED_SLUGS = [
   "leonardo-drs-iws-teploviziynyy-monokuliar",
+  "hikmicro-teplovizor-hikmicro-lynx-pro-le15-hm-ts02-15xg-w-le15",
   "pulsar-teploviziynyy-binokl-pulsar-merger-lrf-xl50-merger-lrf-xl50",
   "agm-teploviziynyy-prytsil-agm-rattler-v2-35-384-314204550205r331",
   "agm-teploviziynyy-prytsil-agm-rattler-v2-19-256-314218550203r921",

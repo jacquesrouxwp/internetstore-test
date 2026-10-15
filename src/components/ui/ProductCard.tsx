@@ -18,7 +18,7 @@ import { PriceCompareBadge } from "@/components/product/PriceCompareBadge";
 import { LayoutModeContext } from "@/components/ui/animated-toggle-layout-container";
 import { PRICE_COMPARE_PUBLIC_UI } from "@/lib/price-compare/flags";
 import { resolveProductImageAlt } from "@/lib/product-image-alt";
-import { isSpotlightProduct } from "@/lib/spotlight-product";
+import { isPopularProduct, isSpotlightProduct } from "@/lib/spotlight-product";
 
 /**
  * Desktop-only hover: only devices with real hover + fine pointer
@@ -56,6 +56,7 @@ export function ProductCard({
   const cardTitle = productCardTitle(product, locale);
   const short = productShort(product, locale);
   const spotlight = isSpotlightProduct(product.slug);
+  const popular = !spotlight && isPopularProduct(product.slug);
   const layoutMode = useContext(LayoutModeContext);
   /** 6-up → slightly tighter cards */
   const tight = layoutMode === "6col";
@@ -95,7 +96,8 @@ export function ProductCard({
         compact && "max-w-none",
         tight && "product-card--tight",
         ultraTight && "product-card--ultra",
-        spotlight && "product-card--spotlight"
+        spotlight && "product-card--spotlight",
+        popular && "product-card--popular"
       )}
       data-layout={layoutMode}
       data-spotlight={spotlight ? "true" : undefined}
