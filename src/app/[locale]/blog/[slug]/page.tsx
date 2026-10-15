@@ -17,6 +17,7 @@ import {
 } from "@/lib/blog/types";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import { pageAlternates } from "@/lib/seo-alternates";
+import { linkifyPhonesHtml } from "@/lib/phone-links";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -148,7 +149,7 @@ export default async function BlogPostPage({ params }: Props) {
         <div className="hero-glass mt-8 rounded-[var(--radius-card)] px-6 py-8 sm:px-10 sm:py-10">
           <div
             className="blog-prose space-y-4 text-[0.975rem] leading-relaxed text-secondary"
-            dangerouslySetInnerHTML={{ __html: bodyHtml }}
+            dangerouslySetInnerHTML={{ __html: linkifyPhonesHtml(bodyHtml) }}
           />
         </div>
 

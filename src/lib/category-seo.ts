@@ -8,6 +8,7 @@
  */
 
 import type { Locale as AppLocale } from "@/types";
+import { linkifyPhonesHtml } from "@/lib/phone-links";
 
 /** Category guides exist in uk and ru only; English pages get none. */
 type Locale = "uk" | "ru";
@@ -190,7 +191,7 @@ function localizeLinks(html: string, locale: AppLocale): string {
 
 /** "Купівля в Pro-Optics" block — shared by category and brand pages. */
 export function serviceBlockHtml(locale: AppLocale): string {
-  return localizeLinks(SERVICE[locale], locale);
+  return localizeLinks(linkifyPhonesHtml(SERVICE[locale]), locale);
 }
 
 export function categorySeo(slug: string, locale: Locale): Entry | null {
@@ -198,6 +199,9 @@ export function categorySeo(slug: string, locale: Locale): Entry | null {
   if (!entry) return null;
   return {
     title: entry.title,
-    html: localizeLinks(`${linkBrands(entry.html)}\n${SERVICE[locale]}`, locale),
+    html: localizeLinks(
+      linkifyPhonesHtml(`${linkBrands(entry.html)}\n${SERVICE[locale]}`),
+      locale
+    ),
   };
 }

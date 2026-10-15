@@ -944,6 +944,20 @@ body {
       var(--shadow-card, 0 8px 24px rgba(0, 0, 0, 0.35));
   }
 
+  /* Store number inside articles / descriptions — opens the call/Telegram/WhatsApp menu */
+  .phone-link {
+    color: var(--text-primary, #f5f6f7);
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  .phone-link:hover {
+    color: var(--accent);
+  }
+
   .spotlight-banner {
     display: flex;
     align-items: flex-start;

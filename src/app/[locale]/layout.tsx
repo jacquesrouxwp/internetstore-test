@@ -7,6 +7,7 @@ import type { Locale } from "@/types";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ConsultWidget } from "@/components/layout/ConsultWidget";
+import { PhoneChooser } from "@/components/contact/PhoneChooser";
 import { SiteBackground } from "@/components/layout/SiteBackground";
 import { MobileScrollFix } from "@/components/layout/MobileScrollFix";
 import { getCategories, getCategoryBrandsMap } from "@/lib/catalog";
@@ -78,6 +79,7 @@ export default async function LocaleLayout({
         </main>
         <Footer />
         <ConsultWidget />
+        <PhoneChooser />
         {/* Storefront-only analytics (never on /sitemap.xml / API) */}
         <SiteAnalytics />
         <VercelAnalytics />

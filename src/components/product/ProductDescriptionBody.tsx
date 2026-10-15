@@ -2,6 +2,7 @@ import {
   formatDescription,
   type DescriptionBlock,
 } from "@/lib/format-description";
+import { PhoneText } from "@/components/contact/PhoneText";
 
 type Props = {
   text: string | null | undefined;
@@ -16,12 +17,18 @@ function BlockView({ block }: { block: DescriptionBlock }) {
     return (
       <ul className="product-panel__list">
         {block.items.map((item, i) => (
-          <li key={i}>{item}</li>
+          <li key={i}>
+            <PhoneText text={item} />
+          </li>
         ))}
       </ul>
     );
   }
-  return <p>{block.text}</p>;
+  return (
+    <p>
+      <PhoneText text={block.text} />
+    </p>
+  );
 }
 
 /**

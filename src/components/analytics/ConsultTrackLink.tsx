@@ -25,6 +25,7 @@ export function ConsultTrackLink({
   return (
     <a
       {...rest}
+      data-consult-source={source}
       onClick={(e) => {
         trackConsultClick(channel, source);
         onClick?.(e);
