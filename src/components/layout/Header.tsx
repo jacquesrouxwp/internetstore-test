@@ -11,6 +11,7 @@ import {
   X,
   ScanEye,
   BookOpen,
+  Banknote,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { useEffect, useRef, useState } from "react";
@@ -114,6 +115,14 @@ export function Header({
             {STORE_PHONE_DISPLAY}
           </ConsultTrackLink>
           <span className="hidden text-muted-ui sm:inline">{t("hours")}</span>
+          {/* On phones the nav row is hidden; buyback brings most contacts, so it sits here */}
+          <Link
+            href="/vykup"
+            className="inline-flex items-center gap-1.5 font-semibold text-green-400 hover:opacity-90 md:hidden"
+          >
+            <Banknote className="h-3.5 w-3.5" />
+            {t("buyback")}
+          </Link>
           <div className="ml-auto flex items-center gap-4">
             {LOCALE_TABS.map(({ code, label }) => (
               <button
@@ -273,6 +282,15 @@ export function Header({
                   {t("brands")}
                 </Link>
               </li>
+              <li className="shrink-0">
+                <Link
+                  href="/vykup"
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] font-semibold leading-snug text-green-400 transition hover:bg-white/[0.06] lg:px-2.5 lg:text-sm"
+                >
+                  <Banknote className="h-4 w-4" />
+                  {t("buyback")}
+                </Link>
+              </li>
               {SIMULATOR_LINK_ENABLED && (
                 <li className="shrink-0">
                   <Link
@@ -360,6 +378,16 @@ export function Header({
               data-scroll-lock-scroll
               style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}
             >
+              <li>
+                <Link
+                  href="/vykup"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold text-green-400 hover:bg-white/[0.06]"
+                >
+                  <Banknote className="h-4 w-4" />
+                  {t("buyback")}
+                </Link>
+              </li>
               {categories.map((c) => (
                 <li key={c.id}>
                   <Link
