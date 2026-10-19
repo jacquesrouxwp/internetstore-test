@@ -10,7 +10,6 @@ import type { Locale } from "@/types";
 interface Suggestion {
   slug: string;
   name: string;
-  price: number;
   brand: string | null;
 }
 
@@ -22,7 +21,6 @@ const T = {
     model: "Модель приладу",
     modelHint: "Почніть вводити назву — підкажемо зі свого каталогу",
     modelPlaceholder: "Наприклад: Pulsar Axion XQ38",
-    newHere: "нова в нас",
     condition: "Стан",
     extras: "Що є в комплекті",
     defects: "Відомі дефекти",
@@ -51,7 +49,6 @@ const T = {
     model: "Модель прибора",
     modelHint: "Начните вводить название — подскажем из своего каталога",
     modelPlaceholder: "Например: Pulsar Axion XQ38",
-    newHere: "новый у нас",
     condition: "Состояние",
     extras: "Что есть в комплекте",
     defects: "Известные дефекты",
@@ -80,7 +77,6 @@ const T = {
     model: "Device model",
     modelHint: "Start typing the name — we will suggest from our own catalogue",
     modelPlaceholder: "For example: Pulsar Axion XQ38",
-    newHere: "new with us",
     condition: "Condition",
     extras: "What comes with it",
     defects: "Known faults",
@@ -120,8 +116,9 @@ export function TradeInForm({ locale }: { locale: Locale }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Suggestions come from our own catalogue, so the consultant gets a slug
-  // and the price of the same model new.
+  // Suggestions come from our own catalogue, so the consultant gets a slug.
+  // No prices here: a seller who sees the new price only knocks a little off
+  // it (owner, October 2026); the consultant gets the price in the request.
   useEffect(() => {
     const q = model.trim();
     if (picked && q === picked.name) return;
@@ -169,10 +166,7 @@ export function TradeInForm({ locale }: { locale: Locale }) {
     const form = new FormData(e.currentTarget);
     form.set("model", model);
     form.set("condition", condition);
-    if (picked) {
-      form.set("productSlug", picked.slug);
-      form.set("newPrice", String(picked.price));
-    }
+    if (picked) form.set("productSlug", picked.slug);
     extras.forEach((v) => form.append("extras", v));
     defects.forEach((v) => form.append("defects", v));
     photos.forEach((f) => form.append("photos", f));
@@ -282,27 +276,18 @@ export function TradeInForm({ locale }: { locale: Locale }) {
                 <li key={s.slug}>
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-white/[0.06]"
+                    className="block w-full px-3 py-2 text-left text-sm text-primary hover:bg-white/[0.06]"
                     onClick={() => {
                       setModel(s.name);
                       setPicked(s);
                       setOpenList(false);
                     }}
                   >
-                    <span className="text-primary">{s.name}</span>
-                    <span className="shrink-0 text-xs text-muted-ui">
-                      {new Intl.NumberFormat("uk-UA").format(s.price)} грн
-                    </span>
+                    {s.name}
                   </button>
                 </li>
               ))}
             </ul>
-          )}
-
-          {picked && (
-            <p className="mt-1.5 text-xs text-muted-ui">
-              {t.newHere}: {new Intl.NumberFormat("uk-UA").format(picked.price)} грн
-            </p>
           )}
         </div>
 

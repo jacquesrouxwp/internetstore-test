@@ -8,6 +8,7 @@ import {
   type TradeInRequest,
 } from "@/lib/trade-in";
 import { clientIp, createIpBudget, notifyTelegram } from "@/lib/public-form";
+import { getProductBySlug } from "@/lib/catalog";
 
 /**
  * POST /api/trade-in — a seller offers us their device.
@@ -48,10 +49,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // The seller never sees our new price; the consultant gets it here.
+  const productSlug = String(form.get("productSlug") || "") || null;
+  const picked = productSlug ? await getProductBySlug(productSlug).catch(() => null) : null;
+
   const raw: Partial<TradeInRequest> = {
     model: String(form.get("model") || ""),
-    productSlug: String(form.get("productSlug") || "") || null,
-    newPrice: Number(form.get("newPrice")) || null,
+    productSlug,
+    newPrice: picked?.price || null,
     condition: String(form.get("condition") || "") as TradeInRequest["condition"],
     extras: form.getAll("extras").map(String) as TradeInRequest["extras"],
     defects: form.getAll("defects").map(String) as TradeInRequest["defects"],

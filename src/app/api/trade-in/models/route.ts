@@ -5,10 +5,9 @@ import { productName } from "@/types";
 /**
  * GET /api/trade-in/models?q=axion — model suggestions for the trade-in form.
  *
- * Public and read-only: it returns what the catalogue already shows on every
- * category page, so there is nothing here a visitor could not see anyway. The
- * price travels with the suggestion because the consultant wants to know what
- * the same model costs new when the seller names their own figure.
+ * Public and read-only: names only. The new price is left out on purpose —
+ * a seller who sees it just asks a little less than new; the consultant gets
+ * the price server-side with the request (see /api/trade-in).
  */
 export const revalidate = 300;
 
@@ -23,7 +22,6 @@ export async function GET(req: NextRequest) {
     const items = products.map((p) => ({
       slug: p.slug,
       name: productName(p, locale),
-      price: p.price,
       brand: p.brandName || null,
     }));
     return NextResponse.json(

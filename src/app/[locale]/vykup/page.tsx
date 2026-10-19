@@ -256,21 +256,9 @@ export default async function BuybackPage({ params }: Props) {
         </p>
         <p>
           {L(
-            <>
-              Ціну консультант називає після оцінки — вона залежить від моделі, стану та
-              комплектності. Зорієнтуватися допоможуть ціни на нові моделі в{" "}
-              <Link href="/catalog/teplovizori">каталозі</Link>.
-            </>,
-            <>
-              Цену консультант называет после оценки — она зависит от модели, состояния и
-              комплектности. Сориентироваться помогут цены на новые модели в{" "}
-              <Link href="/catalog/teplovizori">каталоге</Link>.
-            </>,
-            <>
-              The consultant names a price after the appraisal — it depends on the model, the
-              condition and what comes with it. Prices for new models in the{" "}
-              <Link href="/catalog/teplovizori">catalogue</Link> give you a reference point.
-            </>
+            "Ціну консультант називає після оцінки — вона залежить від моделі, стану та комплектності.",
+            "Цену консультант называет после оценки — она зависит от модели, состояния и комплектности.",
+            "The consultant names a price after the appraisal — it depends on the model, the condition and what comes with it."
           )}
         </p>
         <p>
