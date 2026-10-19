@@ -350,7 +350,7 @@ export function TradeInForm({ locale }: { locale: Locale }) {
             className="input"
             name="askingPrice"
             inputMode="numeric"
-            placeholder="45000"
+            placeholder="8000"
           />
           <p className="mt-1 text-xs text-muted-ui">{t.askingHint}</p>
           {errors.askingPrice && (
