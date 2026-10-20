@@ -29,6 +29,7 @@ import {
   type Product,
 } from "@/types";
 import { dropUkrainianSentences } from "@/lib/spec-ru";
+import { feedImageOrder } from "@/data/merchant-image-overrides";
 
 export type MerchantLocale = "uk" | "ru";
 
@@ -135,7 +136,11 @@ export function productToMerchantItem(
   // Weapon-mounted optics breach Google's firearms policy — see lib/merchant-eligibility
   if (!isMerchantEligible(p, merchantItemId(p))) return null;
 
-  const images = absoluteProductImageUrls(p.images || [], siteUrl);
+  // Photos with a promotional badge are skipped — see data/merchant-image-overrides
+  const images = feedImageOrder(
+    merchantItemId(p),
+    absoluteProductImageUrls(p.images || [], siteUrl),
+  );
   if (!images.length) return null; // image_link required
 
   const title = productName(p, locale).trim();
