@@ -1,3 +1,5 @@
+import { RU_SPEC_LABELS, ruSpecValue } from "@/lib/spec-ru";
+
 /**
  * Localize + de-duplicate product characteristic labels for PDP,
  * then group into readable sections (matrix / optics / power / …).
@@ -392,7 +394,8 @@ export function groupSpecRows(rows: SpecRow[]): SpecSection[] {
 function localizeLabel(raw: string, locale: string): string {
   const entry = LABEL_MAP[raw.trim()];
   if (entry) return locale === "ru" ? entry.ru : entry.uk;
-  // fallback: keep as-is
+  // Supplier cards carry Ukrainian names only — see lib/spec-ru
+  if (locale === "ru") return RU_SPEC_LABELS[raw.trim()] ?? raw;
   return raw;
 }
 
@@ -426,7 +429,7 @@ export function buildSpecRows(
     rows.push({
       key: group,
       label: localizeLabel(rawKey, locale),
-      value: value.trim(),
+      value: locale === "ru" ? ruSpecValue(value.trim()) : value.trim(),
       sourceKey: rawKey,
     });
   };

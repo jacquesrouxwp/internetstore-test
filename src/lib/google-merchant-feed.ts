@@ -28,6 +28,7 @@ import {
   productName,
   type Product,
 } from "@/types";
+import { dropUkrainianSentences } from "@/lib/spec-ru";
 
 export type MerchantLocale = "uk" | "ru";
 
@@ -156,6 +157,9 @@ export function productToMerchantItem(
   let description = stripWeaponSentences(
     stripTags(productJsonLdDescription(p, locale)),
   ).text;
+  // The Russian feed must read as Russian: old generated texts quote
+  // Ukrainian spec names, and Google checks the language of each item.
+  if (locale === "ru") description = dropUkrainianSentences(description);
   if (description.length < MIN_FEED_DESCRIPTION) {
     // Too little left to be worth sending: rebuild from the spec sheet, which
     // is factual by construction and mentions no weapons.

@@ -343,6 +343,7 @@ export const MERCHANT_DISAPPROVED_IDS: ReadonlySet<string> = new Set([
   "IRAY Saim SCH50", // Тепловізійний приціл INFIRAY (IRAY) Saim SCH50
   "IRAY Saim SCL35", // Тепловізійний приціл INFIRAY Saim SCL35
   "IRAY Saim SCL35W", // Тепловізійний приціл INFIRAY Saim SCL35W
+  "IRAY XEYE 2 E3 MAX V2", // Тепловізор INFIRAY (IRAY) XEYE 2 E3 MAX V2 — refused 2026-10, rails fix did not help
   "IRAY XEYE 2 E6 PLUS V2", // Тепловізор INFIRAY (IRAY) XEYE 2 E6 + V2
   "IRAY XHOLO HP13", // Тепловізійний коліматор IRAY XHOLO HP13
   "Ibex 335L", // Тепловізійний приціл ThermTec Ibex 335L

@@ -18,6 +18,7 @@ import {
   type SpecSectionId,
 } from "@/lib/product-specs";
 import type { Locale, Product } from "@/types";
+import { UKRAINIAN_LETTERS } from "@/lib/spec-ru";
 
 export interface ProductDetailEntry {
   section: string;
@@ -117,6 +118,8 @@ export function productDetails(
     const label = row.label?.trim();
     const value = row.value?.trim();
     if (!label || !value) continue;
+    // A Russian item with a Ukrainian line in it reads as the wrong language
+    if (locale === "ru" && UKRAINIAN_LETTERS.test(label + value)) continue;
     const section = classifySpecKey(row.sourceKey || row.key);
     out.push({
       section: SECTION_NAMES[section][locale],
