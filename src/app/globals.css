@@ -666,6 +666,38 @@ body {
     background: rgba(255, 255, 255, 0.08);
   }
 
+  /* Phones: search row under the header (Header.tsx) */
+  .mobile-search {
+    padding: 0.7rem 0 0.15rem;
+  }
+
+  /* container-shop pads the form; keep the button inside the field */
+  .mobile-search .search-field.container-shop {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .mobile-search__btn {
+    right: calc(1rem + 0.35rem);
+  }
+
+  .mobile-search .search-field__input {
+    background: rgba(18, 20, 26, 0.92);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  }
+
+  /* No browser clear-cross: the field has its own search button */
+  .mobile-search .search-field__input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+
+  @media (max-width: 767px) {
+    /* iOS zooms into any field under 16px on focus */
+    .search-field__input {
+      font-size: 16px;
+    }
+  }
+
   .section-title {
     font-family: var(--font-inter), var(--font-manrope), system-ui, sans-serif;
     font-size: 1.5rem;

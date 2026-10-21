@@ -59,6 +59,13 @@ export function Header({
 
   useEffect(() => setMounted(true), []);
 
+  // On the results page the phone search field shows what was searched
+  useEffect(() => {
+    if (pathname !== "/search") return;
+    const current = new URLSearchParams(window.location.search).get("q");
+    if (current) setQ(current);
+  }, [pathname]);
+
   // Freeze page behind burger — overflow:hidden alone fails on Redmi/iOS
   useBodyScrollLock(open);
 
@@ -317,6 +324,35 @@ export function Header({
         {/* Inside the sticky header, so the offer stays in view while scrolling. */}
         <PromoTicker locale={locale as "uk" | "ru" | "en"} />
       </header>
+
+      {/* Phones: search in view on arrival, not only inside the burger. Outside
+          the sticky header on purpose — it scrolls away, so the fixed part
+          stays as short as it is. */}
+      <div className="mobile-search md:hidden">
+        <form
+          onSubmit={onSearch}
+          role="search"
+          className="search-field container-shop"
+        >
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("searchPlaceholder")}
+            className="search-field__input"
+            autoComplete="off"
+            enterKeyHint="search"
+            type="search"
+            aria-label={t("searchPlaceholder")}
+          />
+          <button
+            type="submit"
+            className="search-field__btn mobile-search__btn"
+            aria-label="Search"
+          >
+            <Search className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.25} />
+          </button>
+        </form>
+      </div>
 
       {open && (
         <div
