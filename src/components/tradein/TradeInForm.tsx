@@ -229,7 +229,12 @@ export function TradeInForm({ locale }: { locale: Locale }) {
     }`;
 
   return (
-    <section className="mt-8 rounded-[var(--radius-card)] border border-white/10 bg-white/[0.02] p-6 sm:p-8">
+    <section
+      id="ocinka"
+      // product pages link here (BuybackOffer); clear the sticky header
+      style={{ scrollMarginTop: 180 }}
+      className="mt-8 rounded-[var(--radius-card)] border border-white/10 bg-white/[0.02] p-6 sm:p-8"
+    >
       <h2 className="font-display text-xl font-bold text-primary">{t.heading}</h2>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-secondary">{t.lead}</p>
       <p className="mt-1.5 text-sm text-secondary">

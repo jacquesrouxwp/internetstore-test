@@ -33,6 +33,7 @@ import { ProductDescriptionBody } from "@/components/product/ProductDescriptionB
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 import { ProductSpecsGrouped } from "@/components/product/ProductSpecsGrouped";
 import { SpecStars } from "@/components/product/SpecStars";
+import { BuybackOffer } from "@/components/product/BuybackOffer";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
@@ -302,6 +303,7 @@ export default async function ProductPage({ params }: Props) {
             />
           </div>
 
+          <BuybackOffer locale={loc} />
           <SpecStars product={product} locale={loc} />
           <ProductSimulatorCta product={product} locale={loc} />
           {comparisonsFor(product.slug).map((c) => {
