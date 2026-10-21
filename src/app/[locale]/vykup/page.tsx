@@ -35,16 +35,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title:
       locale === "ru"
-        ? "Выкуп тепловизоров б/у и trade-in — продать тепловизор, прицел, ПНВ"
+        ? "Выкуп и скупка тепловизоров б/у, trade-in — продать тепловизор, прицел, ПНВ"
         : locale === "en"
           ? "Sell your thermal imager in Ukraine — buyback and trade-in"
-          : "Викуп тепловізорів Б/У та trade-in — продати тепловізор, приціл, ПНБ",
+          : "Викуп і скупка тепловізорів Б/У, trade-in — продати тепловізор, приціл, ПНБ",
     description:
       locale === "ru"
-        ? "Выкупаем б/у тепловизоры, тепловизионные прицелы и ПНВ Pulsar, HikMicro, AGM, InfiRay и других брендов по всей Украине. Оценка консультантом, выкуп или обмен на новый прибор (trade-in)."
+        ? "Скупка и выкуп б/у тепловизоров: выкупаем тепловизоры, тепловизионные прицелы и ПНВ Pulsar, HikMicro, AGM, InfiRay и других брендов по всей Украине. Оценка консультантом, выкуп или обмен на новый прибор (trade-in)."
         : locale === "en"
           ? "We buy used thermal imagers, thermal sights and night vision devices — Pulsar, HikMicro, AGM, InfiRay and others — anywhere in Ukraine. Send photos and your asking price through the form; an English-speaking colleague replies."
-          : "Викуповуємо Б/У тепловізори, тепловізійні приціли та ПНБ Pulsar, HikMicro, AGM, InfiRay та інших брендів по всій Україні. Оцінка консультантом, викуп або обмін на новий прилад (trade-in).",
+          : "Скупка та викуп Б/У тепловізорів: викуповуємо тепловізори, тепловізійні приціли та ПНБ Pulsar, HikMicro, AGM, InfiRay та інших брендів по всій Україні. Оцінка консультантом, викуп або обмін на новий прилад (trade-in).",
 alternates: pageAlternates(locale, "/vykup"),
   };
 }
@@ -80,8 +80,8 @@ export default async function BuybackPage({ params }: Props) {
   }
 
   const title = L(
-    "Викуп тепловізорів Б/У та trade-in",
-    "Выкуп тепловизоров б/у и trade-in",
+    "Викуп і скупка тепловізорів Б/У, trade-in",
+    "Выкуп и скупка тепловизоров б/у, trade-in",
     "Thermal imager buyback and trade-in",
   ) as string;
   const crumbs = [
@@ -146,8 +146,8 @@ export default async function BuybackPage({ params }: Props) {
       <InfoPanel>
         <p>
           {L(
-            "Продайте свій тепловізор, тепловізійний приціл або прилад нічного бачення — чи обміняйте його на новий з доплатою. Консультант Pro-Optics оцінить стан приладу, назве ринкову ціну та умови викупу або обміну. Працюємо по всій Україні.",
-            "Продайте свой тепловизор, тепловизионный прицел или прибор ночного видения — или обменяйте его на новый с доплатой. Консультант Pro-Optics оценит состояние прибора, назовёт рыночную цену и условия выкупа или обмена. Работаем по всей Украине.", "Sell us your thermal imager, thermal sight or night vision device — or trade it in against a new one. A Pro-Optics consultant assesses the condition, names the market price and the terms of purchase or exchange. We work across Ukraine. Not everyone on our phone line speaks English, so the online form is the surest route: an English-speaking colleague picks it up and gets back to you."
+            "Продайте свій тепловізор, тепловізійний приціл або прилад нічного бачення — чи обміняйте його на новий з доплатою. Консультант Pro-Optics оцінить стан приладу, назве ринкову ціну та умови викупу або обміну. Працюємо по всій Україні. Скупка Б/У тепловізорів у нас — це той самий викуп: надішліть фото через форму нижче, і консультант назве ціну.",
+            "Продайте свой тепловизор, тепловизионный прицел или прибор ночного видения — или обменяйте его на новый с доплатой. Консультант Pro-Optics оценит состояние прибора, назовёт рыночную цену и условия выкупа или обмена. Работаем по всей Украине. Скупка б/у тепловизоров у нас — это тот же выкуп: пришлите фото через форму ниже, и консультант назовёт цену.", "Sell us your thermal imager, thermal sight or night vision device — or trade it in against a new one. A Pro-Optics consultant assesses the condition, names the market price and the terms of purchase or exchange. We work across Ukraine. Not everyone on our phone line speaks English, so the online form is the surest route: an English-speaking colleague picks it up and gets back to you."
           )}
         </p>
         {cta}
@@ -251,6 +251,20 @@ export default async function BuybackPage({ params }: Props) {
         </ul>
 
         <h2>{L("Питання та відповіді", "Вопросы и ответы", "Questions and answers")}</h2>
+        {/* People also search "скупка тепловізорів" — the page never had the word (Oct 2026) */}
+        {!en && (
+          <>
+            <p>
+              <strong>{L("Чим скупка відрізняється від викупу?", "Чем скупка отличается от выкупа?")}</strong>
+            </p>
+            <p>
+              {L(
+                "Нічим — це два слова про одне: ми купуємо ваш Б/У прилад. Можна отримати гроші або зарахувати вартість у ціну нового приладу (trade-in).",
+                "Ничем — это два слова об одном: мы покупаем ваш б/у прибор. Можно получить деньги или зачесть стоимость в цену нового прибора (trade-in).",
+              )}
+            </p>
+          </>
+        )}
         <p>
           <strong>{L("Скільки коштує мій тепловізор?", "Сколько стоит мой тепловизор?", "What is my thermal imager worth?")}</strong>
         </p>
