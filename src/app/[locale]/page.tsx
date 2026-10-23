@@ -23,7 +23,7 @@ import { pageAlternates } from "@/lib/seo-alternates";
 // Rendering the rails, hero and blog shelf takes ~1 s, so the page is cached
 // and rebuilt at most once a minute. Blog admin saves revalidate it at once
 // (api/admin/news); product changes show up within the minute.
-export const revalidate = 60;
+export const revalidate = 3600; // admin edits purge it — lib/storefront-cache
 
 export async function generateMetadata({
   params,

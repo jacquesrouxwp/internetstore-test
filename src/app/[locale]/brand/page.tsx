@@ -12,7 +12,7 @@ import {
 import { breadcrumbJsonLd, jsonLdScript } from "@/lib/breadcrumbs";
 import { pageAlternates } from "@/lib/seo-alternates";
 
-export const revalidate = 120;
+export const revalidate = 3600; // admin edits purge it — lib/storefront-cache
 
 type Props = { params: Promise<{ locale: string }> };
 

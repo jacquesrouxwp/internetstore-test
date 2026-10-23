@@ -8,6 +8,7 @@ import {
   sanitizeDonorDescription,
   hasCompetitorMention,
 } from "@/lib/import/sanitize-description";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 /**
  * POST /api/admin/products/sanitize-descriptions
@@ -21,7 +22,7 @@ import {
  * body: { dryRun?: boolean, limit?: number }
  * Idempotent: a second run over clean rows reports changed: 0.
  */
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
@@ -124,3 +125,6 @@ export async function POST(req: NextRequest) {
     sample,
   });
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);

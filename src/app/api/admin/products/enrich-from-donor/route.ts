@@ -13,6 +13,7 @@ import {
   resolutionString,
 } from "@/lib/import/optics-pro-normalize";
 import { isInternalSpecKey } from "@/lib/product-specs";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 /**
  * POST /api/admin/products/enrich-from-donor
@@ -27,7 +28,7 @@ import { isInternalSpecKey } from "@/lib/product-specs";
  *
  * body: { items: [{ slug, donorUrl }], dryRun?: boolean }
  */
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
@@ -148,3 +149,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, dryRun, count: results.length, results });
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);

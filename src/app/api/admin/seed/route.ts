@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { hasServiceSupabase } from "@/lib/supabase/service";
 import { seedSupabaseCatalog } from "@/lib/db/seed-supabase";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 /**
  * POST /api/admin/seed — upsert seed catalog into Supabase.
  * Also allows one-time bootstrap with header x-seed-secret = ADMIN_SESSION_SECRET or SEED_SECRET
  */
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   // Bootstrap secret has NO guessable default: only an explicitly configured
   // SEED_SECRET / ADMIN_SESSION_SECRET can authorize an unauthenticated seed.
   const seedSecret =
@@ -52,3 +53,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);

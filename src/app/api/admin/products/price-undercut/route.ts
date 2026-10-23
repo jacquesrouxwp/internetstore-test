@@ -5,6 +5,7 @@ import {
   hasServiceSupabase,
 } from "@/lib/supabase/service";
 import { listLinksForProduct, syncLinkPrice } from "@/lib/price-compare/repo";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 /**
  * POST /api/admin/products/price-undercut
@@ -19,7 +20,7 @@ import { listLinksForProduct, syncLinkPrice } from "@/lib/price-compare/repo";
  *
  * body: { slugs: string[], percent?: number, sync?: boolean, dryRun?: boolean }
  */
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
@@ -145,3 +146,6 @@ export async function POST(req: NextRequest) {
     results,
   });
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);

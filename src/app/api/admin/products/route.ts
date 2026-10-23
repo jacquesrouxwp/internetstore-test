@@ -24,6 +24,7 @@ import {
   getRuntimeProducts,
   upsertRuntimeProduct,
 } from "@/data/seed";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 function buildProduct(
   body: Record<string, unknown>,
@@ -247,7 +248,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   const body = await req.json();
@@ -284,7 +285,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function PUT(req: NextRequest) {
+async function PUT_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   const body = await req.json();
@@ -327,7 +328,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+async function DELETE_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   const id = req.nextUrl.searchParams.get("id");
@@ -353,7 +354,7 @@ export async function DELETE(req: NextRequest) {
  * PATCH — bulk / inline / duplicate
  * body: { action, ids?, id?, price?, stock?, published?, percent? }
  */
-export async function PATCH(req: NextRequest) {
+async function PATCH_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
@@ -467,3 +468,9 @@ export async function PATCH(req: NextRequest) {
     );
   }
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);
+export const PUT = withStorefrontPurge(PUT_handler);
+export const DELETE = withStorefrontPurge(DELETE_handler);
+export const PATCH = withStorefrontPurge(PATCH_handler);

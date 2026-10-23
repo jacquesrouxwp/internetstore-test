@@ -23,8 +23,12 @@ type Props = {
   params: Promise<{ locale: string; slug: string }>;
 };
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
+// Cached for an hour; publishing in the admin purges it (lib/storefront-cache)
+export const revalidate = 3600;
+// No pages built ahead: each one is rendered on its first visit, then cached
+export function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;

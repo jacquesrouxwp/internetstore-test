@@ -29,6 +29,7 @@ import {
 } from "@/lib/import/optics-pro-scraper";
 import { buildProductRecord, type ImportRowResult } from "@/lib/import/optics-pro-pipeline";
 import type { Product } from "@/types";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 /**
  * Import from optics-pro.com.ua, stateless/resumable so it survives
@@ -48,7 +49,7 @@ async function ensureSeedCategoriesAndBrands() {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
@@ -211,3 +212,6 @@ export async function POST(req: NextRequest) {
     { status: 400 }
   );
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);

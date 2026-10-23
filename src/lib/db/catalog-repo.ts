@@ -31,6 +31,7 @@ import {
   isRixProduct,
   sortBrandsByPriority,
 } from "@/lib/brand-priority";
+import { STOREFRONT_TTL } from "@/lib/storefront-cache";
 
 /**
  * Catalog card fields only — skip heavy description/specs/meta payloads.
@@ -456,7 +457,7 @@ export async function dbGetBrands(): Promise<Brand[] | null> {
 export const dbGetBrandsCached = unstable_cache(
   async () => dbGetBrands(),
   ["db-brands-v3-no-rix"],
-  { revalidate: 60, tags: ["brands"] }
+  { revalidate: STOREFRONT_TTL, tags: ["brands"] }
 );
 
 export async function dbGetCategories(): Promise<Category[] | null> {
@@ -481,7 +482,7 @@ export async function dbGetCategories(): Promise<Category[] | null> {
 export const dbGetCategoriesCached = unstable_cache(
   async () => dbGetCategories(),
   ["db-categories-v1"],
-  { revalidate: 120, tags: ["categories"] }
+  { revalidate: STOREFRONT_TTL, tags: ["categories"] }
 );
 
 /**
@@ -586,13 +587,13 @@ async function dbGetBrandProductRowsUncached(): Promise<BrandProductRow[] | null
 export const dbGetBrandProductRows = unstable_cache(
   async () => dbGetBrandProductRowsUncached(),
   ["db-brand-product-rows-v2"],
-  { revalidate: 120, tags: ["products", "brands"] }
+  { revalidate: STOREFRONT_TTL, tags: ["products", "brands"] }
 );
 
 export const dbGetCategoryBrandsMap = unstable_cache(
   async () => dbGetCategoryBrandsMapUncached(),
   ["db-category-brands-map-v2-no-rix"],
-  { revalidate: 60, tags: ["category-brands"] }
+  { revalidate: STOREFRONT_TTL, tags: ["category-brands"] }
 );
 
 /** Min/max detection range with 2 index-friendly LIMIT 1 queries (not full table). */

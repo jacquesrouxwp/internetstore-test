@@ -11,6 +11,7 @@ import {
 import type { Brand, Category, Product } from "@/types";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { mirrorImageToStorage } from "@/lib/admin/storage";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 function asArray<T>(v: T | T[] | undefined | null): T[] {
   if (!v) return [];
@@ -33,7 +34,7 @@ function detectCategorySlug(name: string, catName: string): string {
  * Import products from Prom.ua YML/XML feed.
  * Downloads <picture> URLs into Supabase Storage when configured.
  */
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
 
@@ -252,3 +253,6 @@ export async function POST(req: NextRequest) {
     })),
   });
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);

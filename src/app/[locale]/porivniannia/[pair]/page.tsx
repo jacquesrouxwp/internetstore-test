@@ -18,7 +18,7 @@ import { simulatorHref, specNetdMk } from "@/lib/thermal/simulator-link";
 import { serviceBlockHtml } from "@/lib/category-seo";
 import type { Product } from "@/types";
 
-export const revalidate = 300;
+export const revalidate = 3600; // admin edits purge it — lib/storefront-cache
 
 type Props = { params: Promise<{ locale: string; pair: string }> };
 

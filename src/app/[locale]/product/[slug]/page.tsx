@@ -45,12 +45,15 @@ import { productMetaDescription } from "@/lib/product-meta";
 import { pageAlternates } from "@/lib/seo-alternates";
 // Live price/stock, and newly imported products must resolve immediately —
 // see the catalog page for the Data Cache problem this avoids.
-export const dynamic = "force-dynamic";
-// force-dynamic alone still let Next reuse Data-Cache entries for the Supabase
-// reads, so a page visited before an edit kept replaying the old row (a product
-// cleaned in the DB still rendered its removed specs). Route-scoped, so the
-// statically rendered pages are unaffected.
-export const fetchCache = "force-no-store";
+// Rendered once and kept for an hour (Oct 2026: rendering on every visit,
+// bots included, used up the Supabase egress quota). Admin edits purge it at
+// once — lib/storefront-cache — so a changed price or spec shows immediately;
+// that purge is also what prevents the old "removed specs still shown" bug.
+export const revalidate = 3600;
+// No pages built ahead: each one is rendered on its first visit, then cached
+export function generateStaticParams() {
+  return [];
+}
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;

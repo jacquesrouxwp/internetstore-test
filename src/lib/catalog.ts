@@ -32,12 +32,22 @@ import {
   sortBrandsByPriority,
 } from "@/lib/brand-priority";
 import type { BrandProductRow } from "@/lib/brand-pages";
+import { unstable_cache } from "next/cache";
+import { STOREFRONT_TTL } from "@/lib/storefront-cache";
+
+// Same filters → same answer for an hour; admin edits purge the "products" tag.
+const getCatalogCached = unstable_cache(
+  async (filtersJson: string, categorySlug?: string) =>
+    getCatalogWithFallback(JSON.parse(filtersJson) as CatalogFilters, categorySlug),
+  ["catalog-v1"],
+  { revalidate: STOREFRONT_TTL, tags: ["products", "catalog"] }
+);
 
 export async function getCatalog(
   filters: CatalogFilters = {},
   categorySlug?: string
 ): Promise<CatalogResult> {
-  return getCatalogWithFallback(filters, categorySlug);
+  return getCatalogCached(JSON.stringify(filters), categorySlug);
 }
 
 export function getCategoryDetectionRangeBounds(categorySlug: string) {

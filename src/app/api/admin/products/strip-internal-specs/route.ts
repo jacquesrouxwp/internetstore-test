@@ -5,6 +5,7 @@ import {
   hasServiceSupabase,
 } from "@/lib/supabase/service";
 import { isInternalSpecKey } from "@/lib/product-specs";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 /**
  * POST /api/admin/products/strip-internal-specs
@@ -18,7 +19,7 @@ import { isInternalSpecKey } from "@/lib/product-specs";
  * body: { dryRun?: boolean, limit?: number }
  * Idempotent: re-running once clean reports changed: 0.
  */
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
@@ -93,3 +94,6 @@ export async function POST(req: NextRequest) {
     sample,
   });
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);

@@ -7,6 +7,7 @@ import {
   getSecuritySettings,
 } from "@/lib/store-settings";
 import bcrypt from "bcryptjs";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 const ALLOWED_KEYS = new Set([
   "site",
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function PUT(req: NextRequest) {
+async function PUT_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
@@ -107,3 +108,6 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const PUT = withStorefrontPurge(PUT_handler);

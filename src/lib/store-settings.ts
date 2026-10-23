@@ -14,6 +14,7 @@ import {
   STORE_PHONE_VIBER,
   STORE_PHONE_WHATSAPP,
 } from "@/lib/contact";
+import { STOREFRONT_TTL } from "@/lib/storefront-cache";
 
 export type SiteSettings = {
   phones: string[];
@@ -162,7 +163,7 @@ async function loadAllPublicSettings() {
 export const getAllPublicSettings = unstable_cache(
   loadAllPublicSettings,
   ["store-public-settings-v1"],
-  { revalidate: 120, tags: ["store-settings"] }
+  { revalidate: STOREFRONT_TTL, tags: ["store-settings"] }
 );
 
 /** Admin: all keys including secrets-ish (password hash never sent to client raw without care) */

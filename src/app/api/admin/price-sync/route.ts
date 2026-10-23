@@ -3,6 +3,7 @@ import { requireAdminApi } from "@/lib/admin/auth";
 import { hasServiceSupabase } from "@/lib/supabase/service";
 import { extractPriceFromUrl } from "@/lib/price-compare/extract-price";
 import { syncAllPrices, syncLinkPrice } from "@/lib/price-compare/repo";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 /**
  * Cron auth: only when CRON_SECRET/SEED_SECRET is set AND matches header.
@@ -49,7 +50,7 @@ async function runSync(body: {
  * body: { linkId } | { productId } | { testUrl } | {} all
  * GET  /api/admin/price-sync — Vercel Cron (daily)
  */
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const cron = isCronRequest(req);
   if (!cron) {
     const denied = await requireAdminApi(req);
@@ -116,3 +117,6 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);

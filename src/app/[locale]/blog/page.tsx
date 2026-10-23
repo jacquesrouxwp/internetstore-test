@@ -30,8 +30,8 @@ export async function generateMetadata({
 }
 
 // New posts are written in Supabase without a redeploy — never serve a stale list.
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
+// Cached for an hour; publishing in the admin purges it (lib/storefront-cache)
+export const revalidate = 3600;
 
 export default async function BlogPage({ params, searchParams }: Props) {
   const { locale } = await params;

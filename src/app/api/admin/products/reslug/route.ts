@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
 import { slugify } from "@/lib/utils";
+import { withStorefrontPurge } from "@/lib/storefront-cache";
 
 /**
  * Rewrite non-ASCII product slugs to their transliterated form.
@@ -10,7 +11,7 @@ import { slugify } from "@/lib/utils";
  * names; those URLs 404 on the product route. Idempotent — rows that already
  * have an ASCII slug are left alone. POST { dryRun: true } to preview.
  */
-export async function POST(req: NextRequest) {
+async function POST_handler(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) {
@@ -78,3 +79,6 @@ export async function POST(req: NextRequest) {
     sample: changes.slice(0, 10),
   });
 }
+
+// Catalogue edits show on the storefront at once — see lib/storefront-cache
+export const POST = withStorefrontPurge(POST_handler);
