@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
-import { OLX_STATUSES, type OlxStatus } from "@/lib/olx-terminal";
+import { OLX_STATUSES, normalizeOlxUrl, parseDealPatch, type OlxStatus } from "@/lib/olx-terminal";
 
 export const dynamic = "force-dynamic";
 
@@ -69,4 +69,48 @@ export async function PATCH(req: NextRequest) {
   const { data, error } = await sb.from("olx_deals").update(update).eq("id", id).select("*").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ deal: data });
+}
+
+/** POST /api/admin/olx — the owner adds a listing by hand: { olx_url, model, asking_price, ... } */
+export async function POST(req: NextRequest) {
+  const denied = await requireAdminApi(req);
+  if (denied) return denied;
+  if (!hasServiceSupabase()) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
+
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const olxUrl = normalizeOlxUrl(body.olx_url);
+  if (!olxUrl) return NextResponse.json({ error: "Потрібне посилання на оголошення olx.ua" }, { status: 400 });
+  const patch = parseDealPatch(body);
+  const sb = createServiceClient();
+
+  if (!patch.product_slug && patch.model) {
+    const { data: hits } = await sb
+      .from("products")
+      .select("slug")
+      .eq("published", true)
+      .ilike("name_uk", `%${patch.model.replace(/[%_]/g, " ")}%`)
+      .limit(2);
+    if (hits && hits.length === 1) patch.product_slug = hits[0].slug as string;
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await sb
+    .from("olx_deals")
+    .upsert({ olx_url: olxUrl, ...patch, updated_at: now }, { onConflict: "olx_url" })
+    .select("*")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ deal: data });
+}
+
+/** DELETE /api/admin/olx?id=… */
+export async function DELETE(req: NextRequest) {
+  const denied = await requireAdminApi(req);
+  if (denied) return denied;
+  if (!hasServiceSupabase()) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+  const { error } = await createServiceClient().from("olx_deals").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }

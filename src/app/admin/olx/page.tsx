@@ -57,6 +57,37 @@ export default function AdminOlxTerminalPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [okPrice, setOkPrice] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [form, setForm] = useState({ olx_url: "", model: "", seller_name: "", asking_price: "" });
+  const [formMsg, setFormMsg] = useState<string | null>(null);
+
+  const addListing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormMsg(null);
+    const r = await fetch("/api/admin/olx", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, status: "new" }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setFormMsg(d.error || "Не вдалося додати");
+      return;
+    }
+    setForm({ olx_url: "", model: "", seller_name: "", asking_price: "" });
+    setFormMsg(d.deal?.product_slug ? "Додано, модель знайдена в каталозі" : "Додано, але модель не знайдена в каталозі — уточніть назву");
+    await load();
+  };
+
+  const remove = async (id: string) => {
+    if (!window.confirm("Видалити цей запис з термінала?")) return;
+    setBusy(id);
+    try {
+      await fetch(`/api/admin/olx?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -131,6 +162,27 @@ export default function AdminOlxTerminalPage() {
           </div>
         ) : null}
       </div>
+
+      <form onSubmit={addListing} className="flex flex-wrap items-end gap-2 rounded-xl border border-zinc-200 bg-white p-3 text-sm">
+        <label className="flex min-w-[260px] flex-1 flex-col text-xs text-zinc-500">
+          Посилання OLX
+          <input required value={form.olx_url} onChange={(e) => setForm({ ...form, olx_url: e.target.value })} placeholder="https://www.olx.ua/d/uk/obyavlenie/..." className="mt-1 rounded border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900" />
+        </label>
+        <label className="flex min-w-[200px] flex-col text-xs text-zinc-500">
+          Модель
+          <input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="Axion 2 XQ35 LRF" className="mt-1 rounded border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900" />
+        </label>
+        <label className="flex w-36 flex-col text-xs text-zinc-500">
+          Продавець
+          <input value={form.seller_name} onChange={(e) => setForm({ ...form, seller_name: e.target.value })} className="mt-1 rounded border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900" />
+        </label>
+        <label className="flex w-28 flex-col text-xs text-zinc-500">
+          Хоче, грн
+          <input inputMode="numeric" value={form.asking_price} onChange={(e) => setForm({ ...form, asking_price: e.target.value })} className="mt-1 rounded border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900" />
+        </label>
+        <button type="submit" className="rounded bg-zinc-900 px-3 py-1.5 font-semibold text-white hover:bg-zinc-700">Додати</button>
+        {formMsg ? <p className="w-full text-xs text-zinc-600">{formMsg}</p> : null}
+      </form>
 
       <div className="flex flex-wrap gap-2 text-sm">
         {(["active", "needs_ok", "new", "negotiating", "bought", "rejected", "lost", "all"] as const).map((f) => (
@@ -259,6 +311,14 @@ export default function AdminOlxTerminalPage() {
                                   Ні
                                 </button>
                               </div>
+                              <button
+                                type="button"
+                                disabled={busy === r.id}
+                                onClick={() => remove(r.id)}
+                                className="mt-3 text-xs text-red-600 hover:underline disabled:opacity-50"
+                              >
+                                Видалити запис
+                              </button>
                               <label className="mt-3 block text-xs text-zinc-500">
                                 Статус
                                 <select
