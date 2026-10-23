@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
-import { OLX_STATUSES, normalizeOlxUrl, parseDealPatch, pickCatalogMatch, type OlxStatus } from "@/lib/olx-terminal";
+import { OLX_STATUSES, normalizeOlxUrl, parseDealPatch, catalogSearchTokens, pickCatalogMatch, type OlxStatus } from "@/lib/olx-terminal";
 
 export const dynamic = "force-dynamic";
 
@@ -110,12 +110,9 @@ export async function POST(req: NextRequest) {
   const sb = createServiceClient();
 
   if (!patch.product_slug && patch.model) {
-    const { data: hits } = await sb
-      .from("products")
-      .select("slug, name_uk")
-      .eq("published", true)
-      .ilike("name_uk", `%${patch.model.replace(/[%_]/g, " ")}%`)
-      .limit(10);
+    let q = sb.from("products").select("slug, name_uk").eq("published", true);
+    for (const t of catalogSearchTokens(patch.model)) q = q.ilike("name_uk", `%${t.replace(/[%_]/g, " ")}%`);
+    const { data: hits } = await q.limit(60);
     patch.product_slug = pickCatalogMatch(patch.model, (hits ?? []) as { slug: string; name_uk: string }[]) ?? undefined;
     if (!patch.product_slug) delete patch.product_slug;
   }

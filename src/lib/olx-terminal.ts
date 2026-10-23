@@ -121,16 +121,43 @@ export function parseDealPatch(body: Record<string, unknown>): DealPatch {
   return p;
 }
 
+/** Words of a model name: lower case, "E6 +" glued to "E6+", punctuation dropped. */
+export function modelTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/\s+\+/g, "+")
+    .split(/[^a-z0-9а-яіїєґ+.]+/i)
+    .map((t) => t.replace(/^\.+|\.+$/g, ""))
+    .filter(Boolean);
+}
+
+/** Words with digits ("L325", "E6", "V3") to pre-filter the catalogue with, all at once. */
+export function catalogSearchTokens(model: string): string[] {
+  const words = modelTokens(model).map((w) => w.replace(/\+$/, ""));
+  const withDigits = words.filter((w) => /\d/.test(w) && w.length > 1);
+  const picked = withDigits.length ? withDigits : words.sort((a, b) => b.length - a.length).slice(0, 1);
+  return picked.slice(0, 3);
+}
+
 /**
- * The catalogue product a model name means, or null. The model has to appear
- * in the name as a whole: "LYNX Pro LE10" must not land on "LYNX Pro LE10S"
- * (it did, October 2026, and showed the wrong new price).
+ * The catalogue product a model name means, or null. Every word of the model
+ * must be a whole word of the product name, in any order: the catalogue says
+ * "INFIRAY (IRAY) Tyke L325" and "XEYE 2 E6 + V3", bots write "InfiRay Tyke
+ * L325" and "XEYE 2 E6+ V3". Whole words keep "LYNX Pro LE10" off "LE10S"
+ * (that mix-up showed a wrong new price, October 2026). Several hits: the one
+ * with the fewest extra words ("RICO RH50" over "RICO RH50 V2"), if unique.
  */
 export function pickCatalogMatch(model: string, candidates: { slug: string; name_uk: string }[]): string | null {
-  const norm = (s: string) => ` ${s.toLowerCase().replace(/[^a-z0-9а-яіїєґ.]+/gi, " ").trim()} `;
-  const m = norm(model);
-  const hits = candidates.filter((c) => norm(c.name_uk).includes(m));
-  return hits.length === 1 ? hits[0].slug : null;
+  const want = modelTokens(model);
+  if (!want.length) return null;
+  const hits = candidates
+    .map((c) => ({ c, have: modelTokens(c.name_uk) }))
+    .filter(({ have }) => want.every((w) => have.includes(w)))
+    .map(({ c, have }) => ({ c, extra: have.length - want.length }))
+    .sort((a, b) => a.extra - b.extra);
+  if (!hits.length) return null;
+  if (hits.length > 1 && hits[0].extra === hits[1].extra) return null;
+  return hits[0].c.slug;
 }
 
 /** New chat lines from a bot: { from: "us" | "seller", text, at? }. */

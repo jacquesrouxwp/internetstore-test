@@ -41,6 +41,20 @@ describe("pickCatalogMatch", () => {
     assert.equal(pickCatalogMatch("HikMicro LYNX Pro LE10", cat), null);
     assert.equal(pickCatalogMatch("Thunder TH35C", cat), null);
   });
+  it("finds catalogue names written differently", () => {
+    const inf = [
+      { slug: "tyke", name_uk: "Тепловізійний приціл INFIRAY (IRAY) Tyke L325" },
+      { slug: "e6v3", name_uk: "Тепловізор INFIRAY (IRAY) XEYE 2 E6 + V3" },
+      { slug: "e6", name_uk: "Тепловізор INFIRAY (IRAY) XEYE 2 E6 +" },
+      { slug: "rh50", name_uk: "Тепловізійний приціл INFIRAY (IRAY) RICO RH50" },
+      { slug: "rh50v2", name_uk: "Тепловізійний приціл INFIRAY (IRAY) RICO RH50 V2" },
+      { slug: "rh50pro", name_uk: "Тепловізійний приціл INFIRAY (IRAY) RICO RH50Pro" },
+    ];
+    assert.equal(pickCatalogMatch("InfiRay Tyke L325", inf), "tyke");
+    assert.equal(pickCatalogMatch("InfiRay XEYE 2 E6+ V3", inf), "e6v3");
+    assert.equal(pickCatalogMatch("InfiRay RICO RH50Pro", inf), "rh50pro");
+    assert.equal(pickCatalogMatch("InfiRay RICO RH50", inf), "rh50");
+  });
   it("takes the one whole match", () => {
     assert.equal(pickCatalogMatch("Thunder TH35", cat), "th35");
     assert.equal(pickCatalogMatch("LYNX Pro LE10S", cat), "le10s");
