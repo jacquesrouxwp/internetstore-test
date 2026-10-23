@@ -139,25 +139,33 @@ export function catalogSearchTokens(model: string): string[] {
   return picked.slice(0, 3);
 }
 
+/** Words a catalogue name may carry beyond the model itself. */
+const GENERIC_WORDS = new Set([
+  "тепловізор", "тепловізійний", "тепловізійна", "тепловізонна", "тепловізійні", "приціл", "пріціл", "насадка",
+  "монокуляр", "бінокль", "прилад", "нічного", "бачення", "цифровий", "сша", "iray", "infiray", "hikmicro",
+  "pulsar", "agm", "atn", "pard", "guide", "thermtec", "nocpix", "dahua", "sytong", "armasight", "dipol",
+  "nvectech", "leonardo", "drs", "yukon", "flir", "conotech", "arkon",
+]);
+
 /**
  * The catalogue product a model name means, or null. Every word of the model
  * must be a whole word of the product name, in any order: the catalogue says
  * "INFIRAY (IRAY) Tyke L325" and "XEYE 2 E6 + V3", bots write "InfiRay Tyke
  * L325" and "XEYE 2 E6+ V3". Whole words keep "LYNX Pro LE10" off "LE10S"
- * (that mix-up showed a wrong new price, October 2026). Several hits: the one
- * with the fewest extra words ("RICO RH50" over "RICO RH50 V2"), if unique.
+ * (that mix-up showed a wrong new price, October 2026), and the name may add
+ * only generic words, so "RICO RH50" is not "RICO RH50 V2" and "PVS-14" is
+ * not a mount "для PVS-14".
  */
 export function pickCatalogMatch(model: string, candidates: { slug: string; name_uk: string }[]): string | null {
   const want = modelTokens(model);
   if (!want.length) return null;
+  // The product may only add generic words (type, brand); anything else —
+  // "кріплення WILCOX L4 для PVS-14", "PVS-14 NL1" — means it is a different item
   const hits = candidates
     .map((c) => ({ c, have: modelTokens(c.name_uk) }))
     .filter(({ have }) => want.every((w) => have.includes(w)))
-    .map(({ c, have }) => ({ c, extra: have.length - want.length }))
-    .sort((a, b) => a.extra - b.extra);
-  if (!hits.length) return null;
-  if (hits.length > 1 && hits[0].extra === hits[1].extra) return null;
-  return hits[0].c.slug;
+    .filter(({ have }) => have.every((w) => want.includes(w) || GENERIC_WORDS.has(w)));
+  return hits.length === 1 ? hits[0].c.slug : null;
 }
 
 /** New chat lines from a bot: { from: "us" | "seller", text, at? }. */

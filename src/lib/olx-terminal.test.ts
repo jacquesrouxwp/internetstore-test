@@ -54,6 +54,12 @@ describe("pickCatalogMatch", () => {
     assert.equal(pickCatalogMatch("InfiRay XEYE 2 E6+ V3", inf), "e6v3");
     assert.equal(pickCatalogMatch("InfiRay RICO RH50Pro", inf), "rh50pro");
     assert.equal(pickCatalogMatch("InfiRay RICO RH50", inf), "rh50");
+    const pvs = [
+      { slug: "mount", name_uk: "Кріплення WILCOX L4 для PVS-14" },
+      { slug: "nl1", name_uk: "Прилад нічного бачення AGM PVS-14 NL1" },
+    ];
+    assert.equal(pickCatalogMatch("PVS-14", pvs), null);
+    assert.equal(pickCatalogMatch("AGM PVS-14 NL1", pvs), "nl1");
   });
   it("takes the one whole match", () => {
     assert.equal(pickCatalogMatch("Thunder TH35", cat), "th35");
