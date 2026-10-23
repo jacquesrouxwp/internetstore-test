@@ -100,6 +100,15 @@ export default function AdminOlxTerminalPage() {
     }
   }, []);
 
+  // Esc folds the open deal
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   useEffect(() => {
     void load();
     const t = setInterval(() => void load(), 15000);
@@ -230,7 +239,10 @@ export default function AdminOlxTerminalPage() {
                     onClick={() => setOpen(isOpen ? null : r.id)}
                   >
                     <td className="px-3 py-2">
-                      <div className="font-medium text-zinc-900">{r.product_name || r.model || r.title || "—"}</div>
+                      <div className="font-medium text-zinc-900">
+                        <span className="mr-1 inline-block w-3 text-zinc-400">{isOpen ? "▴" : "▾"}</span>
+                        {r.product_name || r.model || r.title || "—"}
+                      </div>
                       <a
                         href={r.olx_url}
                         target="_blank"
@@ -277,6 +289,13 @@ export default function AdminOlxTerminalPage() {
                             )}
                           </div>
                           <div className="space-y-3 text-sm">
+                            <button
+                              type="button"
+                              onClick={() => setOpen(null)}
+                              className="w-full rounded border border-zinc-300 bg-white px-3 py-1.5 text-zinc-700 hover:bg-zinc-100"
+                            >
+                              ▴ Згорнути
+                            </button>
                             {r.title ? <p className="text-zinc-600">«{r.title}»</p> : null}
                             {r.notes ? <p className="rounded border border-zinc-200 bg-white p-2 text-zinc-700">{r.notes}</p> : null}
                             <div className="rounded-lg border border-zinc-200 bg-white p-3">
