@@ -16,6 +16,7 @@ import { Analytics as VercelAnalytics } from "@vercel/analytics/next";
 import { OrganizationJsonLd } from "@/components/seo/OrganizationJsonLd";
 import { getAllPublicSettings } from "@/lib/store-settings";
 import { publicStoreEmail, STORE_EMAIL } from "@/lib/contact";
+import { HtmlLang } from "@/components/layout/HtmlLang";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -77,6 +78,7 @@ export default async function LocaleLayout({
           }}
         />
       ) : null}
+      <HtmlLang locale={locale} />
       <SiteBackground />
       <MobileScrollFix />
       {/* min-h-dvh keeps footer at viewport bottom on short pages without
