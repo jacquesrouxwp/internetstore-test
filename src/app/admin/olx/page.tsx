@@ -10,6 +10,7 @@ import {
   type OlxDeal,
   type OlxStatus,
 } from "@/lib/olx-terminal";
+import { ProTerminal } from "./ProTerminal";
 
 type Row = OlxDeal & { new_price: number | null; product_name: string | null };
 
@@ -60,6 +61,19 @@ export default function AdminOlxTerminalPage() {
   const [form, setForm] = useState({ olx_url: "", model: "", seller_name: "", asking_price: "" });
   const [formMsg, setFormMsg] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  // "Класичний" table or the "Pro" trading screen; remembered in this browser
+  const [view, setView] = useState<"classic" | "pro">("classic");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("olx-view") === "pro") setView("pro");
+    } catch {}
+  }, []);
+  const switchView = (v: "classic" | "pro") => {
+    setView(v);
+    try {
+      localStorage.setItem("olx-view", v);
+    } catch {}
+  };
 
   const addListing = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,6 +207,18 @@ export default function AdminOlxTerminalPage() {
             Оновлюється кожні 15 с.
           </p>
         </div>
+        <div className="flex overflow-hidden rounded-lg border border-zinc-300 text-sm">
+          {(["classic", "pro"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => switchView(v)}
+              className={`px-3 py-1.5 ${view === v ? (v === "pro" ? "bg-zinc-900 font-semibold text-white" : "bg-zinc-200 font-semibold text-zinc-900") : "text-zinc-600 hover:bg-zinc-100"}`}
+            >
+              {v === "pro" ? "Pro" : "Класичний"}
+            </button>
+          ))}
+        </div>
         {boughtStats ? (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
             Куплено: <b>{boughtStats.n}</b> · у середньому за <b>{boughtStats.avg}%</b> від N
@@ -200,6 +226,10 @@ export default function AdminOlxTerminalPage() {
         ) : null}
       </div>
 
+      {view === "pro" ? (
+        <ProTerminal rows={rows} busy={busy} decide={decide} requestRefresh={requestRefresh} refreshAll={refreshAll} />
+      ) : (
+      <>
       <form onSubmit={addListing} className="flex flex-wrap items-end gap-2 rounded-xl border border-zinc-200 bg-white p-3 text-sm">
         <label className="flex min-w-[260px] flex-1 flex-col text-xs text-zinc-500">
           Посилання OLX
@@ -480,6 +510,8 @@ export default function AdminOlxTerminalPage() {
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </div>
   );
 }
