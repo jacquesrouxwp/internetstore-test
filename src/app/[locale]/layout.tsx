@@ -67,6 +67,16 @@ export default async function LocaleLayout({
         address={settings.site.address || null}
         hours={settings.site.hours || null}
       />
+      {/* The root <html> says lang="uk" for every page; /ru and /en must say
+          their own language, or browsers (and Google's renderer) read the
+          Russian pages as Ukrainian. Set before paint, no layout change. */}
+      {locale !== "uk" ? (
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `document.documentElement.lang=${JSON.stringify(locale)}`,
+          }}
+        />
+      ) : null}
       <SiteBackground />
       <MobileScrollFix />
       {/* min-h-dvh keeps footer at viewport bottom on short pages without
