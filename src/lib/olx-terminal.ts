@@ -41,6 +41,8 @@ export type OlxDeal = {
   notes: string | null;
   chat: ChatMessage[];
   outbox: OutboxMessage[];
+  /** Owner pressed "оновити": a bot should re-read this chat on OLX */
+  refresh_requested_at: string | null;
   created_at: string;
   updated_at: string;
 };

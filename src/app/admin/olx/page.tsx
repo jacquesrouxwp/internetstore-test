@@ -79,6 +79,33 @@ export default function AdminOlxTerminalPage() {
     await load();
   };
 
+  const requestRefresh = async (id: string) => {
+    await fetch("/api/admin/olx", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, refresh: true }),
+    });
+    await load();
+  };
+
+  const [refreshAllMsg, setRefreshAllMsg] = useState<string | null>(null);
+  const refreshAll = async () => {
+    const r = await fetch("/api/admin/olx?refresh=all", { method: "POST" });
+    const d = await r.json().catch(() => ({}));
+    setRefreshAllMsg(r.ok ? `Запит надіслано ботам: ${d.requested ?? 0} угод` : d.error || "Не вдалося");
+    await load();
+  };
+
+  // Opening a deal asks the bot to re-read that chat (not more often than every 2 min)
+  const openDeal = (r: Row) => {
+    const next = open === r.id ? null : r.id;
+    setOpen(next);
+    if (next && ["new", "negotiating", "needs_ok"].includes(r.status)) {
+      const last = r.refresh_requested_at ? Date.parse(r.refresh_requested_at) : 0;
+      if (Date.now() - last > 2 * 60 * 1000) void requestRefresh(r.id);
+    }
+  };
+
   const remove = async (id: string) => {
     if (!window.confirm("Видалити цей запис з термінала?")) return;
     setBusy(id);
@@ -194,7 +221,17 @@ export default function AdminOlxTerminalPage() {
         {formMsg ? <p className="w-full text-xs text-zinc-600">{formMsg}</p> : null}
       </form>
 
-      <div className="flex flex-wrap gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <button
+          type="button"
+          onClick={() => void refreshAll()}
+          className="rounded-full border border-sky-300 bg-sky-50 px-3 py-1 font-semibold text-sky-800 hover:bg-sky-100"
+          title="Попросити ботів перечитати всі активні чати"
+        >
+          ⟳ Оновити все
+        </button>
+        {refreshAllMsg ? <span className="text-xs text-zinc-500">{refreshAllMsg}</span> : null}
+        <span className="mx-1 h-5 w-px bg-zinc-200" />
         {(["active", "needs_ok", "new", "negotiating", "bought", "rejected", "lost", "all"] as const).map((f) => (
           <button
             key={f}
@@ -237,7 +274,7 @@ export default function AdminOlxTerminalPage() {
                 <Fragment key={r.id}>
                   <tr
                     className={`cursor-pointer border-t border-zinc-100 hover:bg-zinc-50 ${r.status === "needs_ok" ? "bg-amber-50/60" : ""}`}
-                    onClick={() => setOpen(isOpen ? null : r.id)}
+                    onClick={() => openDeal(r)}
                   >
                     <td className="px-3 py-2">
                       <div className="font-medium text-zinc-900">
@@ -283,7 +320,25 @@ export default function AdminOlxTerminalPage() {
                       <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_CLASS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
                       {r.owner_decision ? <div className="mt-0.5 text-[11px] text-zinc-500">ваше: {r.owner_decision}</div> : null}
                     </td>
-                    <td className="px-3 py-2 text-xs text-zinc-500">{ago(r.updated_at)}</td>
+                    <td className="px-3 py-2 text-xs text-zinc-500">
+                      <div className="flex items-center gap-1.5">
+                        {ago(r.updated_at)}
+                        <button
+                          type="button"
+                          title="Попросити бота перечитати цей чат зараз"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void requestRefresh(r.id);
+                          }}
+                          className="rounded border border-zinc-300 px-1.5 leading-5 text-zinc-600 hover:bg-zinc-100"
+                        >
+                          ⟳
+                        </button>
+                      </div>
+                      {r.refresh_requested_at ? (
+                        <div className="mt-0.5 text-[10px] text-sky-700">⟳ чекає бота · {ago(r.refresh_requested_at)}</div>
+                      ) : null}
+                    </td>
                   </tr>
                   {isOpen ? (
                     <tr className="border-t border-zinc-100 bg-zinc-50/60">

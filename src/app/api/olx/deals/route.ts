@@ -7,6 +7,7 @@ import { normalizeOlxUrl, parseDealPatch, parseMessages, type OlxDeal } from "@/
  *
  *   GET  /api/olx/deals?status=needs_ok      — deals, newest first (bots read owner decisions here)
  *   GET  /api/olx/deals?outbox=1             — only deals with owner messages waiting to be sent
+ *   GET  /api/olx/deals?refresh=1            — only deals the owner asked to re-read now
  *   POST /api/olx/deals                      — create or update one deal by olx_url, append chat lines
  *
  * Auth: header `x-olx-key: <OLX_TERMINAL_KEY>`. Without the env var the API is off.
@@ -45,6 +46,9 @@ export async function GET(req: NextRequest) {
   let deals = (data ?? []) as OlxDeal[];
   if (req.nextUrl.searchParams.get("outbox")) {
     deals = deals.filter((d) => (d.outbox || []).some((m) => !m.sent_at));
+  }
+  if (req.nextUrl.searchParams.get("refresh")) {
+    deals = deals.filter((d) => d.refresh_requested_at);
   }
   return NextResponse.json({ deals });
 }
@@ -90,7 +94,14 @@ export async function POST(req: NextRequest) {
     const sentLines = waiting.map((m) => ({ at: now, from: "us" as const, text: m.text }));
     const { data, error } = await sb
       .from("olx_deals")
-      .update({ ...patch, chat: [...(prev.chat || []), ...messages, ...sentLines], outbox, updated_at: now })
+      // Any update from the bot answers an "оновити" request
+      .update({
+        ...patch,
+        chat: [...(prev.chat || []), ...messages, ...sentLines],
+        outbox,
+        refresh_requested_at: null,
+        updated_at: now,
+      })
       .eq("id", prev.id)
       .select("*")
       .single();

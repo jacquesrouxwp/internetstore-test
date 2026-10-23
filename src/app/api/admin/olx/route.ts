@@ -75,6 +75,11 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.status === "string" && OLX_STATUSES.includes(body.status as OlxStatus)) update.status = body.status;
   if (typeof body.final_price === "number") update.final_price = Math.round(body.final_price);
   if (typeof body.notes === "string") update.notes = body.notes.slice(0, 2000);
+  if (body.refresh === true) {
+    // Only a request — updated_at stays, so the row still shows when the bot last read it
+    delete update.updated_at;
+    update.refresh_requested_at = now;
+  }
 
   const { data, error } = await sb.from("olx_deals").update(update).eq("id", id).select("*").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -86,6 +91,17 @@ export async function POST(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
   if (!hasServiceSupabase()) return NextResponse.json({ error: "Supabase not configured" }, { status: 503 });
+
+  // "Оновити все": ask the bots to re-read every deal still in play
+  if (req.nextUrl.searchParams.get("refresh") === "all") {
+    const { data, error } = await createServiceClient()
+      .from("olx_deals")
+      .update({ refresh_requested_at: new Date().toISOString() })
+      .in("status", ["new", "negotiating", "needs_ok"])
+      .select("id");
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ requested: data?.length ?? 0 });
+  }
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const olxUrl = normalizeOlxUrl(body.olx_url);
