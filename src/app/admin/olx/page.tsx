@@ -59,6 +59,7 @@ export default function AdminOlxTerminalPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [form, setForm] = useState({ olx_url: "", model: "", seller_name: "", asking_price: "" });
   const [formMsg, setFormMsg] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
 
   const addListing = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,6 +304,44 @@ export default function AdminOlxTerminalPage() {
                             ) : (
                               <p className="text-sm text-zinc-400">Переписки ще немає.</p>
                             )}
+                            {(r.outbox || [])
+                              .filter((m) => !m.sent_at)
+                              .map((m) => (
+                                <div key={m.id} className="flex justify-end">
+                                  <div className="max-w-[75%] rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-1.5 text-zinc-600">
+                                    <div className="whitespace-pre-wrap">{m.text}</div>
+                                    <div className="mt-0.5 text-[10px] text-zinc-400">⏳ чекає відправки ботом</div>
+                                  </div>
+                                </div>
+                              ))}
+                            <form
+                              className="sticky bottom-0 flex gap-2 border-t border-zinc-100 bg-white pt-2"
+                              onSubmit={async (e) => {
+                                e.preventDefault();
+                                const text = (draft[r.id] || "").trim();
+                                if (!text) return;
+                                await decide(r.id, { send: text });
+                                setDraft({ ...draft, [r.id]: "" });
+                              }}
+                            >
+                              <textarea
+                                rows={2}
+                                value={draft[r.id] ?? ""}
+                                onChange={(e) => setDraft({ ...draft, [r.id]: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) e.currentTarget.form?.requestSubmit();
+                                }}
+                                placeholder="Ваше повідомлення продавцю — бот надішле як є (Ctrl+Enter)"
+                                className="flex-1 resize-none rounded border border-zinc-300 px-2 py-1 text-sm"
+                              />
+                              <button
+                                type="submit"
+                                disabled={busy === r.id || !(draft[r.id] || "").trim()}
+                                className="self-end rounded bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-40"
+                              >
+                                Надіслати через бота
+                              </button>
+                            </form>
                           </div>
                           <div className="space-y-3 text-sm">
                             <button

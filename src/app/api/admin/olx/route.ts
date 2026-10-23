@@ -50,6 +50,17 @@ export async function PATCH(req: NextRequest) {
 
   const now = new Date().toISOString();
   const update: Record<string, unknown> = { updated_at: now };
+  const sb = createServiceClient();
+
+  // The owner's own words for the seller — a bot picks them up and sends them as is
+  if (typeof body.send === "string" && body.send.trim()) {
+    const { data: cur } = await sb.from("olx_deals").select("outbox").eq("id", id).maybeSingle();
+    const outbox = Array.isArray(cur?.outbox) ? cur.outbox : [];
+    update.outbox = [
+      ...outbox,
+      { id: crypto.randomUUID(), text: body.send.trim().slice(0, 2000), at: now, sent_at: null },
+    ];
+  }
   if (body.decision === "ok") {
     const price = Math.round(Number(body.price));
     if (!Number.isFinite(price) || price <= 0) return NextResponse.json({ error: "price required" }, { status: 400 });
@@ -65,7 +76,6 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.final_price === "number") update.final_price = Math.round(body.final_price);
   if (typeof body.notes === "string") update.notes = body.notes.slice(0, 2000);
 
-  const sb = createServiceClient();
   const { data, error } = await sb.from("olx_deals").update(update).eq("id", id).select("*").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ deal: data });

@@ -18,6 +18,9 @@ export const STATUS_LABEL: Record<OlxStatus, string> = {
 
 export type ChatMessage = { at: string; from: "us" | "seller"; text: string };
 
+/** Written by the owner in the terminal, waiting for a bot to send it to the seller. */
+export type OutboxMessage = { id: string; text: string; at: string; sent_at: string | null };
+
 export type OlxDeal = {
   id: string;
   olx_url: string;
@@ -37,6 +40,7 @@ export type OlxDeal = {
   owner_decision_at: string | null;
   notes: string | null;
   chat: ChatMessage[];
+  outbox: OutboxMessage[];
   created_at: string;
   updated_at: string;
 };

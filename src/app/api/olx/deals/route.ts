@@ -6,6 +6,7 @@ import { normalizeOlxUrl, parseDealPatch, parseMessages, type OlxDeal } from "@/
  * OLX terminal API for the owner's bots (see /admin/olx).
  *
  *   GET  /api/olx/deals?status=needs_ok      — deals, newest first (bots read owner decisions here)
+ *   GET  /api/olx/deals?outbox=1             — only deals with owner messages waiting to be sent
  *   POST /api/olx/deals                      — create or update one deal by olx_url, append chat lines
  *
  * Auth: header `x-olx-key: <OLX_TERMINAL_KEY>`. Without the env var the API is off.
@@ -41,7 +42,11 @@ export async function GET(req: NextRequest) {
   if (status) q = q.eq("status", status);
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ deals: data ?? [] });
+  let deals = (data ?? []) as OlxDeal[];
+  if (req.nextUrl.searchParams.get("outbox")) {
+    deals = deals.filter((d) => (d.outbox || []).some((m) => !m.sent_at));
+  }
+  return NextResponse.json({ deals });
 }
 
 export async function POST(req: NextRequest) {
@@ -78,9 +83,14 @@ export async function POST(req: NextRequest) {
 
   if (existing) {
     const prev = existing as OlxDeal;
+    // Owner's messages the bot has sent: mark them, and put them in the chat
+    const sentIds = Array.isArray(body.outbox_sent) ? body.outbox_sent.map(String) : [];
+    const waiting = (prev.outbox || []).filter((m) => !m.sent_at && sentIds.includes(m.id));
+    const outbox = (prev.outbox || []).map((m) => (waiting.includes(m) ? { ...m, sent_at: now } : m));
+    const sentLines = waiting.map((m) => ({ at: now, from: "us" as const, text: m.text }));
     const { data, error } = await sb
       .from("olx_deals")
-      .update({ ...patch, chat: [...(prev.chat || []), ...messages], updated_at: now })
+      .update({ ...patch, chat: [...(prev.chat || []), ...messages, ...sentLines], outbox, updated_at: now })
       .eq("id", prev.id)
       .select("*")
       .single();
