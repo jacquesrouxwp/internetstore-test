@@ -121,6 +121,18 @@ export function parseDealPatch(body: Record<string, unknown>): DealPatch {
   return p;
 }
 
+/**
+ * The catalogue product a model name means, or null. The model has to appear
+ * in the name as a whole: "LYNX Pro LE10" must not land on "LYNX Pro LE10S"
+ * (it did, October 2026, and showed the wrong new price).
+ */
+export function pickCatalogMatch(model: string, candidates: { slug: string; name_uk: string }[]): string | null {
+  const norm = (s: string) => ` ${s.toLowerCase().replace(/[^a-z0-9а-яіїєґ.]+/gi, " ").trim()} `;
+  const m = norm(model);
+  const hits = candidates.filter((c) => norm(c.name_uk).includes(m));
+  return hits.length === 1 ? hits[0].slug : null;
+}
+
 /** New chat lines from a bot: { from: "us" | "seller", text, at? }. */
 export function parseMessages(raw: unknown): ChatMessage[] {
   const list = Array.isArray(raw) ? raw : raw ? [raw] : [];

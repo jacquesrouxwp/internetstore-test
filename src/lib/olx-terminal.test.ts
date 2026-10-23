@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { normalizeOlxUrl, parseDealPatch, parseMessages, pctOfNew, priceWindow, zone } from "./olx-terminal";
+import { normalizeOlxUrl, parseDealPatch, parseMessages, pctOfNew, pickCatalogMatch, priceWindow, zone } from "./olx-terminal";
 
 describe("olx terminal arithmetic", () => {
   it("takes 20% and 35% of the new price, rounded to 100", () => {
@@ -28,5 +28,21 @@ describe("olx terminal input", () => {
     const m = parseMessages([{ from: "us", text: "за 19 700 віддасте?" }, { from: "x", text: "?" }]);
     assert.equal(m.length, 1);
     assert.equal(m[0].from, "us");
+  });
+});
+
+describe("pickCatalogMatch", () => {
+  const cat = [
+    { slug: "le10s", name_uk: "Тепловізор HikMicro LYNX Pro LE10S" },
+    { slug: "th35", name_uk: "Тепловізійний приціл HikMicro Thunder TH35" },
+    { slug: "th35pc", name_uk: "Тепловізійна насадка HikMicro THUNDER TH35PC 2.0" },
+  ];
+  it("does not take a longer model for a shorter one", () => {
+    assert.equal(pickCatalogMatch("HikMicro LYNX Pro LE10", cat), null);
+    assert.equal(pickCatalogMatch("Thunder TH35C", cat), null);
+  });
+  it("takes the one whole match", () => {
+    assert.equal(pickCatalogMatch("Thunder TH35", cat), "th35");
+    assert.equal(pickCatalogMatch("LYNX Pro LE10S", cat), "le10s");
   });
 });

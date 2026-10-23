@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
-import { normalizeOlxUrl, parseDealPatch, parseMessages, type OlxDeal } from "@/lib/olx-terminal";
+import { normalizeOlxUrl, parseDealPatch, parseMessages, pickCatalogMatch, type OlxDeal } from "@/lib/olx-terminal";
 
 /**
  * OLX terminal API for the owner's bots (see /admin/olx).
@@ -75,11 +75,12 @@ export async function POST(req: NextRequest) {
   if (!patch.product_slug && patch.model) {
     const { data: hits } = await sb
       .from("products")
-      .select("slug")
+      .select("slug, name_uk")
       .eq("published", true)
       .ilike("name_uk", `%${patch.model.replace(/[%_]/g, " ")}%`)
-      .limit(2);
-    if (hits && hits.length === 1) patch.product_slug = hits[0].slug as string;
+      .limit(10);
+    patch.product_slug = pickCatalogMatch(patch.model, (hits ?? []) as { slug: string; name_uk: string }[]) ?? undefined;
+    if (!patch.product_slug) delete patch.product_slug;
   }
 
   const { data: existing } = await sb.from("olx_deals").select("*").eq("olx_url", olxUrl).maybeSingle();
