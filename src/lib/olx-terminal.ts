@@ -24,6 +24,8 @@ export type OlxDeal = {
   title: string | null;
   seller_name: string | null;
   city: string | null;
+  /** When the seller published the listing on OLX */
+  listed_at: string | null;
   product_slug: string | null;
   model: string | null;
   asking_price: number | null;
@@ -89,7 +91,7 @@ export function normalizeOlxUrl(raw: unknown): string | null {
 }
 
 export type DealPatch = Partial<
-  Pick<OlxDeal, "title" | "seller_name" | "city" | "product_slug" | "model" | "asking_price" | "our_offer" | "bargain_at" | "final_price" | "status" | "notes">
+  Pick<OlxDeal, "title" | "seller_name" | "city" | "listed_at" | "product_slug" | "model" | "asking_price" | "our_offer" | "bargain_at" | "final_price" | "status" | "notes">
 >;
 
 /** Fields a bot may set; anything else in the body is ignored. */
@@ -98,6 +100,10 @@ export function parseDealPatch(body: Record<string, unknown>): DealPatch {
   if ("title" in body) p.title = str(body.title, 300);
   if ("seller_name" in body) p.seller_name = str(body.seller_name, 120);
   if ("city" in body) p.city = str(body.city, 120);
+  if ("listed_at" in body) {
+    const t = body.listed_at ? Date.parse(String(body.listed_at)) : NaN;
+    p.listed_at = Number.isNaN(t) ? null : new Date(t).toISOString();
+  }
   if ("product_slug" in body) p.product_slug = str(body.product_slug, 200);
   if ("model" in body) p.model = str(body.model, 200);
   if ("asking_price" in body) p.asking_price = int(body.asking_price);

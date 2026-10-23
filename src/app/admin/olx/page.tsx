@@ -254,7 +254,23 @@ export default function AdminOlxTerminalPage() {
                       </a>
                       {!r.product_slug ? <span className="ml-2 text-xs text-amber-700">немає в каталозі</span> : null}
                     </td>
-                    <td className="px-3 py-2 text-zinc-700">{r.seller_name || "—"}</td>
+                    <td className="px-3 py-2 text-zinc-700">
+                      {r.seller_name || "—"}
+                      {r.chat?.length ? (
+                        <span
+                          className="ml-1.5 inline-block rounded-full bg-zinc-100 px-1.5 text-[11px] text-zinc-600"
+                          title={`Усього повідомлень: ${r.chat.length}`}
+                        >
+                          💬 ми {r.chat.filter((m) => m.from === "us").length} · продавець{" "}
+                          {r.chat.filter((m) => m.from === "seller").length}
+                        </span>
+                      ) : null}
+                      {r.listed_at ? (
+                        <div className="text-[11px] text-zinc-400" title="Коли продавець опублікував оголошення">
+                          опубл. {new Date(r.listed_at).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit" })}, {ago(r.listed_at)} тому
+                        </div>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2"><Price value={r.asking_price} n={r.new_price} /></td>
                     <td className="px-3 py-2"><Price value={r.our_offer} n={r.new_price} /></td>
                     <td className="px-3 py-2"><Price value={r.bargain_at} n={r.new_price} /></td>
