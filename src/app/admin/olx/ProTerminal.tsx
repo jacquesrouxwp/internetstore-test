@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { STATUS_LABEL, pctOfNew, priceWindow, type OlxDeal, type OlxStatus } from "@/lib/olx-terminal";
+import { useOlxSimulation, type SimModel } from "./simulation";
 
 export type ProRow = OlxDeal & { new_price: number | null; product_name: string | null };
 
@@ -84,7 +85,40 @@ function Ladder({ r, big = false }: { r: ProRow; big?: boolean }) {
   );
 }
 
-export function ProTerminal({ rows, busy, decide, requestRefresh, refreshAll }: Props) {
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+const noop = async () => {};
+
+export function ProTerminal(props: Props) {
+  // Demo: real models and new prices from the terminal, made-up sellers and chats
+  const simModels = useMemo(() => {
+    const seen = new Map<string, SimModel>();
+    for (const r of props.rows) {
+      if (r.product_slug && r.new_price && !seen.has(r.product_slug)) {
+        seen.set(r.product_slug, { slug: r.product_slug, name: r.product_name || r.model || r.product_slug, n: r.new_price });
+      }
+    }
+    return Array.from(seen.values());
+  }, [props.rows]);
+  const sim = useOlxSimulation(simModels);
+  const rows = sim.active ? sim.rows : props.rows;
+  const busy = sim.active ? null : props.busy;
+  const decide = sim.active ? sim.decide : props.decide;
+  const requestRefresh = sim.active ? noop : props.requestRefresh;
+  const refreshAll = sim.active ? noop : props.refreshAll;
+
+  // Full screen of the browser for the whole terminal
+  const root = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const on = () => setFull(document.fullscreenElement === root.current);
+    document.addEventListener("fullscreenchange", on);
+    return () => document.removeEventListener("fullscreenchange", on);
+  }, []);
+  const toggleFull = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void root.current?.requestFullscreen?.();
+  };
+
   const [onlyActive, setOnlyActive] = useState(true);
   const [sel, setSel] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: "ok" | "no"; price: number } | null>(null);
@@ -177,7 +211,47 @@ export function ProTerminal({ rows, busy, decide, requestRefresh, refreshAll }: 
   const maxBook = Math.max(1, ...(book?.asks.map((a) => a.v) ?? []), ...(book?.bids.map((b) => b.v) ?? []));
 
   return (
-    <div className="rounded-2xl bg-zinc-950 p-4 text-zinc-100 shadow-inner">
+    <div ref={root} className={`bg-zinc-950 p-4 text-zinc-100 shadow-inner ${full ? "h-screen overflow-y-auto" : "rounded-2xl"}`}>
+      {sim.active ? (
+        <div className="mb-3 rounded-xl border border-violet-500/40 bg-violet-500/10 p-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded bg-violet-500 px-2 py-0.5 text-xs font-bold text-white">ДЕМО</span>
+            <span className="text-violet-200">Симуляція: продавці й переписка вигадані, нічого нікуди не надсилається</span>
+            <span className="ml-auto font-mono text-lg tabular-nums text-violet-100">{mmss(sim.left)}</span>
+            {[1, 3, 10].map((x) => (
+              <button key={x} type="button" onClick={() => sim.setSpeed(x)} className={`rounded px-2 py-0.5 font-mono text-xs ${sim.speed === x ? "bg-violet-500 text-white" : "border border-violet-500/40 text-violet-200"}`}>
+                {x}×
+              </button>
+            ))}
+            {sim.finished ? null : (
+              <button type="button" onClick={sim.running ? sim.pause : sim.resume} className="rounded border border-violet-500/40 px-2 py-0.5 text-xs text-violet-100">
+                {sim.running ? "⏸ Пауза" : "▶ Далі"}
+              </button>
+            )}
+            <button type="button" onClick={sim.exit} className="rounded border border-zinc-600 px-2 py-0.5 text-xs text-zinc-300">Вийти з демо</button>
+          </div>
+          <div className="mt-2 h-1 rounded-full bg-violet-950">
+            <div className="h-1 rounded-full bg-violet-400 transition-[width] duration-300" style={{ width: `${sim.progress * 100}%` }} />
+          </div>
+          {sim.finished ? (
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-violet-100">
+              <b>Торги завершено.</b>
+              <span>
+                Куплено {rows.filter((r) => r.status === "bought").length} з {rows.length} · відмов {rows.filter((r) => r.status === "rejected").length} · продали іншим{" "}
+                {rows.filter((r) => r.status === "lost").length}
+              </span>
+              <button type="button" onClick={sim.start} className="ml-auto rounded bg-violet-500 px-3 py-1 text-xs font-semibold text-white">Ще раз</button>
+            </div>
+          ) : rows.some((r) => r.status === "needs_ok") ? (
+            <div className="mt-2 text-amber-200">
+              👉 Продавець готовий у «жовтій» зоні — виберіть угоду «Чекає ок» і натисніть <b>Ок</b> або <b>Ні</b>. Не встигнете за 90 с — продасть іншому.
+            </div>
+          ) : (
+            <div className="mt-2 text-violet-300/80">Бот пише продавцям і торгується. Дивіться стрічку внизу праворуч.</div>
+          )}
+        </div>
+      ) : null}
+
       {/* Ticker */}
       <div className="grid grid-cols-2 gap-2 font-mono sm:grid-cols-3 lg:grid-cols-6">
         {[
@@ -202,11 +276,28 @@ export function ProTerminal({ rows, busy, decide, requestRefresh, refreshAll }: 
         <button type="button" onClick={() => void refreshAll()} className="rounded-full border border-sky-700 px-3 py-1 text-sky-300 hover:bg-sky-950">
           ⟳ Оновити все
         </button>
+        {sim.active ? null : (
+          <button type="button" onClick={sim.start} className="rounded-full bg-violet-600 px-3 py-1 font-semibold text-white hover:bg-violet-500">
+            ▶ Запустити симуляцію
+          </button>
+        )}
+        <button type="button" onClick={toggleFull} className="rounded-full border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-900">
+          {full ? "✕ Вийти з повного екрана" : "⛶ На весь екран"}
+        </button>
         <span className="ml-auto text-zinc-500">
           <kbd className="rounded bg-zinc-800 px-1">J</kbd>/<kbd className="rounded bg-zinc-800 px-1">K</kbd> вибір ·{" "}
           <kbd className="rounded bg-zinc-800 px-1">O</kbd> ок · <kbd className="rounded bg-zinc-800 px-1">N</kbd> ні ·{" "}
           <kbd className="rounded bg-zinc-800 px-1">R</kbd> оновити
         </span>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+        <span>Як читати смужку (0–100% ціни нового):</span>
+        <span><i className="mr-1 inline-block h-2 w-4 rounded-sm bg-emerald-500/50" />до 20% — бот купує сам</span>
+        <span><i className="mr-1 inline-block h-2 w-4 rounded-sm bg-amber-400/40" />20–35% — потрібен ваш ок</span>
+        <span><i className="mr-1 inline-block h-2 w-[3px] rounded bg-rose-500" /> хоче продавець</span>
+        <span><i className="mr-1 inline-block h-2 w-[3px] rounded bg-white" /> торг зараз</span>
+        <span><i className="mr-1 inline-block h-2 w-[3px] rounded bg-emerald-400" /> наша пропозиція</span>
       </div>
 
       <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
