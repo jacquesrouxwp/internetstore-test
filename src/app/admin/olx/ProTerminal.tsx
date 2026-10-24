@@ -53,7 +53,7 @@ function Ladder({ r, big = false }: { r: ProRow; big?: boolean }) {
   return (
     <div className={big ? "pt-4" : "pt-1"}>
       <div className="relative">
-        <div className={`${h} rounded-full bg-zinc-800`} />
+        <div className={`${h} rounded-full bg-zinc-700`} />
         <div className={`absolute left-0 top-0 ${h} rounded-l-full bg-emerald-500/50`} style={{ width: "20%" }} />
         <div className={`absolute top-0 ${h} bg-amber-400/40`} style={{ left: "20%", width: "15%" }} />
         {marks.map((m) =>
@@ -73,6 +73,18 @@ function Ladder({ r, big = false }: { r: ProRow; big?: boolean }) {
           </>
         ) : null}
       </div>
+      {!big ? (
+        // The same three prices in numbers, in the colours of their marks
+        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[12px] tabular-nums">
+          <span className="text-rose-300">хоче {num(r.asking_price)} <span className="text-zinc-500">{pctOfNew(r.asking_price, n)}</span></span>
+          {r.bargain_at && r.bargain_at !== r.our_offer ? (
+            <span className="text-zinc-100">торг {num(r.bargain_at)} <span className="text-zinc-500">{pctOfNew(r.bargain_at, n)}</span></span>
+          ) : null}
+          <span className="text-emerald-300">ми {num(r.our_offer)} <span className="text-zinc-500">{pctOfNew(r.our_offer, n)}</span></span>
+          {r.final_price ? <span className="text-emerald-200">куплено {num(r.final_price)}</span> : null}
+          <span className="ml-auto text-zinc-500">новий {num(n)}</span>
+        </div>
+      ) : null}
       {big ? (
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[12px] text-zinc-400">
           <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-emerald-400" />пропонуємо {num(r.our_offer)} {pctOfNew(r.our_offer, n)}</span>
