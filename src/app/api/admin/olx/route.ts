@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
-import { OLX_STATUSES, normalizeOlxUrl, parseDealPatch, catalogSearchTokens, pickCatalogMatch, type OlxStatus } from "@/lib/olx-terminal";
+import { OLX_STATUSES, normalizeOlxUrl, parseDealPatch, catalogSearchTokens, pickCatalogMatch, ownerDecision, type OlxStatus } from "@/lib/olx-terminal";
 
 export const dynamic = "force-dynamic";
 
@@ -61,16 +61,10 @@ export async function PATCH(req: NextRequest) {
       { id: crypto.randomUUID(), text: body.send.trim().slice(0, 2000), at: now, sent_at: null },
     ];
   }
-  if (body.decision === "ok") {
-    const price = Math.round(Number(body.price));
-    if (!Number.isFinite(price) || price <= 0) return NextResponse.json({ error: "price required" }, { status: 400 });
-    update.owner_decision = `ok ${price}`;
-    update.owner_decision_at = now;
-    update.status = "negotiating";
-  } else if (body.decision === "no") {
-    update.owner_decision = "ні";
-    update.owner_decision_at = now;
-    update.status = "rejected";
+  if (body.decision === "ok" || body.decision === "no") {
+    const word = ownerDecision(body.decision, body.price, now);
+    if (!word) return NextResponse.json({ error: "price required" }, { status: 400 });
+    Object.assign(update, word);
   }
   if (typeof body.status === "string" && OLX_STATUSES.includes(body.status as OlxStatus)) update.status = body.status;
   if (typeof body.final_price === "number") update.final_price = Math.round(body.final_price);

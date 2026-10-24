@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
+import { olxKeyDenied } from "@/lib/olx-api-key";
+import { notifyBought, notifyNeedsOk, type DealWithPrice } from "@/lib/olx-telegram";
 import { normalizeOlxUrl, parseDealPatch, parseMessages, catalogSearchTokens, pickCatalogMatch, type OlxDeal } from "@/lib/olx-terminal";
 
 /**
@@ -15,25 +17,8 @@ import { normalizeOlxUrl, parseDealPatch, parseMessages, catalogSearchTokens, pi
 
 export const dynamic = "force-dynamic";
 
-function sameKey(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-function denied(req: NextRequest): NextResponse | null {
-  const key = process.env.OLX_TERMINAL_KEY?.trim();
-  if (!key) return NextResponse.json({ error: "Terminal is off" }, { status: 503 });
-  const given =
-    req.headers.get("x-olx-key")?.trim() ||
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
-    "";
-  return given && sameKey(given, key) ? null : NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-}
-
 export async function GET(req: NextRequest) {
-  const no = denied(req);
+  const no = olxKeyDenied(req);
   if (no) return no;
   if (!hasServiceSupabase()) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
@@ -54,7 +39,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const no = denied(req);
+  const no = olxKeyDenied(req);
   if (no) return no;
   if (!hasServiceSupabase()) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
@@ -104,6 +89,7 @@ export async function POST(req: NextRequest) {
       .select("*")
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await notifyOwner(sb, prev.status, data as OlxDeal);
     return NextResponse.json({ deal: data, created: false });
   }
 
@@ -113,5 +99,18 @@ export async function POST(req: NextRequest) {
     .select("*")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await notifyOwner(sb, null, data as OlxDeal);
   return NextResponse.json({ deal: data, created: true });
+}
+
+/** Telegram to the owner when a deal starts waiting for an ок, or is bought. */
+async function notifyOwner(sb: ReturnType<typeof createServiceClient>, was: string | null, deal: OlxDeal) {
+  if (deal.status === was || (deal.status !== "needs_ok" && deal.status !== "bought")) return;
+  type Product = { price: number; name_uk: string };
+  const product: Product | null = deal.product_slug
+    ? ((await sb.from("products").select("price, name_uk").eq("slug", deal.product_slug).maybeSingle()).data as Product | null)
+    : null;
+  const d: DealWithPrice = { ...deal, new_price: product ? Number(product.price) : null, product_name: product?.name_uk ?? null };
+  if (deal.status === "needs_ok") await notifyNeedsOk(d);
+  else await notifyBought(d);
 }

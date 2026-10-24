@@ -121,6 +121,20 @@ export function parseDealPatch(body: Record<string, unknown>): DealPatch {
   return p;
 }
 
+/**
+ * The owner's word on a deal, from the terminal or from Telegram:
+ * "ok" with a price lets the bot close at it, "no" turns the seller down.
+ */
+export function ownerDecision(decision: unknown, price: unknown, now: string): Partial<OlxDeal> | null {
+  if (decision === "ok") {
+    const p = Math.round(Number(price));
+    if (!Number.isFinite(p) || p <= 0) return null;
+    return { owner_decision: `ok ${p}`, owner_decision_at: now, status: "negotiating" };
+  }
+  if (decision === "no") return { owner_decision: "ні", owner_decision_at: now, status: "rejected" };
+  return null;
+}
+
 /** Words of a model name: lower case, "E6 +" glued to "E6+", punctuation dropped. */
 export function modelTokens(s: string): string[] {
   return s
