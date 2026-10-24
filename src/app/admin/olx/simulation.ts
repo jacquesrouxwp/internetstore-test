@@ -24,6 +24,9 @@ const CITIES = ["Київ", "Львів", "Дніпро", "Одеса", "Хар�
 // Lowest share of the new price each seller would take: 3 sell at 20 %, 5 land in the owner's zone, 2 are too dear
 const FLOORS = [0.17, 0.19, 0.2, 0.23, 0.26, 0.28, 0.31, 0.34, 0.42, 0.5];
 
+// Made-up delivery address for the demo
+const SHIP_TO = "Нова пошта, відділення №999, м. Київ, вул. Пушкіна, буд. Колотушкіна. Отримувач: Демо Покупець, 0990000000";
+
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const r100 = (x: number) => Math.round(x / 100) * 100;
@@ -117,7 +120,7 @@ export function step(deals: SimDeal[], t: number): boolean {
         if (floor <= w.target) {
           say(d, "seller", pick([`ну давайте, забирайте за ${uah(w.target)}`, "ок, згоден. коли заберете?", "та давайте, мені терміново"]));
           set(d, { bargain_at: w.target, final_price: w.target });
-          say(d, "us", "Домовились! Скиньте дані для Нової пошти 🙌");
+          say(d, "us", `Домовились! 🙌 Відправляйте на: ${SHIP_TO}`);
           d.stage = "agreed";
           d.at = t + rnd(4, 8);
           break;
@@ -147,7 +150,7 @@ export function step(deals: SimDeal[], t: number): boolean {
         d.stage = "done";
         break;
       case "agreed":
-        say(d, "seller", pick(["давайте, завтра відправлю НП", "ок, пишіть ПІБ і відділення"]));
+        say(d, "seller", pick(["прийняв, завтра відправлю на 999-те", "ок, відправив, ТТН 20450999999999", "записав адресу, ввечері відправлю"]));
         set(d, { status: "bought" });
         d.stage = "done";
         break;
@@ -205,7 +208,7 @@ export function useOlxSimulation(models: SimModel[]) {
     if (body.decision === "ok" && d.stage !== "done") {
       const price = Math.round(Number(body.price));
       set(d, { owner_decision: `ok ${price}`, owner_decision_at: now, status: "negotiating", our_offer: price, bargain_at: price, final_price: price });
-      say(d, "us", `Ок, ${uah(price)} грн — беру. Скиньте дані для Нової пошти`);
+      say(d, "us", `Ок, ${uah(price)} грн — беру. Відправляйте на: ${SHIP_TO}`);
       d.stage = "agreed";
       d.at = clock.current + rnd(4, 8);
     } else if (body.decision === "no" && d.stage !== "done") {
