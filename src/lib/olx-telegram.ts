@@ -7,10 +7,9 @@
  */
 
 import { createHash } from "node:crypto";
-import { pctOfNew, priceWindow, type OlxDeal } from "@/lib/olx-terminal";
+import { CONDITION_LABEL, type OlxDeal } from "@/lib/olx-terminal";
+import type { TerminalDeal } from "@/lib/olx-store";
 import { absoluteUrl } from "@/lib/site-url";
-
-export type DealWithPrice = OlxDeal & { new_price: number | null; product_name: string | null };
 
 const token = () => process.env.OLX_TG_BOT_TOKEN?.trim() || "";
 const chatId = () => process.env.OLX_TG_CHAT_ID?.trim() || "";
@@ -41,21 +40,30 @@ export async function tg(method: string, body: Record<string, unknown>): Promise
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const uah = (n: number | null | undefined) => (n ? new Intl.NumberFormat("uk-UA").format(n) : "—");
-const withPct = (v: number | null | undefined, n: number | null) => (v ? `${uah(v)}${n ? ` (${pctOfNew(v, n)})` : ""}` : "—");
+const yn = (v: boolean | null, word: string) => (v === true ? `${word} ✓` : v === false ? `без ${word === "коробка" ? "коробки" : "документів"}` : `${word} ?`);
 
-export function dealText(d: DealWithPrice, head: string): string {
-  const n = d.new_price;
-  const w = priceWindow(n);
+/** What the seller says about the item: "як нове · коробка ✓ · без документів". */
+export function conditionLine(d: OlxDeal): string {
+  return [d.condition ? CONDITION_LABEL[d.condition] : "стан ?", yn(d.has_box, "коробка"), yn(d.has_docs, "документи"), d.kit]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function dealText(d: TerminalDeal, head: string): string {
+  const b = d.buy;
   const lastSeller = [...(d.chat || [])].reverse().find((m) => m.from === "seller");
   return [
     head,
-    `<b>${esc(d.product_name || d.model || d.title || "—")}</b>`,
+    `<b>${esc(b?.model_name || d.model || d.title || "—")}</b>`,
     esc([d.seller_name, d.city].filter(Boolean).join(" · ") || "продавець"),
+    esc(conditionLine(d)),
     "",
-    `Хоче: <b>${withPct(d.asking_price, n)}</b>`,
-    d.bargain_at ? `Торг на: <b>${withPct(d.bargain_at, n)}</b>` : "",
-    d.our_offer ? `Ми пропонували: ${withPct(d.our_offer, n)}` : "",
-    n && w ? `Новий у нас: ${uah(n)} · стеля 35% = ${uah(w.ceiling)}` : "Моделі немає в каталозі — ціну нового оцініть самі",
+    `Хоче: <b>${uah(d.asking_price)}</b>`,
+    d.bargain_at ? `Торг на: <b>${uah(d.bargain_at)}</b>` : "",
+    d.our_offer ? `Ми пропонували: ${uah(d.our_offer)}` : "",
+    b
+      ? `Для цього стану: ціль ${uah(b.target)} · стеля ${uah(b.ceiling)}${b.unknown.length ? ` (не відомо: ${b.unknown.join(", ")})` : ""}`
+      : "Ціни на цю модель ще немає — вирішуйте самі",
     lastSeller ? `\nПродавець: «${esc(lastSeller.text.slice(0, 200))}»` : "",
     `\n<a href="${esc(d.olx_url)}">Оголошення на OLX</a>`,
   ]
@@ -66,7 +74,7 @@ export function dealText(d: DealWithPrice, head: string): string {
 /** The price an "Ок" agrees to: where the bargaining stands, else what the seller asks. */
 export const okPrice = (d: OlxDeal) => d.bargain_at || d.asking_price || null;
 
-export async function notifyNeedsOk(d: DealWithPrice) {
+export async function notifyNeedsOk(d: TerminalDeal) {
   if (!olxTelegramReady()) return;
   const price = okPrice(d);
   const row1 = price ? [{ text: `✅ Ок ${uah(price)}`, callback_data: `ok:${d.id}:${price}` }] : [];
@@ -84,12 +92,12 @@ export async function notifyNeedsOk(d: DealWithPrice) {
   });
 }
 
-export async function notifyBought(d: DealWithPrice) {
+export async function notifyBought(d: TerminalDeal) {
   if (!olxTelegramReady()) return;
   const price = d.final_price || d.bargain_at;
   await tg("sendMessage", {
     chat_id: chatId(),
-    text: dealText(d, `✅ <b>Куплено за ${withPct(price, d.new_price)}</b>`),
+    text: dealText(d, `✅ <b>Куплено за ${uah(price)}</b>`),
     parse_mode: "HTML",
     disable_web_page_preview: true,
   });

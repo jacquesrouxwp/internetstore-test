@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/auth";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
-import { OLX_STATUSES, normalizeOlxUrl, parseDealPatch, catalogSearchTokens, pickCatalogMatch, ownerDecision, type OlxStatus } from "@/lib/olx-terminal";
+import { OLX_STATUSES, normalizeOlxUrl, parseDealPatch, ownerDecision, type OlxDeal, type OlxStatus } from "@/lib/olx-terminal";
+import { loadModels, withPrices } from "@/lib/olx-store";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/admin/olx — terminal rows with our current new price per model. */
+/** GET /api/admin/olx — terminal rows with the buying prices for each item. */
 export async function GET(req: NextRequest) {
   const denied = await requireAdminApi(req);
   if (denied) return denied;
@@ -19,20 +20,7 @@ export async function GET(req: NextRequest) {
     .limit(300);
   if (error) return NextResponse.json({ deals: [], error: error.message });
 
-  const slugs = Array.from(new Set((data ?? []).map((d) => d.product_slug).filter(Boolean))) as string[];
-  const prices: Record<string, { price: number; name: string }> = {};
-  if (slugs.length) {
-    const { data: prods } = await sb.from("products").select("slug, name_uk, price").in("slug", slugs);
-    for (const p of prods ?? []) prices[p.slug as string] = { price: Number(p.price), name: p.name_uk as string };
-  }
-
-  return NextResponse.json({
-    deals: (data ?? []).map((d) => ({
-      ...d,
-      new_price: d.product_slug ? prices[d.product_slug]?.price ?? null : null,
-      product_name: d.product_slug ? prices[d.product_slug]?.name ?? null : null,
-    })),
-  });
+  return NextResponse.json({ deals: withPrices((data ?? []) as OlxDeal[], await loadModels(sb)) });
 }
 
 /**
@@ -103,14 +91,6 @@ export async function POST(req: NextRequest) {
   const patch = parseDealPatch(body);
   const sb = createServiceClient();
 
-  if (!patch.product_slug && patch.model) {
-    let q = sb.from("products").select("slug, name_uk").eq("published", true);
-    for (const t of catalogSearchTokens(patch.model)) q = q.ilike("name_uk", `%${t.replace(/[%_]/g, " ")}%`);
-    const { data: hits } = await q.limit(60);
-    patch.product_slug = pickCatalogMatch(patch.model, (hits ?? []) as { slug: string; name_uk: string }[]) ?? undefined;
-    if (!patch.product_slug) delete patch.product_slug;
-  }
-
   const now = new Date().toISOString();
   const { data, error } = await sb
     .from("olx_deals")
@@ -118,7 +98,7 @@ export async function POST(req: NextRequest) {
     .select("*")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ deal: data });
+  return NextResponse.json({ deal: withPrices([data as OlxDeal], await loadModels(sb))[0] });
 }
 
 /** DELETE /api/admin/olx?id=… */

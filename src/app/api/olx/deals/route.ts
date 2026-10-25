@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
 import { olxKeyDenied } from "@/lib/olx-api-key";
-import { notifyBought, notifyNeedsOk, type DealWithPrice } from "@/lib/olx-telegram";
-import { normalizeOlxUrl, parseDealPatch, parseMessages, catalogSearchTokens, pickCatalogMatch, type OlxDeal } from "@/lib/olx-terminal";
+import { notifyBought, notifyNeedsOk } from "@/lib/olx-telegram";
+import { normalizeOlxUrl, parseDealPatch, parseMessages, type OlxDeal } from "@/lib/olx-terminal";
+import { loadModels, withPrices } from "@/lib/olx-store";
 
 /**
  * OLX terminal API for the owner's bots (see /admin/olx).
  *
- *   GET  /api/olx/deals?status=needs_ok      — deals, newest first (bots read owner decisions here)
+ *   GET  /api/olx/deals?status=needs_ok      — deals, newest first, each with `buy` (target/ceiling for this item)
  *   GET  /api/olx/deals?outbox=1             — only deals with owner messages waiting to be sent
  *   GET  /api/olx/deals?refresh=1            — only deals the owner asked to re-read now
  *   POST /api/olx/deals                      — create or update one deal by olx_url, append chat lines
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
   if (req.nextUrl.searchParams.get("refresh")) {
     deals = deals.filter((d) => d.refresh_requested_at);
   }
-  return NextResponse.json({ deals });
+  return NextResponse.json({ deals: withPrices(deals, await loadModels(sb)) });
 }
 
 export async function POST(req: NextRequest) {
@@ -55,15 +56,6 @@ export async function POST(req: NextRequest) {
   const patch = parseDealPatch(body);
   const messages = parseMessages(body.messages ?? body.message);
   const sb = createServiceClient();
-
-  // A model named in words is tied to our catalogue when exactly one product matches
-  if (!patch.product_slug && patch.model) {
-    let q = sb.from("products").select("slug, name_uk").eq("published", true);
-    for (const t of catalogSearchTokens(patch.model)) q = q.ilike("name_uk", `%${t.replace(/[%_]/g, " ")}%`);
-    const { data: hits } = await q.limit(60);
-    patch.product_slug = pickCatalogMatch(patch.model, (hits ?? []) as { slug: string; name_uk: string }[]) ?? undefined;
-    if (!patch.product_slug) delete patch.product_slug;
-  }
 
   const { data: existing } = await sb.from("olx_deals").select("*").eq("olx_url", olxUrl).maybeSingle();
   const now = new Date().toISOString();
@@ -89,8 +81,7 @@ export async function POST(req: NextRequest) {
       .select("*")
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    await notifyOwner(sb, prev.status, data as OlxDeal);
-    return NextResponse.json({ deal: data, created: false });
+    return NextResponse.json({ deal: await priced(sb, prev.status, data as OlxDeal), created: false });
   }
 
   const { data, error } = await sb
@@ -99,18 +90,18 @@ export async function POST(req: NextRequest) {
     .select("*")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await notifyOwner(sb, null, data as OlxDeal);
-  return NextResponse.json({ deal: data, created: true });
+  return NextResponse.json({ deal: await priced(sb, null, data as OlxDeal), created: true });
 }
 
-/** Telegram to the owner when a deal starts waiting for an ок, or is bought. */
-async function notifyOwner(sb: ReturnType<typeof createServiceClient>, was: string | null, deal: OlxDeal) {
-  if (deal.status === was || (deal.status !== "needs_ok" && deal.status !== "bought")) return;
-  type Product = { price: number; name_uk: string };
-  const product: Product | null = deal.product_slug
-    ? ((await sb.from("products").select("price, name_uk").eq("slug", deal.product_slug).maybeSingle()).data as Product | null)
-    : null;
-  const d: DealWithPrice = { ...deal, new_price: product ? Number(product.price) : null, product_name: product?.name_uk ?? null };
-  if (deal.status === "needs_ok") await notifyNeedsOk(d);
-  else await notifyBought(d);
+/**
+ * The deal with its buying prices, so the bot sees at once what this item is
+ * worth to us; tells the owner in Telegram when it starts waiting for an ок or is bought.
+ */
+async function priced(sb: ReturnType<typeof createServiceClient>, was: string | null, deal: OlxDeal) {
+  const [d] = withPrices([deal], await loadModels(sb));
+  if (d.status !== was) {
+    if (d.status === "needs_ok") await notifyNeedsOk(d);
+    else if (d.status === "bought") await notifyBought(d);
+  }
+  return d;
 }

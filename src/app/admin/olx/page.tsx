@@ -2,17 +2,19 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  CONDITION_LABEL,
   OLX_STATUSES,
   STATUS_LABEL,
-  pctOfNew,
-  priceWindow,
   zone,
-  type OlxDeal,
+  type BuyPrices,
+  type OlxModel,
   type OlxStatus,
+  type TerminalDeal,
 } from "@/lib/olx-terminal";
+import { ModelsPanel } from "./ModelsPanel";
 import { ProTerminal } from "./ProTerminal";
 
-type Row = OlxDeal & { new_price: number | null; product_name: string | null };
+type Row = TerminalDeal;
 
 const money = (n: number | null | undefined) =>
   n ? new Intl.NumberFormat("uk-UA").format(n) : "—";
@@ -32,15 +34,20 @@ const STATUS_CLASS: Record<OlxStatus, string> = {
   lost: "bg-zinc-200 text-zinc-500",
 };
 
-function Price({ value, n }: { value: number | null; n: number | null }) {
+function Price({ value, buy }: { value: number | null; buy: BuyPrices | null }) {
   if (!value) return <span className="text-zinc-400">—</span>;
-  const z = zone(value, n);
-  return (
-    <span className={`inline-block rounded px-1.5 py-0.5 tabular-nums ${z ? ZONE_CLASS[z] : ""}`}>
-      {money(value)}
-      {n ? <span className="ml-1 text-[11px] opacity-70">{pctOfNew(value, n)}</span> : null}
-    </span>
-  );
+  const z = zone(value, buy);
+  return <span className={`inline-block rounded px-1.5 py-0.5 tabular-nums ${z ? ZONE_CLASS[z] : ""}`}>{money(value)}</span>;
+}
+
+/** "як нове · коробка ✓ · без документів", "?" where the bot has not found out yet. */
+function conditionText(r: Row) {
+  const yn = (v: boolean | null, yes: string, no: string, ask: string) => (v === true ? yes : v === false ? no : ask);
+  return [
+    r.condition ? CONDITION_LABEL[r.condition] : "стан ?",
+    yn(r.has_box, "коробка ✓", "без коробки", "коробка ?"),
+    yn(r.has_docs, "документи ✓", "без документів", "документи ?"),
+  ].join(" · ");
 }
 
 function ago(iso: string) {
@@ -61,14 +68,16 @@ export default function AdminOlxTerminalPage() {
   const [form, setForm] = useState({ olx_url: "", model: "", seller_name: "", asking_price: "" });
   const [formMsg, setFormMsg] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
-  // "Класичний" table or the "Pro" trading screen; remembered in this browser
-  const [view, setView] = useState<"classic" | "pro">("classic");
+  const [models, setModels] = useState<OlxModel[]>([]);
+  // "Класичний" table, the "Pro" trading screen or the price list; remembered in this browser
+  const [view, setView] = useState<"classic" | "pro" | "models">("classic");
   useEffect(() => {
     try {
-      if (localStorage.getItem("olx-view") === "pro") setView("pro");
+      const v = localStorage.getItem("olx-view");
+      if (v === "pro" || v === "models") setView(v);
     } catch {}
   }, []);
-  const switchView = (v: "classic" | "pro") => {
+  const switchView = (v: "classic" | "pro" | "models") => {
     setView(v);
     try {
       localStorage.setItem("olx-view", v);
@@ -89,7 +98,7 @@ export default function AdminOlxTerminalPage() {
       return;
     }
     setForm({ olx_url: "", model: "", seller_name: "", asking_price: "" });
-    setFormMsg(d.deal?.product_slug ? "Додано, модель знайдена в каталозі" : "Додано, але модель не знайдена в каталозі — уточніть назву");
+    setFormMsg(d.deal?.buy ? "Додано, ціни на модель знайдено" : "Додано, але ціни на цю модель ще немає — додайте її в «Моделі й ціни»");
     await load();
   };
 
@@ -133,10 +142,15 @@ export default function AdminOlxTerminalPage() {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch("/api/admin/olx", { cache: "no-store" });
+      const [r, m] = await Promise.all([
+        fetch("/api/admin/olx", { cache: "no-store" }),
+        fetch("/api/admin/olx/models", { cache: "no-store" }),
+      ]);
       const d = await r.json();
+      const md = await m.json().catch(() => ({}));
       setRows(d.deals ?? []);
-      setError(d.error ?? null);
+      setModels(md.models ?? []);
+      setError(d.error ?? (md.error?.includes("olx_models") ? "olx_models" : null));
     } catch {
       setError("Не вдалося завантажити");
     }
@@ -189,12 +203,10 @@ export default function AdminOlxTerminalPage() {
     return c;
   }, [rows]);
 
-  // What the bargaining actually lands at — the number to teach the bots
   const boughtStats = useMemo(() => {
-    const b = rows.filter((r) => r.status === "bought" && r.final_price && r.new_price);
+    const b = rows.filter((r) => r.status === "bought" && r.final_price);
     if (!b.length) return null;
-    const avg = b.reduce((s, r) => s + (r.final_price as number) / (r.new_price as number), 0) / b.length;
-    return { n: b.length, avg: Math.round(avg * 100) };
+    return { n: b.length, spent: b.reduce((s, r) => s + (r.final_price as number), 0) };
   }, [rows]);
 
   return (
@@ -203,31 +215,39 @@ export default function AdminOlxTerminalPage() {
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">OLX-термінал</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Знахідки й торг ботів. Ціни — до ціни нового у нас (N): ціль 20%, стеля 35%.
+            Знахідки й торг ботів. У кожної моделі свої ціль і стеля, з поправками на стан, коробку й документи.
             Оновлюється кожні 15 с.
           </p>
         </div>
         <div className="flex overflow-hidden rounded-lg border border-zinc-300 text-sm">
-          {(["classic", "pro"] as const).map((v) => (
+          {(["classic", "pro", "models"] as const).map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => switchView(v)}
               className={`px-3 py-1.5 ${view === v ? (v === "pro" ? "bg-zinc-900 font-semibold text-white" : "bg-zinc-200 font-semibold text-zinc-900") : "text-zinc-600 hover:bg-zinc-100"}`}
             >
-              {v === "pro" ? "Pro" : "Класичний"}
+              {v === "pro" ? "Pro" : v === "models" ? "Моделі й ціни" : "Класичний"}
             </button>
           ))}
         </div>
         {boughtStats ? (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-            Куплено: <b>{boughtStats.n}</b> · у середньому за <b>{boughtStats.avg}%</b> від N
+            Куплено: <b>{boughtStats.n}</b> на <b>{money(boughtStats.spent)}</b> грн
           </div>
         ) : null}
       </div>
 
-      {view === "pro" ? (
-        <ProTerminal rows={rows} busy={busy} decide={decide} requestRefresh={requestRefresh} refreshAll={refreshAll} />
+      {error === "olx_models" ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          Таблиці цін olx_models ще немає в базі — запустіть міграцію 012_olx_models.sql у Supabase.
+        </p>
+      ) : null}
+
+      {view === "models" ? (
+        <ModelsPanel models={models} deals={rows} reload={load} />
+      ) : view === "pro" ? (
+        <ProTerminal rows={rows} models={models} busy={busy} decide={decide} requestRefresh={requestRefresh} refreshAll={refreshAll} />
       ) : (
       <>
       <form onSubmit={addListing} className="flex flex-wrap items-end gap-2 rounded-xl border border-zinc-200 bg-white p-3 text-sm">
@@ -275,7 +295,7 @@ export default function AdminOlxTerminalPage() {
         ))}
       </div>
 
-      {error ? (
+      {error && error !== "olx_models" ? (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           {error.includes("olx_deals") ? "Таблиці olx_deals ще немає в базі — запустіть міграцію 008_olx_terminal.sql у Supabase." : error}
         </p>
@@ -290,15 +310,13 @@ export default function AdminOlxTerminalPage() {
               <th className="px-3 py-2">Хоче</th>
               <th className="px-3 py-2">Пропонуємо</th>
               <th className="px-3 py-2">Торг на</th>
-              <th className="px-3 py-2">Ціна нового</th>
-              <th className="px-3 py-2">20% / 35%</th>
+              <th className="px-3 py-2">Ціль / стеля</th>
               <th className="px-3 py-2">Статус</th>
               <th className="px-3 py-2">Оновлено</th>
             </tr>
           </thead>
           <tbody>
             {shown.map((r) => {
-              const w = priceWindow(r.new_price);
               const isOpen = open === r.id;
               return (
                 <Fragment key={r.id}>
@@ -309,7 +327,7 @@ export default function AdminOlxTerminalPage() {
                     <td className="px-3 py-2">
                       <div className="font-medium text-zinc-900">
                         <span className="mr-1 inline-block w-3 text-zinc-400">{isOpen ? "▴" : "▾"}</span>
-                        {r.product_name || r.model || r.title || "—"}
+                        {r.buy?.model_name || r.model || r.title || "—"}
                       </div>
                       <a
                         href={r.olx_url}
@@ -320,7 +338,8 @@ export default function AdminOlxTerminalPage() {
                       >
                         OLX ↗{r.city ? ` · ${r.city}` : ""}
                       </a>
-                      {!r.product_slug ? <span className="ml-2 text-xs text-amber-700">немає в каталозі</span> : null}
+                      {!r.buy ? <span className="ml-2 text-xs text-amber-700">немає ціни на модель</span> : null}
+                      <div className="text-[11px] text-zinc-500">{conditionText(r)}</div>
                     </td>
                     <td className="px-3 py-2 text-zinc-700">
                       {r.seller_name || "—"}
@@ -339,12 +358,12 @@ export default function AdminOlxTerminalPage() {
                         </div>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2"><Price value={r.asking_price} n={r.new_price} /></td>
-                    <td className="px-3 py-2"><Price value={r.our_offer} n={r.new_price} /></td>
-                    <td className="px-3 py-2"><Price value={r.bargain_at} n={r.new_price} /></td>
-                    <td className="px-3 py-2 tabular-nums text-zinc-900">{money(r.new_price)}</td>
+                    <td className="px-3 py-2"><Price value={r.asking_price} buy={r.buy} /></td>
+                    <td className="px-3 py-2"><Price value={r.our_offer} buy={r.buy} /></td>
+                    <td className="px-3 py-2"><Price value={r.bargain_at} buy={r.buy} /></td>
                     <td className="px-3 py-2 tabular-nums text-zinc-600">
-                      {w ? `${money(w.target)} / ${money(w.ceiling)}` : "—"}
+                      {r.buy ? `${money(r.buy.target)} / ${money(r.buy.ceiling)}` : "—"}
+                      {r.buy?.unknown.length ? <div className="text-[10px] text-amber-700">уточнити: {r.buy.unknown.join(", ")}</div> : null}
                     </td>
                     <td className="px-3 py-2">
                       <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_CLASS[r.status]}`}>{STATUS_LABEL[r.status]}</span>
@@ -372,7 +391,7 @@ export default function AdminOlxTerminalPage() {
                   </tr>
                   {isOpen ? (
                     <tr className="border-t border-zinc-100 bg-zinc-50/60">
-                      <td colSpan={9} className="px-3 py-3">
+                      <td colSpan={8} className="px-3 py-3">
                         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
                           <div className="max-h-80 space-y-1.5 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-3">
                             {r.chat?.length ? (
@@ -443,7 +462,7 @@ export default function AdminOlxTerminalPage() {
                               <div className="flex gap-2">
                                 <input
                                   inputMode="numeric"
-                                  placeholder={String(r.bargain_at || r.our_offer || w?.target || "")}
+                                  placeholder={String(r.bargain_at || r.our_offer || r.buy?.target || "")}
                                   value={okPrice[r.id] ?? ""}
                                   onChange={(e) => setOkPrice({ ...okPrice, [r.id]: e.target.value })}
                                   className="w-28 rounded border border-zinc-300 px-2 py-1"
@@ -502,7 +521,7 @@ export default function AdminOlxTerminalPage() {
             })}
             {!shown.length ? (
               <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-zinc-400">
+                <td colSpan={8} className="px-3 py-10 text-center text-zinc-400">
                   Поки порожньо — боти ще нічого не внесли.
                 </td>
               </tr>

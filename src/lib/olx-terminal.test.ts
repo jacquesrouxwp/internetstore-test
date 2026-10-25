@@ -1,17 +1,46 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { normalizeOlxUrl, parseDealPatch, parseMessages, pctOfNew, pickCatalogMatch, priceWindow, zone } from "./olx-terminal";
+import { buyPrices, matchModel, normalizeOlxUrl, parseDealPatch, parseMessages, zone, type OlxModel } from "./olx-terminal";
 
-describe("olx terminal arithmetic", () => {
-  it("takes 20% and 35% of the new price, rounded to 100", () => {
-    assert.deepEqual(priceWindow(199999), { newPrice: 199999, target: 40000, ceiling: 70000 });
-    assert.equal(priceWindow(0), null);
+const th35: OlxModel = {
+  id: "th35",
+  name: "HikMicro Thunder TH35",
+  aliases: [],
+  category: "тепловізори",
+  target_price: 30000,
+  ceiling_price: 38000,
+  adjust: { new: 3000, used: 4000, no_box: 1500, no_docs: 2000 },
+  notes: null,
+};
+
+describe("buying prices per model", () => {
+  it("takes the model's prices for a full kit in like-new condition", () => {
+    const b = buyPrices(th35, { condition: "like_new", has_box: true, has_docs: true })!;
+    assert.equal(b.target, 30000);
+    assert.equal(b.ceiling, 38000);
+    assert.deepEqual(b.unknown, []);
+  });
+  it("moves both prices by condition, box and documents", () => {
+    const b = buyPrices(th35, { condition: "used", has_box: false, has_docs: true })!;
+    assert.equal(b.target, 30000 - 4000 - 1500);
+    assert.equal(b.ceiling, 38000 - 4000 - 1500);
+    assert.equal(buyPrices(th35, { condition: "new", has_box: true, has_docs: true })!.target, 33000);
+  });
+  it("prices what is not known yet as the worse case, and says what to ask", () => {
+    const b = buyPrices(th35, { condition: null, has_box: null, has_docs: true })!;
+    assert.equal(b.target, 30000 - 4000 - 1500);
+    assert.deepEqual(b.unknown, ["стан", "коробка"]);
+  });
+  it("leaves a defect to the owner whatever the price", () => {
+    const b = buyPrices(th35, { condition: "defect", has_box: true, has_docs: true })!;
+    assert.equal(zone(1000, b), "owner");
   });
   it("places prices in the zones", () => {
-    assert.equal(zone(20000, 100000), "good");
-    assert.equal(zone(30000, 100000), "owner");
-    assert.equal(zone(40000, 100000), "out");
-    assert.equal(pctOfNew(27000, 100000), "27%");
+    const b = buyPrices(th35, { condition: "like_new", has_box: true, has_docs: true });
+    assert.equal(zone(30000, b), "good");
+    assert.equal(zone(35000, b), "owner");
+    assert.equal(zone(40000, b), "out");
+    assert.equal(buyPrices({ ...th35, target_price: null }, { condition: null, has_box: null, has_docs: null }), null);
   });
 });
 
@@ -24,6 +53,12 @@ describe("olx terminal input", () => {
     assert.deepEqual(parseDealPatch({ asking_price: "40 000 грн", status: "needs_ok", hack: 1 }), { asking_price: 40000, status: "needs_ok" });
     assert.deepEqual(parseDealPatch({ status: "drop table" }), {});
   });
+  it("reads condition, box and documents in words", () => {
+    assert.deepEqual(parseDealPatch({ condition: "як нове", has_box: "так", has_docs: "немає" }), { condition: "like_new", has_box: true, has_docs: false });
+    assert.equal(parseDealPatch({ condition: "б/у" }).condition, "used");
+    assert.equal(parseDealPatch({ condition: "після ремонту" }).condition, "defect");
+    assert.equal(parseDealPatch({ has_box: "?" }).has_box, null);
+  });
   it("reads chat lines from either side", () => {
     const m = parseMessages([{ from: "us", text: "за 19 700 віддасте?" }, { from: "x", text: "?" }]);
     assert.equal(m.length, 1);
@@ -31,38 +66,24 @@ describe("olx terminal input", () => {
   });
 });
 
-describe("pickCatalogMatch", () => {
-  const cat = [
-    { slug: "le10s", name_uk: "Тепловізор HikMicro LYNX Pro LE10S" },
-    { slug: "th35", name_uk: "Тепловізійний приціл HikMicro Thunder TH35" },
-    { slug: "th35pc", name_uk: "Тепловізійна насадка HikMicro THUNDER TH35PC 2.0" },
+describe("matchModel", () => {
+  const models = [
+    { id: "le10s", name: "HikMicro LYNX Pro LE10S" },
+    { id: "th35", name: "Thunder TH35", aliases: ["TH35 Thunder"] },
+    { id: "tyke", name: "Tyke L325" },
+    { id: "rh50", name: "RICO RH50" },
+    { id: "rh50v2", name: "RICO RH50 V2" },
+    { id: "e6v3", name: "XEYE 2 E6+ V3" },
   ];
-  it("does not take a longer model for a shorter one", () => {
-    assert.equal(pickCatalogMatch("HikMicro LYNX Pro LE10", cat), null);
-    assert.equal(pickCatalogMatch("Thunder TH35C", cat), null);
+  it("does not take one model for another", () => {
+    assert.equal(matchModel("HikMicro LYNX Pro LE10", models), null);
+    assert.equal(matchModel("Thunder TH35C", models), null);
   });
-  it("finds catalogue names written differently", () => {
-    const inf = [
-      { slug: "tyke", name_uk: "Тепловізійний приціл INFIRAY (IRAY) Tyke L325" },
-      { slug: "e6v3", name_uk: "Тепловізор INFIRAY (IRAY) XEYE 2 E6 + V3" },
-      { slug: "e6", name_uk: "Тепловізор INFIRAY (IRAY) XEYE 2 E6 +" },
-      { slug: "rh50", name_uk: "Тепловізійний приціл INFIRAY (IRAY) RICO RH50" },
-      { slug: "rh50v2", name_uk: "Тепловізійний приціл INFIRAY (IRAY) RICO RH50 V2" },
-      { slug: "rh50pro", name_uk: "Тепловізійний приціл INFIRAY (IRAY) RICO RH50Pro" },
-    ];
-    assert.equal(pickCatalogMatch("InfiRay Tyke L325", inf), "tyke");
-    assert.equal(pickCatalogMatch("InfiRay XEYE 2 E6+ V3", inf), "e6v3");
-    assert.equal(pickCatalogMatch("InfiRay RICO RH50Pro", inf), "rh50pro");
-    assert.equal(pickCatalogMatch("InfiRay RICO RH50", inf), "rh50");
-    const pvs = [
-      { slug: "mount", name_uk: "Кріплення WILCOX L4 для PVS-14" },
-      { slug: "nl1", name_uk: "Прилад нічного бачення AGM PVS-14 NL1" },
-    ];
-    assert.equal(pickCatalogMatch("PVS-14", pvs), null);
-    assert.equal(pickCatalogMatch("AGM PVS-14 NL1", pvs), "nl1");
-  });
-  it("takes the one whole match", () => {
-    assert.equal(pickCatalogMatch("Thunder TH35", cat), "th35");
-    assert.equal(pickCatalogMatch("LYNX Pro LE10S", cat), "le10s");
+  it("ignores brand and type words and word order", () => {
+    assert.equal(matchModel("Тепловізійний приціл HikMicro Thunder TH35", models)?.id, "th35");
+    assert.equal(matchModel("InfiRay Tyke L325", models)?.id, "tyke");
+    assert.equal(matchModel("InfiRay XEYE 2 E6 + V3", models)?.id, "e6v3");
+    assert.equal(matchModel("RICO RH50", models)?.id, "rh50");
+    assert.equal(matchModel("RICO RH50 V2", models)?.id, "rh50v2");
   });
 });
