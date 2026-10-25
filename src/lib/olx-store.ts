@@ -13,7 +13,10 @@ type Sb = ReturnType<typeof createServiceClient>;
 /** The whole price list — a few hundred rows at most. Empty if the table is not there yet. */
 export async function loadModels(sb: Sb): Promise<OlxModel[]> {
   const { data, error } = await sb.from("olx_models").select("*").order("name");
-  if (error) return [];
+  if (error) {
+    console.error("[olx] price list", error.message);
+    return [];
+  }
   return (data ?? []) as OlxModel[];
 }
 

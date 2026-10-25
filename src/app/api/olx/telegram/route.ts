@@ -9,6 +9,8 @@ import { isOwnerChat, tg, webhookSecret } from "@/lib/olx-telegram";
  */
 
 export const dynamic = "force-dynamic";
+// Supabase answers go through fetch; a cached one would hide new prices from the bots
+export const fetchCache = "force-no-store";
 
 type Update = {
   message?: { chat: { id: number }; text?: string };
