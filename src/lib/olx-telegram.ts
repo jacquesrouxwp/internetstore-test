@@ -44,7 +44,7 @@ const yn = (v: boolean | null, word: string) => (v === true ? `${word} ✓` : v 
 
 /** What the seller says about the item: "як нове · коробка ✓ · без документів". */
 export function conditionLine(d: OlxDeal): string {
-  return [d.condition ? CONDITION_LABEL[d.condition] : "стан ?", yn(d.has_box, "коробка"), yn(d.has_docs, "документи"), d.kit]
+  return [d.grade ? (d.grade === 10 ? "нове" : `${d.grade}/10`) : d.condition ? CONDITION_LABEL[d.condition] : "стан ?", yn(d.has_box, "коробка"), yn(d.has_docs, "документи"), d.kit]
     .filter(Boolean)
     .join(" · ");
 }
@@ -61,9 +61,11 @@ export function dealText(d: TerminalDeal, head: string): string {
     `Хоче: <b>${uah(d.asking_price)}</b>`,
     d.bargain_at ? `Торг на: <b>${uah(d.bargain_at)}</b>` : "",
     d.our_offer ? `Ми пропонували: ${uah(d.our_offer)}` : "",
-    b
-      ? `Для цього стану: ціль ${uah(b.target)} · стеля ${uah(b.ceiling)}${b.unknown.length ? ` (не відомо: ${b.unknown.join(", ")})` : ""}`
-      : "Ціни на цю модель ще немає — вирішуйте самі",
+    !b
+      ? "Ціни на цю модель ще немає — вирішуйте самі"
+      : b.to
+        ? `${esc(b.tier_label ?? "")}: від ${uah(b.from)} до ${uah(b.to)}${b.needs_ok ? " · лише з вашим ок" : ""}${b.unknown.length ? ` (уточнити: ${b.unknown.join(", ")})` : ""}`
+        : `${b.tier_label ? `${esc(b.tier_label)}: ` : ""}ціни немає${b.unknown.length ? ` (уточнити: ${b.unknown.join(", ")})` : ""}`,
     lastSeller ? `\nПродавець: «${esc(lastSeller.text.slice(0, 200))}»` : "",
     `\n<a href="${esc(d.olx_url)}">Оголошення на OLX</a>`,
   ]

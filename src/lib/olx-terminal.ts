@@ -1,8 +1,9 @@
 /**
- * OLX terminal — shared shapes and arithmetic. Every model has its own buying
- * prices (olx_models, set by the owner): a target the bot may close at, and a
- * ceiling up to which the owner decides. Both move with what the seller says
- * about the item: its condition, whether the box and the documents are there.
+ * OLX terminal — shared shapes and arithmetic. The owner prices every model
+ * by the state of the item: new with box and documents, new without them,
+ * 9/10, 8/10… Each state has its own range: the bot opens at "від" and may
+ * go up to "до"; a tick "наш ОК" makes it wait for the owner instead of
+ * buying (and sending our address) by itself.
  */
 
 export const OLX_STATUSES = ["new", "negotiating", "needs_ok", "bought", "rejected", "lost"] as const;
@@ -45,6 +46,8 @@ export type OlxDeal = {
   model: string | null;
   /** What the seller says about the item; null = not asked yet */
   condition: OlxCondition | null;
+  /** Condition out of 10, 10 = new, never used */
+  grade: number | null;
   has_box: boolean | null;
   has_docs: boolean | null;
   /** What else comes with it: charger, case, batteries… */
@@ -66,20 +69,31 @@ export type OlxDeal = {
   updated_at: string;
 };
 
-/** Money the condition moves the model's prices by, in UAH: "new" adds, the rest take off. */
-export type OlxAdjust = { new?: number; used?: number; no_box?: number; no_docs?: number };
+/** The states the owner prices a model by, best first. */
+export const OLX_TIERS = [
+  { key: "new_full", label: "Нове, коробка + документи" },
+  { key: "new_bare", label: "Нове, без коробки чи документів" },
+  { key: "g9", label: "9/10" },
+  { key: "g8", label: "8/10" },
+  { key: "g7", label: "7/10" },
+  { key: "g6", label: "6/10 і нижче" },
+] as const;
+export type OlxTierKey = (typeof OLX_TIERS)[number]["key"];
+export const TIER_LABEL = Object.fromEntries(OLX_TIERS.map((t) => [t.key, t.label])) as Record<OlxTierKey, string>;
+
+/** One state's range: the bot opens at `from`, goes no higher than `to`; `needs_ok` = only with the owner's ок. */
+export type OlxTier = { from: number | null; to: number | null; needs_ok: boolean };
 
 export type OlxModel = {
   id: string;
   name: string;
+  /** Our catalogue product this price list belongs to, when it is one */
+  product_slug: string | null;
+  brand: string | null;
+  category: string | null;
   /** Other ways sellers and bots write it */
   aliases: string[];
-  category: string | null;
-  /** The bot may close at this — for "як нове", with box and documents */
-  target_price: number | null;
-  /** Up to this the owner decides; above it we pass */
-  ceiling_price: number | null;
-  adjust: OlxAdjust;
+  tiers: Partial<Record<OlxTierKey, OlxTier>>;
   notes: string | null;
   created_at?: string;
   updated_at?: string;
@@ -88,59 +102,66 @@ export type OlxModel = {
 export type BuyPrices = {
   model_id: string;
   model_name: string;
-  target: number;
-  ceiling: number;
-  /** How the condition moved the model's prices */
-  steps: { label: string; amount: number }[];
-  /** What the bot still has to ask; priced as the worse case until then */
+  /** Which of the model's states this item is in; null until the bot knows */
+  tier: OlxTierKey | null;
+  tier_label: string | null;
+  /** The bot's opening offer */
+  from: number | null;
+  /** The most the bot may pay */
+  to: number | null;
+  /** Even within the range, only with the owner's ок */
+  needs_ok: boolean;
+  /** What the bot still has to find out before it may buy */
   unknown: string[];
-  /** A defect: no price is safe, the owner decides every time */
+  /** No price for this state, or a defect: the owner decides every time */
   owner_only: boolean;
 };
 
-/** Target and ceiling for this item, from its model's prices and what the seller says. */
+/** The state an item is in, from what the seller says, and what is still to ask. */
+export function tierFor(d: Pick<OlxDeal, "condition" | "grade" | "has_box" | "has_docs">): { tier: OlxTierKey | null; unknown: string[] } {
+  const isNew = d.grade === 10 || (d.grade == null && d.condition === "new");
+  if (isNew) {
+    const unknown = [d.has_box == null ? "коробка" : "", d.has_docs == null ? "документи" : ""].filter(Boolean);
+    // Without a word on the box or the documents, priced as without them
+    return { tier: d.has_box === true && d.has_docs === true ? "new_full" : "new_bare", unknown };
+  }
+  if (d.grade == null) return { tier: null, unknown: ["стан (оцінка з 10)"] };
+  return { tier: d.grade >= 9 ? "g9" : d.grade === 8 ? "g8" : d.grade === 7 ? "g7" : "g6", unknown: [] };
+}
+
+/** This item's range from its model's price list and what the seller says. */
 export function buyPrices(
   m: OlxModel | null | undefined,
-  d: Pick<OlxDeal, "condition" | "has_box" | "has_docs">,
+  d: Pick<OlxDeal, "condition" | "grade" | "has_box" | "has_docs">,
 ): BuyPrices | null {
-  if (!m || !m.target_price) return null;
-  const a = m.adjust || {};
-  const steps: { label: string; amount: number }[] = [];
-  const unknown: string[] = [];
-  const take = (label: string, v: number | undefined) => {
-    if (v) steps.push({ label, amount: -Math.abs(v) });
+  if (!m) return null;
+  const { tier, unknown } = tierFor(d);
+  const t = tier ? m.tiers?.[tier] : undefined;
+  const priced = Boolean(t?.to);
+  return {
+    model_id: m.id,
+    model_name: m.name,
+    tier,
+    tier_label: tier ? TIER_LABEL[tier] : null,
+    from: priced ? t!.from || t!.to : null,
+    to: priced ? t!.to : null,
+    needs_ok: Boolean(t?.needs_ok),
+    unknown,
+    owner_only: d.condition === "defect" || (tier != null && !priced),
   };
-  if (d.condition === "new" && a.new) steps.push({ label: "нове", amount: Math.abs(a.new) });
-  else if (d.condition === "used" || d.condition === "defect") take(CONDITION_LABEL[d.condition], a.used);
-  else if (!d.condition) {
-    unknown.push("стан");
-    take("стан не відомий", a.used);
-  }
-  if (d.has_box === false) take("без коробки", a.no_box);
-  else if (d.has_box == null) {
-    unknown.push("коробка");
-    take("коробка не відома", a.no_box);
-  }
-  if (d.has_docs === false) take("без документів", a.no_docs);
-  else if (d.has_docs == null) {
-    unknown.push("документи");
-    take("документи не відомі", a.no_docs);
-  }
-  const shift = steps.reduce((sum, x) => sum + x.amount, 0);
-  const target = Math.max(0, m.target_price + shift);
-  const ceiling = Math.max(target, (m.ceiling_price || m.target_price) + shift);
-  return { model_id: m.id, model_name: m.name, target, ceiling, steps, unknown, owner_only: d.condition === "defect" };
 }
+
+/** One of our products, for pricing its buy-ups in the price list. */
+export type CatalogItem = { slug: string; name: string; brand: string; category: string; price: number };
 
 /** A deal as the terminal, the bots and Telegram see it: with its prices for this item. */
 export type TerminalDeal = OlxDeal & { buy: BuyPrices | null };
 
-/** Where a price sits: ≤ target the bot closes, ≤ ceiling the owner decides, above is out. */
+/** Where a price sits: within the range the bot buys (or asks you, if ticked), above it is out. */
 export function zone(price: number | null | undefined, b: BuyPrices | null | undefined): "good" | "owner" | "out" | null {
-  if (!b || !price) return null;
-  if (price <= b.target && !b.owner_only) return "good";
-  if (price <= b.ceiling) return "owner";
-  return "out";
+  if (!b || !price || !b.to) return null;
+  if (price > b.to) return "out";
+  return b.needs_ok || b.owner_only || b.unknown.length ? "owner" : "good";
 }
 
 const int = (v: unknown): number | null => {
@@ -161,6 +182,12 @@ function yesNo(v: unknown): boolean | null {
   if (["true", "yes", "так", "є", "есть", "да", "1"].includes(t)) return true;
   if (["false", "no", "ні", "немає", "нема", "нет", "0"].includes(t)) return false;
   return null;
+}
+
+/** 1–10 from 8, "8/10", "8 з 10"; anything else is not known. */
+function parseGrade(v: unknown): number | null {
+  const n = Number(String(v ?? "").trim().split(/[\s/]/)[0].replace(",", "."));
+  return Number.isFinite(n) && n >= 1 && n <= 10 ? Math.round(n) : null;
 }
 
 /** "like_new" or the words a bot may pass: "як нове", "б/у", "дефект". */
@@ -188,7 +215,7 @@ export function normalizeOlxUrl(raw: unknown): string | null {
 }
 
 export type DealPatch = Partial<
-  Pick<OlxDeal, "title" | "seller_name" | "city" | "listed_at" | "product_slug" | "model_id" | "model" | "condition" | "has_box" | "has_docs" | "kit" | "condition_notes" | "asking_price" | "our_offer" | "bargain_at" | "final_price" | "status" | "notes">
+  Pick<OlxDeal, "title" | "seller_name" | "city" | "listed_at" | "product_slug" | "model_id" | "model" | "condition" | "grade" | "has_box" | "has_docs" | "kit" | "condition_notes" | "asking_price" | "our_offer" | "bargain_at" | "final_price" | "status" | "notes">
 >;
 
 /** Fields a bot may set; anything else in the body is ignored. */
@@ -205,6 +232,7 @@ export function parseDealPatch(body: Record<string, unknown>): DealPatch {
   if ("model" in body) p.model = str(body.model, 200);
   if ("model_id" in body) p.model_id = str(body.model_id, 64);
   if ("condition" in body) p.condition = parseCondition(body.condition);
+  if ("grade" in body) p.grade = parseGrade(body.grade);
   if ("has_box" in body) p.has_box = yesNo(body.has_box);
   if ("has_docs" in body) p.has_docs = yesNo(body.has_docs);
   if ("kit" in body) p.kit = str(body.kit, 500);
@@ -250,7 +278,9 @@ const GENERIC_WORDS = new Set([
   "nvectech", "leonardo", "drs", "yukon", "flir", "conotech", "arkon",
 ]);
 
-const core = (s: string) => Array.from(new Set(modelTokens(s).filter((w) => !GENERIC_WORDS.has(w)))).sort().join(" ");
+// Words in brackets are article codes and brand aliases: "INFIRAY (IRAY)", "(HM-TR13-35XF/W-TH35)"
+const core = (s: string) =>
+  Array.from(new Set(modelTokens(s.replace(/\([^)]*\)/g, " ")).filter((w) => !GENERIC_WORDS.has(w)))).sort().join(" ");
 
 /**
  * The owner's model a deal's model name means, or null. The words that tell

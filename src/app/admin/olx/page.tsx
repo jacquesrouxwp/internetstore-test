@@ -44,7 +44,7 @@ function Price({ value, buy }: { value: number | null; buy: BuyPrices | null }) 
 function conditionText(r: Row) {
   const yn = (v: boolean | null, yes: string, no: string, ask: string) => (v === true ? yes : v === false ? no : ask);
   return [
-    r.condition ? CONDITION_LABEL[r.condition] : "стан ?",
+    r.condition === "defect" ? CONDITION_LABEL.defect : r.grade ? (r.grade === 10 ? "нове" : `${r.grade}/10`) : r.condition ? CONDITION_LABEL[r.condition] : "стан ?",
     yn(r.has_box, "коробка ✓", "без коробки", "коробка ?"),
     yn(r.has_docs, "документи ✓", "без документів", "документи ?"),
   ].join(" · ");
@@ -215,7 +215,7 @@ export default function AdminOlxTerminalPage() {
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">OLX-термінал</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Знахідки й торг ботів. У кожної моделі свої ціль і стеля, з поправками на стан, коробку й документи.
+            Знахідки й торг ботів. Ціни — ваші діапазони «від–до» для кожної моделі за станом приладу.
             Оновлюється кожні 15 с.
           </p>
         </div>
@@ -310,7 +310,7 @@ export default function AdminOlxTerminalPage() {
               <th className="px-3 py-2">Хоче</th>
               <th className="px-3 py-2">Пропонуємо</th>
               <th className="px-3 py-2">Торг на</th>
-              <th className="px-3 py-2">Ціль / стеля</th>
+              <th className="px-3 py-2">Наш діапазон</th>
               <th className="px-3 py-2">Статус</th>
               <th className="px-3 py-2">Оновлено</th>
             </tr>
@@ -362,7 +362,8 @@ export default function AdminOlxTerminalPage() {
                     <td className="px-3 py-2"><Price value={r.our_offer} buy={r.buy} /></td>
                     <td className="px-3 py-2"><Price value={r.bargain_at} buy={r.buy} /></td>
                     <td className="px-3 py-2 tabular-nums text-zinc-600">
-                      {r.buy ? `${money(r.buy.target)} / ${money(r.buy.ceiling)}` : "—"}
+                      {r.buy?.to ? `${money(r.buy.from)}–${money(r.buy.to)}` : "—"}
+                      {r.buy?.tier_label ? <div className="text-[10px] text-zinc-500">{r.buy.tier_label}{r.buy.needs_ok ? " · ваш ок" : ""}</div> : null}
                       {r.buy?.unknown.length ? <div className="text-[10px] text-amber-700">уточнити: {r.buy.unknown.join(", ")}</div> : null}
                     </td>
                     <td className="px-3 py-2">
@@ -462,7 +463,7 @@ export default function AdminOlxTerminalPage() {
                               <div className="flex gap-2">
                                 <input
                                   inputMode="numeric"
-                                  placeholder={String(r.bargain_at || r.our_offer || r.buy?.target || "")}
+                                  placeholder={String(r.bargain_at || r.our_offer || r.buy?.from || "")}
                                   value={okPrice[r.id] ?? ""}
                                   onChange={(e) => setOkPrice({ ...okPrice, [r.id]: e.target.value })}
                                   className="w-28 rounded border border-zinc-300 px-2 py-1"

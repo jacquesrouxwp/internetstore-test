@@ -57,9 +57,13 @@ function Condition({ r }: { r: ProRow }) {
   const yn = (v: boolean | null, yes: string, no: string, ask: string) => (v === true ? chip(yes, "ok") : v === false ? chip(no, "bad") : chip(ask, "ask"));
   return (
     <span className="inline-flex flex-wrap gap-1">
-      {r.condition
-        ? chip(CONDITION_LABEL[r.condition], r.condition === "defect" ? "bad" : r.condition === "used" ? "ask" : "ok")
-        : chip("стан ?", "ask")}
+      {r.condition === "defect"
+        ? chip(CONDITION_LABEL.defect, "bad")
+        : r.grade
+          ? chip(r.grade === 10 ? "нове" : `стан ${r.grade}/10`, r.grade >= 8 ? "ok" : "ask")
+          : r.condition
+            ? chip(CONDITION_LABEL[r.condition], r.condition === "used" ? "ask" : "ok")
+            : chip("стан ?", "ask")}
       {yn(r.has_box, "📦 коробка", "без коробки", "коробка ?")}
       {yn(r.has_docs, "📄 документи", "без документів", "документи ?")}
       {r.kit ? <span className="rounded bg-zinc-800 px-1.5 py-px text-[10px] text-zinc-400">{r.kit}</span> : null}
@@ -67,10 +71,13 @@ function Condition({ r }: { r: ProRow }) {
   );
 }
 
-/** Prices on one scale: green up to the target (the bot buys), amber up to the ceiling (your ок). */
+/** The bot buys by itself within its range unless a tick, a defect or an open question says ask the owner. */
+const auto = (b: NonNullable<ProRow["buy"]>) => Boolean(b.to) && !b.needs_ok && !b.owner_only && !b.unknown.length;
+
+/** Prices on one scale: the range for this item's state — green if the bot buys by itself, amber if it asks you. */
 function Ladder({ r, big = false }: { r: ProRow; big?: boolean }) {
   const b = r.buy;
-  const top = Math.max(b ? b.ceiling * 1.35 : 0, (r.asking_price ?? 0) * 1.08, 1);
+  const top = Math.max(b?.to ? b.to * 1.35 : 0, (r.asking_price ?? 0) * 1.08, 1);
   const pos = (v: number | null | undefined) => (v ? Math.min(100, (v / top) * 100) : null);
   const marks = [
     { v: r.our_offer, cls: "bg-emerald-400", label: "ми" },
@@ -78,17 +85,17 @@ function Ladder({ r, big = false }: { r: ProRow; big?: boolean }) {
     { v: r.asking_price, cls: "bg-rose-500", label: "хоче" },
   ];
   const h = big ? "h-2.5" : "h-1.5";
-  const greenTo = b && !b.owner_only ? pos(b.target)! : 0;
-  const amberTo = b ? pos(b.ceiling)! : 0;
+  const fromAt = b?.to ? pos(b.from)! : 0;
+  const toAt = b?.to ? pos(b.to)! : 0;
   return (
     <div className="pt-1">
       <div className="relative">
         <div className={`${h} rounded-full bg-zinc-700`} />
-        {b ? (
-          <>
-            <div className={`absolute left-0 top-0 ${h} rounded-l-full bg-emerald-500/50`} style={{ width: `${greenTo}%` }} />
-            <div className={`absolute top-0 ${h} bg-amber-400/40`} style={{ left: `${greenTo}%`, width: `${amberTo - greenTo}%` }} />
-          </>
+        {b?.to ? (
+          <div
+            className={`absolute top-0 ${h} rounded-sm ${auto(b) ? "bg-emerald-500/60" : "bg-amber-400/50"}`}
+            style={{ left: `${fromAt}%`, width: `${Math.max(1, toAt - fromAt)}%` }}
+          />
         ) : null}
         {marks.map((m) =>
           pos(m.v) != null ? (
@@ -106,43 +113,48 @@ function Ladder({ r, big = false }: { r: ProRow; big?: boolean }) {
         {r.bargain_at && r.bargain_at !== r.our_offer ? <span className="text-zinc-100">торг {num(r.bargain_at)}</span> : null}
         <span className="text-emerald-300">ми {num(r.our_offer)}</span>
         {r.final_price ? <span className="text-emerald-200">куплено {num(r.final_price)}</span> : null}
-        {b ? (
+        {!b ? (
+          <span className="ml-auto text-amber-300/80">немає цін на модель</span>
+        ) : b.to ? (
           <span className="ml-auto text-zinc-400">
-            ціль <span className="text-emerald-300">{num(b.target)}</span> · стеля <span className="text-amber-300">{num(b.ceiling)}</span>
+            {b.tier_label}: <span className={auto(b) ? "text-emerald-300" : "text-amber-300"}>{num(b.from)}–{num(b.to)}</span>
+            {b.needs_ok ? " · ок" : ""}
           </span>
         ) : (
-          <span className="ml-auto text-amber-300/80">немає ціни на модель</span>
+          <span className="ml-auto text-amber-300/80">{b.tier ? `${b.tier_label}: ціни немає` : "стан ще не відомий"}</span>
         )}
       </div>
     </div>
   );
 }
 
-/** How this item's target and ceiling came out of the model's prices. */
-function PriceSteps({ r, models }: { r: ProRow; models: OlxModel[] }) {
+/** What the bot may do with this item, and why. */
+function PriceSteps({ r }: { r: ProRow }) {
   const b = r.buy;
   if (!b) {
     return (
       <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[12px] text-amber-200">
-        Ціни на «{r.model || r.title || "цю модель"}» ще немає — бот не знає, скільки пропонувати. Додайте її у вкладці «Моделі й ціни».
+        Цін на «{r.model || r.title || "цю модель"}» ще немає — бот не знає, скільки пропонувати. Задайте їх у вкладці «Моделі й ціни».
       </p>
     );
   }
-  const m = models.find((x) => x.id === b.model_id);
   return (
-    <div className="mt-2 rounded-lg bg-zinc-950/60 px-2.5 py-1.5 font-mono text-[12px] text-zinc-400">
-      <span>модель {num(m?.target_price)} / {num(m?.ceiling_price || m?.target_price)}</span>
-      {b.steps.map((s) => (
-        <span key={s.label} className={s.amount > 0 ? "text-emerald-300" : "text-rose-300"}>
-          {" "}· {s.label} {s.amount > 0 ? "+" : "−"}
-          {num(Math.abs(s.amount))}
-        </span>
-      ))}
-      <span className="text-zinc-200">
-        {" "}→ для цього: {num(b.target)} / {num(b.ceiling)}
-      </span>
-      {b.owner_only ? <div className="text-amber-300">Дефект — бот не купує сам, вирішуєте ви.</div> : null}
-      {b.unknown.length ? <div className="text-amber-300">Бот має уточнити: {b.unknown.join(", ")} (поки рахуємо як гірший варіант)</div> : null}
+    <div className="mt-2 rounded-lg bg-zinc-950/60 px-2.5 py-1.5 text-[12px] text-zinc-300">
+      {b.to ? (
+        <>
+          <b>{b.tier_label}</b>: бот починає з <span className="font-mono text-emerald-300">{num(b.from)}</span>, максимум{" "}
+          <span className="font-mono text-emerald-300">{num(b.to)}</span>.{" "}
+          {auto(b) ? (
+            <span className="text-emerald-300">У цих межах купує сам і надсилає адресу.</span>
+          ) : (
+            <span className="text-amber-300">Купує лише з вашим ок.</span>
+          )}
+        </>
+      ) : b.tier ? (
+        <span className="text-amber-300">{b.tier_label}: на такий стан ціни немає — вирішуєте ви.</span>
+      ) : null}
+      {r.condition === "defect" ? <div className="text-amber-300">Дефект — бот не купує сам.</div> : null}
+      {b.unknown.length ? <div className="text-amber-300">Бот має уточнити: {b.unknown.join(", ")}.</div> : null}
     </div>
   );
 }
@@ -150,7 +162,6 @@ function PriceSteps({ r, models }: { r: ProRow; models: OlxModel[] }) {
 export function ProTerminal(props: Props) {
   const sim = useOlxSimulation(props.models);
   const rows = sim.active ? sim.rows : props.rows;
-  const models = sim.active ? sim.models : props.models;
   const busy = sim.active ? null : props.busy;
   const decide = sim.active ? sim.decide : props.decide;
   const requestRefresh = sim.active ? noop : props.requestRefresh;
@@ -230,8 +241,8 @@ export function ProTerminal(props: Props) {
     const active = rows.filter((r) => ACTIVE.includes(r.status));
     const bought = rows.filter((r) => r.status === "bought" && r.final_price);
     const spent = bought.reduce((s, r) => s + r.final_price!, 0);
-    // How much under the ceiling we bought — what bargaining earned
-    const under = bought.filter((r) => r.buy).reduce((s, r) => s + Math.max(0, r.buy!.ceiling - r.final_price!), 0);
+    // How much under our "до" we bought — what bargaining earned
+    const under = bought.filter((r) => r.buy?.to).reduce((s, r) => s + Math.max(0, r.buy!.to! - r.final_price!), 0);
     const fresh = active.filter((r) => minutes(r.listed_at) < 60).length;
     return { active: active.length, needs: rows.filter((r) => r.status === "needs_ok").length, bought: bought.length, spent, under, fresh };
   }, [rows]);
@@ -243,7 +254,7 @@ export function ProTerminal(props: Props) {
     const asks = same.filter((r) => r.asking_price).map((r) => ({ id: r.id, v: r.asking_price! })).sort((a, b) => b.v - a.v);
     const bids = same.flatMap((r) => [r.bargain_at, r.our_offer].filter(Boolean).map((v) => ({ id: r.id, v: v! }))).sort((a, b) => b.v - a.v);
     const uniqBids = bids.filter((b, i) => bids.findIndex((x) => x.v === b.v) === i);
-    return { asks, bids: uniqBids, target: current.buy?.target ?? null, ceiling: current.buy?.ceiling ?? null };
+    return { asks, bids: uniqBids, from: current.buy?.from ?? null, to: current.buy?.to ?? null };
   }, [rows, current]);
 
   // Tape: chat lines, new listings and decisions across every deal
@@ -260,8 +271,8 @@ export function ProTerminal(props: Props) {
 
   const maxBook = Math.max(1, ...(book?.asks.map((a) => a.v) ?? []), ...(book?.bids.map((b) => b.v) ?? []));
   const vsTarget = (v: number) => {
-    if (!book?.target) return "";
-    const d = v - book.target;
+    if (!book?.to) return "";
+    const d = v - book.to;
     return `${d > 0 ? "+" : d < 0 ? "−" : ""}${short(Math.abs(d))}`;
   };
 
@@ -299,10 +310,10 @@ export function ProTerminal(props: Props) {
             </div>
           ) : rows.some((r) => r.status === "needs_ok") ? (
             <div className="mt-2 text-amber-200">
-              👉 Продавець готовий між ціллю і стелею — виберіть угоду «Чекає ок» і натисніть <b>Ок</b> або <b>Ні</b>. Не встигнете за 90 с — продасть іншому.
+              👉 Угода чекає вашого ок (стоїть галочка «Наш ОК», дефект або немає ціни на такий стан) — виберіть «Чекає ок» і натисніть <b>Ок</b> або <b>Ні</b>. Не встигнете за 90 с — продасть іншому.
             </div>
           ) : (
-            <div className="mt-2 text-violet-300/80">Бот питає про стан, коробку й документи, рахує ціну для цього стану і торгується. Дивіться стрічку внизу праворуч.</div>
+            <div className="mt-2 text-violet-300/80">Бот питає оцінку стану з 10, коробку й документи, бере ваш діапазон для цього стану і торгується. Дивіться стрічку внизу праворуч.</div>
           )}
           {sim.demoPrices ? (
             <div className="mt-1 text-[11px] text-violet-300/70">У «Моделі й ціни» ще немає моделей з цінами — у демо взято умовні ціни.</div>
@@ -318,7 +329,7 @@ export function ProTerminal(props: Props) {
           ["Свіжі < 1 год", ticker.fresh, ticker.fresh ? "text-sky-300" : "text-zinc-100"],
           ["Куплено", ticker.bought, "text-emerald-300"],
           ["Витрачено", ticker.spent ? num(ticker.spent) : "—", "text-zinc-100"],
-          ["Виторговано нижче стелі", ticker.under ? num(ticker.under) : "—", "text-emerald-300"],
+          ["Виторговано нижче «до»", ticker.under ? num(ticker.under) : "—", "text-emerald-300"],
         ].map(([l, v, c]) => (
           <div key={l as string} className="rounded-lg bg-zinc-900 px-3 py-2">
             <div className="font-sans text-[11px] text-zinc-500">{l}</div>
@@ -350,9 +361,9 @@ export function ProTerminal(props: Props) {
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-zinc-500">
-        <span>Ціни — свої для кожної моделі й залежать від стану, коробки, документів:</span>
-        <span><i className="mr-1 inline-block h-2 w-4 rounded-sm bg-emerald-500/50" />до цілі — бот купує сам</span>
-        <span><i className="mr-1 inline-block h-2 w-4 rounded-sm bg-amber-400/40" />від цілі до стелі — потрібен ваш ок</span>
+        <span>Смужка — ваш діапазон «від–до» для стану цього приладу:</span>
+        <span><i className="mr-1 inline-block h-2 w-4 rounded-sm bg-emerald-500/60" />бот купує сам</span>
+        <span><i className="mr-1 inline-block h-2 w-4 rounded-sm bg-amber-400/50" />лише з вашим ок</span>
         <span><i className="mr-1 inline-block h-2 w-[3px] rounded bg-rose-500" /> хоче продавець</span>
         <span><i className="mr-1 inline-block h-2 w-[3px] rounded bg-white" /> торг зараз</span>
         <span><i className="mr-1 inline-block h-2 w-[3px] rounded bg-emerald-400" /> наша пропозиція</span>
@@ -413,7 +424,7 @@ export function ProTerminal(props: Props) {
               <div className="mt-3">
                 <Ladder r={current} big />
               </div>
-              <PriceSteps r={current} models={models} />
+              <PriceSteps r={current} />
 
               {confirm ? (
                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
@@ -464,7 +475,7 @@ export function ProTerminal(props: Props) {
           {current && book && (book.asks.length || book.bids.length) ? (
             <div className="rounded-xl bg-zinc-900 p-3 font-mono text-[12px]">
               <div className="mb-2 font-sans text-[11px] text-zinc-500">
-                Стакан · {modelOf(current)} · праворуч — різниця з ціллю
+                Стакан · {modelOf(current)} · праворуч — різниця з нашим «до»
               </div>
               {book.asks.map((a) => (
                 <div key={a.id} className="grid grid-cols-[72px_1fr_52px] items-center gap-2">
@@ -475,7 +486,7 @@ export function ProTerminal(props: Props) {
               ))}
               <div className="my-1.5 border-y border-dashed border-zinc-700 py-0.5 text-center text-[11px] text-zinc-500">
                 {book.asks.length && book.bids.length ? `спред ${num(book.asks[book.asks.length - 1].v - book.bids[0].v)} · ` : ""}
-                {book.target ? `ціль ${num(book.target)} · стеля ${num(book.ceiling)}` : "немає ціни на модель"}
+                {book.to ? `наш діапазон ${num(book.from)}–${num(book.to)}` : "немає ціни для цього стану"}
               </div>
               {book.bids.map((b) => (
                 <div key={b.id + b.v} className="grid grid-cols-[72px_1fr_52px] items-center gap-2">

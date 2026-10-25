@@ -4,7 +4,7 @@
  */
 
 import type { createServiceClient } from "@/lib/supabase/service";
-import { buyPrices, matchModel, type OlxAdjust, type OlxDeal, type OlxModel, type TerminalDeal } from "@/lib/olx-terminal";
+import { OLX_TIERS, buyPrices, matchModel, type OlxDeal, type OlxModel, type OlxTier, type OlxTierKey, type TerminalDeal } from "@/lib/olx-terminal";
 
 export type { TerminalDeal };
 
@@ -17,8 +17,12 @@ export async function loadModels(sb: Sb): Promise<OlxModel[]> {
   return (data ?? []) as OlxModel[];
 }
 
-export function modelFor(d: Pick<OlxDeal, "model_id" | "model" | "title">, models: OlxModel[]): OlxModel | null {
+export function modelFor(d: Pick<OlxDeal, "model_id" | "product_slug" | "model" | "title">, models: OlxModel[]): OlxModel | null {
   if (d.model_id) return models.find((m) => m.id === d.model_id) ?? null;
+  if (d.product_slug) {
+    const bySlug = models.find((m) => m.product_slug === d.product_slug);
+    if (bySlug) return bySlug;
+  }
   return matchModel(d.model || d.title, models);
 }
 
@@ -32,24 +36,30 @@ const int = (v: unknown): number | null => {
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
 
-/** A model row from the admin form: { name, aliases, category, target_price, ceiling_price, adjust, notes }. */
-export function parseModelInput(body: Record<string, unknown>): Partial<OlxModel> | null {
-  const name = String(body.name ?? "").trim().slice(0, 200);
+/** A model's price list from the admin: { name, product_slug?, brand?, category?, aliases, tiers, notes }. */
+export function parseModelInput(body: Record<string, unknown>): Partial<OlxModel> | { error: string } | null {
+  const name = String(body.name ?? "").trim().slice(0, 300);
   if (!name) return null;
   const aliasesRaw = Array.isArray(body.aliases) ? body.aliases : String(body.aliases ?? "").split(",");
-  const a = (body.adjust ?? {}) as Record<string, unknown>;
-  const adjust: OlxAdjust = {};
-  for (const k of ["new", "used", "no_box", "no_docs"] as const) {
-    const v = int(a[k]);
-    if (v) adjust[k] = v;
+  const raw = (body.tiers ?? {}) as Record<string, Record<string, unknown>>;
+  const tiers: Partial<Record<OlxTierKey, OlxTier>> = {};
+  for (const { key, label } of OLX_TIERS) {
+    const t = raw[key];
+    if (!t) continue;
+    const from = int(t.from);
+    const to = int(t.to);
+    if (!from && !to) continue;
+    if (from && to && from > to) return { error: `${label}: «від» більше за «до»` };
+    tiers[key] = { from: from ?? to, to: to ?? from, needs_ok: t.needs_ok === true };
   }
+  const text = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max) || null;
   return {
     name,
+    product_slug: text(body.product_slug, 200),
+    brand: text(body.brand, 80),
+    category: text(body.category, 80),
     aliases: aliasesRaw.map((x) => String(x).trim()).filter(Boolean).slice(0, 20),
-    category: String(body.category ?? "").trim().slice(0, 80) || null,
-    target_price: int(body.target_price),
-    ceiling_price: int(body.ceiling_price),
-    adjust,
-    notes: String(body.notes ?? "").trim().slice(0, 2000) || null,
+    tiers,
+    notes: text(body.notes, 2000),
   };
 }

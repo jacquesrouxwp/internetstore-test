@@ -23,9 +23,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   const row = parseModelInput(body);
   if (!row) return NextResponse.json({ error: "Потрібна назва моделі" }, { status: 400 });
-  if (row.target_price && row.ceiling_price && row.ceiling_price < row.target_price) {
-    return NextResponse.json({ error: "Стеля не може бути нижчою за ціль" }, { status: 400 });
-  }
+  if ("error" in row) return NextResponse.json({ error: row.error }, { status: 400 });
   const sb = createServiceClient();
   const now = new Date().toISOString();
   const id = typeof body.id === "string" && body.id ? body.id : null;

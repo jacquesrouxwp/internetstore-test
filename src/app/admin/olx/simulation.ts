@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CONDITION_LABEL, buyPrices, type OlxCondition, type OlxModel, type TerminalDeal } from "@/lib/olx-terminal";
+import { buyPrices, type OlxModel, type TerminalDeal } from "@/lib/olx-terminal";
 
 /**
  * Demo of the Pro terminal: 10 made-up sellers over 5 minutes. The bot asks
- * about condition, box and documents first, works out this item's target and
- * ceiling from the model's prices, and bargains: at or under the target it
- * buys, between target and ceiling it waits for the owner's ок, above it
- * passes. Nothing leaves the browser: no API calls, no messages to anyone.
+ * for the condition out of 10, the box and the documents, takes the owner's
+ * range for that state and bargains within it: without the "наш ОК" tick it
+ * buys and sends our address by itself, with it — waits for the owner.
+ * Nothing leaves the browser: no API calls, no messages to anyone.
  */
 
 export const SIM_SECONDS = 300;
@@ -18,23 +18,26 @@ const SELLERS = 10;
 const SHIP_TO = "Нова пошта, відділення №999, м. Київ, вул. Пушкіна, буд. Колотушкіна. Отримувач: Демо Покупець, 0990000000";
 
 // Used when the owner has no priced models yet — demo numbers, not real prices
+const tier = (from: number, to: number, needs_ok = false) => ({ from, to, needs_ok });
 const DEMO_MODELS: OlxModel[] = [
-  { id: "demo-1", name: "Тепловізор (демо) A35", aliases: [], category: null, target_price: 30000, ceiling_price: 38000, adjust: { new: 3000, used: 4000, no_box: 1500, no_docs: 2000 }, notes: null },
-  { id: "demo-2", name: "Тепловізор (демо) B19", aliases: [], category: null, target_price: 14000, ceiling_price: 18000, adjust: { new: 1500, used: 2000, no_box: 800, no_docs: 1000 }, notes: null },
-  { id: "demo-3", name: "Приціл (демо) C50", aliases: [], category: null, target_price: 45000, ceiling_price: 56000, adjust: { new: 4000, used: 6000, no_box: 2000, no_docs: 3000 }, notes: null },
-  { id: "demo-4", name: "Монокуляр (демо) D25", aliases: [], category: null, target_price: 22000, ceiling_price: 27000, adjust: { used: 3000, no_box: 1000, no_docs: 1500 }, notes: null },
+  { id: "demo-1", name: "Тепловізор (демо) A35", product_slug: null, brand: null, category: null, aliases: [], notes: null,
+    tiers: { new_full: tier(34000, 40000), new_bare: tier(30000, 35000), g9: tier(27000, 32000), g8: tier(23000, 28000, true), g7: tier(19000, 23000, true) } },
+  { id: "demo-2", name: "Тепловізор (демо) B19", product_slug: null, brand: null, category: null, aliases: [], notes: null,
+    tiers: { new_full: tier(15000, 18000), new_bare: tier(13000, 15500), g9: tier(11500, 14000), g8: tier(10000, 12000) } },
+  { id: "demo-3", name: "Приціл (демо) C50", product_slug: null, brand: null, category: null, aliases: [], notes: null,
+    tiers: { new_full: tier(50000, 58000, true), new_bare: tier(45000, 52000, true), g9: tier(40000, 47000), g8: tier(35000, 41000, true) } },
 ];
 
 type Stage = "wait" | "ask" | "cond" | "offer" | "reply" | "needs_ok" | "agreed" | "done";
-type Item = { condition: OlxCondition; has_box: boolean; has_docs: boolean; kit: string };
-/** Where the seller's lowest price sits: under our target, in the owner's zone, or above our ceiling. */
-type Floor = "low" | "mid" | "high";
+export type SimItem = { grade: number; has_box: boolean; has_docs: boolean; kit: string; defect?: boolean };
+/** Where the seller's lowest price sits: under our "від", inside our range, or above our "до". */
+type Floor = "cheap" | "in" | "high";
 type SimDeal = {
   row: TerminalDeal;
   model: OlxModel;
-  item: Item;
+  item: SimItem;
   floor: Floor;
-  /** The seller's lowest price, known once the item's condition is */
+  /** The seller's lowest price, known once the item's state is */
   min: number;
   stage: Stage;
   at: number;
@@ -43,16 +46,16 @@ type SimDeal = {
 
 const NAMES = ["Олег", "Андрій", "Сергій", "Віталій", "Ігор", "Максим", "Дмитро", "Юрій", "Роман", "Богдан"];
 const CITIES = ["Київ", "Львів", "Дніпро", "Одеса", "Харків", "Вінниця", "Полтава", "Житомир", "Рівне", "Черкаси"];
-// 3 sellers come down to our target, 5 stop between target and ceiling, 2 stay above it
-const FLOORS: Floor[] = ["low", "low", "low", "mid", "mid", "mid", "mid", "mid", "high", "high"];
-const ITEMS: Item[] = [
-  { condition: "like_new", has_box: true, has_docs: true, kit: "повний комплект" },
-  { condition: "like_new", has_box: true, has_docs: false, kit: "кейс, зарядка" },
-  { condition: "used", has_box: false, has_docs: false, kit: "тільки прилад і кабель" },
-  { condition: "new", has_box: true, has_docs: true, kit: "не користувався" },
-  { condition: "used", has_box: true, has_docs: true, kit: "дві батареї" },
-  { condition: "like_new", has_box: false, has_docs: true, kit: "чохол" },
-  { condition: "defect", has_box: true, has_docs: false, kit: "тріщина на корпусі" },
+// 3 sellers go under our "від", 5 stop inside the range, 2 stay above our "до"
+const FLOORS: Floor[] = ["cheap", "cheap", "cheap", "in", "in", "in", "in", "in", "high", "high"];
+const ITEMS: SimItem[] = [
+  { grade: 10, has_box: true, has_docs: true, kit: "не користувався, плівки на місці" },
+  { grade: 10, has_box: false, has_docs: false, kit: "новий, без коробки" },
+  { grade: 9, has_box: true, has_docs: true, kit: "кейс, зарядка" },
+  { grade: 9, has_box: false, has_docs: true, kit: "чохол" },
+  { grade: 8, has_box: true, has_docs: false, kit: "дві батареї" },
+  { grade: 7, has_box: false, has_docs: false, kit: "тільки прилад і кабель" },
+  { grade: 6, has_box: true, has_docs: true, kit: "тріщина на корпусі", defect: true },
 ];
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -61,14 +64,17 @@ const r100 = (x: number) => Math.round(x / 100) * 100;
 const uah = (n: number) => new Intl.NumberFormat("uk-UA").format(n);
 const shuffle = <T,>(a: T[]) => a.map((v) => [Math.random(), v] as const).sort((x, y) => x[0] - y[0]).map(([, v]) => v);
 
-function sellerSays(it: Item): string {
-  const cond = { new: "нове, не користувався", like_new: "стан ідеал", used: "є потертості, все працює", defect: `є дефект — ${it.kit}` }[it.condition];
+function sellerSays(it: SimItem): string {
+  const cond = it.defect ? `є дефект — ${it.kit}` : it.grade === 10 ? "новий, не користувався" : `стан ${it.grade} з 10`;
   const box = it.has_box ? "коробка є" : "коробки нема";
   const docs = it.has_docs ? "документи є" : "доків нема";
-  return `${cond}, ${box}, ${docs}${it.condition === "defect" ? "" : `. в комплекті: ${it.kit}`}`;
+  return `${cond}, ${box}, ${docs}${it.defect ? "" : `. в комплекті: ${it.kit}`}`;
 }
 
-export function createDeals(models: OlxModel[], items: Item[] = ITEMS): SimDeal[] {
+/** The most this model is ever worth to us — for the made-up asking prices. */
+const topOf = (m: OlxModel) => Math.max(...Object.values(m.tiers).map((t) => t?.to ?? 0), 10000);
+
+export function createDeals(models: OlxModel[], items: SimItem[] = ITEMS): SimDeal[] {
   const pool = shuffle(models);
   const floors = shuffle(FLOORS);
   const now = Date.now();
@@ -90,11 +96,12 @@ export function createDeals(models: OlxModel[], items: Item[] = ITEMS): SimDeal[
       model_id: model.id,
       model: model.name,
       condition: null,
+      grade: null,
       has_box: null,
       has_docs: null,
       kit: null,
       condition_notes: null,
-      asking_price: r100((model.ceiling_price || model.target_price!) * rnd(1.15, 1.6)),
+      asking_price: r100(topOf(model) * rnd(1.05, 1.5)),
       our_offer: null,
       bargain_at: null,
       final_price: null,
@@ -123,12 +130,30 @@ function set(d: SimDeal, patch: Partial<TerminalDeal>) {
   d.row = { ...row, buy: buyPrices(d.model, row) };
 }
 
-/** The seller's lowest price for this item, against our prices for its condition. */
+/** The seller's lowest price for this item, against our range for its state. */
 function floorOf(d: SimDeal): number {
-  const b = d.row.buy!;
-  if (d.floor === "low") return r100(b.target * rnd(0.9, 1));
-  if (d.floor === "mid") return r100(b.target + (b.ceiling - b.target) * rnd(0.25, 0.95));
-  return r100(b.ceiling * rnd(1.12, 1.3));
+  const b = d.row.buy;
+  const to = b?.to ?? r100(topOf(d.model) * 0.7);
+  const from = b?.from ?? r100(to * 0.85);
+  if (d.floor === "cheap") return r100(from * rnd(0.9, 1));
+  if (d.floor === "in") return r100(from + (to - from) * rnd(0.3, 1));
+  return r100(to * rnd(1.12, 1.3));
+}
+
+/** Within our range: buy and send the address, or ask the owner when ticked, a defect or no price. */
+function settle(d: SimDeal, price: number, t: number) {
+  const b = d.row.buy;
+  if (b?.to && !b.needs_ok && !b.owner_only && !b.unknown.length && price <= b.to) {
+    set(d, { asking_price: price, bargain_at: price, our_offer: price, final_price: price });
+    say(d, "us", `Домовились! 🙌 Відправляйте на: ${SHIP_TO}`);
+    d.stage = "agreed";
+    d.at = t + rnd(4, 8);
+  } else {
+    set(d, { status: "needs_ok", asking_price: price, bargain_at: price });
+    say(d, "us", "Зараз уточню і відпишу за хвилинку");
+    d.stage = "needs_ok";
+    d.at = t + 90; // nobody answers in time — the seller sells to someone else
+  }
 }
 
 /** Moves every deal whose next step is due; true when anything changed. */
@@ -137,7 +162,7 @@ export function step(deals: SimDeal[], t: number): boolean {
   for (const d of deals) {
     if (d.stage === "done" || d.at > t) continue;
     changed = true;
-    const b = d.row.buy!;
+    const b = d.row.buy;
     switch (d.stage) {
       case "wait":
         set(d, { created_at: new Date().toISOString(), status: "new" });
@@ -147,51 +172,59 @@ export function step(deals: SimDeal[], t: number): boolean {
       case "ask":
         set(d, { status: "negotiating" });
         say(d, "us", pick([
-          "Добрий день! Ще актуально? Підкажіть, який стан, чи є коробка і документи?",
-          "Вітаю! Продаєте ще? Що по стану, коробка й документи є?",
+          "Добрий день! Ще актуально? Оцініть, будь ласка, стан з 10, і чи є коробка й документи?",
+          "Вітаю! Продаєте ще? Який стан з 10, коробка й документи є?",
         ]));
         d.stage = "cond";
         d.at = t + rnd(6, 12);
         break;
       case "cond":
         say(d, "seller", sellerSays(d.item));
-        set(d, { ...d.item, condition_notes: d.item.condition === "defect" ? d.item.kit : null });
+        set(d, {
+          grade: d.item.grade,
+          condition: d.item.defect ? "defect" : d.item.grade === 10 ? "new" : "used",
+          has_box: d.item.has_box,
+          has_docs: d.item.has_docs,
+          kit: d.item.defect ? null : d.item.kit,
+          condition_notes: d.item.defect ? d.item.kit : null,
+        });
         d.min = floorOf(d);
         d.stage = "offer";
         d.at = t + rnd(3, 6);
         break;
       case "offer": {
-        const offer = r100(b.target * 0.88);
-        const how = [CONDITION_LABEL[d.item.condition], d.item.has_box ? "" : "без коробки", d.item.has_docs ? "" : "без документів"].filter(Boolean).join(", ");
+        if (!b?.to) {
+          say(d, "us", "Дякую! Дайте хвилинку, уточню і відпишу");
+          set(d, { status: "needs_ok" });
+          d.stage = "needs_ok";
+          d.at = t + 90;
+          break;
+        }
+        const offer = b.from ?? b.to;
         set(d, { our_offer: offer, bargain_at: offer });
-        say(d, "us", `Дякую! Для такого стану (${how}) можу запропонувати ${uah(offer)} грн, забираю сьогодні`);
+        say(d, "us", `Дякую! За такий стан (${b.tier_label?.toLowerCase()}) можу запропонувати ${uah(offer)} грн, забираю сьогодні`);
         d.stage = "reply";
         d.at = t + rnd(6, 12);
         break;
       }
       case "reply": {
         d.round += 1;
+        const to = b?.to ?? 0;
         const ask = d.row.asking_price ?? d.min;
-        if (d.min <= b.target && !b.owner_only) {
-          const price = Math.max(d.row.our_offer ?? 0, d.min);
+        if (d.min <= (d.row.our_offer ?? 0)) {
+          const price = d.row.our_offer!;
           say(d, "seller", pick([`ну давайте за ${uah(price)}, забирайте`, `${uah(price)} і домовились`]));
-          set(d, { asking_price: price, bargain_at: price, our_offer: price, final_price: price });
-          say(d, "us", `Домовились! 🙌 Відправляйте на: ${SHIP_TO}`);
-          d.stage = "agreed";
-          d.at = t + rnd(4, 8);
+          settle(d, price, t);
           break;
         }
         const counter = d.round === 1 ? Math.max(d.min, r100(d.min + (ask - d.min) * 0.5)) : d.min;
-        set(d, { asking_price: counter });
         say(d, "seller", pick([`за ${uah(counter)} віддам, менше ніяк`, `${uah(counter)} і забирайте`, `ну ви даєте... ${uah(counter)} останнє`]));
-        if (counter <= b.ceiling) {
-          set(d, { status: "needs_ok", bargain_at: counter });
-          say(d, "us", "Зараз уточню і відпишу за хвилинку");
-          d.stage = "needs_ok";
-          d.at = t + 90; // nobody answers in time — the seller sells to someone else
+        set(d, { asking_price: counter });
+        if (counter <= to) {
+          settle(d, counter, t);
         } else if (d.round < 2) {
-          set(d, { our_offer: b.target, bargain_at: b.target });
-          say(d, "us", `Розумію, але для такого стану ${uah(b.target)} — наш максимум. Може подумаєте?`);
+          set(d, { our_offer: to, bargain_at: to });
+          say(d, "us", `Розумію, але за такий стан ${uah(to)} — наш максимум. Може подумаєте?`);
           d.at = t + rnd(8, 14);
         } else {
           say(d, "us", "Дякую, для нас дорого. Якщо передумаєте — пишіть");
@@ -216,7 +249,7 @@ export function step(deals: SimDeal[], t: number): boolean {
 }
 
 export function useOlxSimulation(ownerModels: OlxModel[]) {
-  const priced = useMemo(() => ownerModels.filter((m) => m.target_price), [ownerModels]);
+  const priced = useMemo(() => ownerModels.filter((m) => Object.values(m.tiers || {}).some((t) => t?.to)), [ownerModels]);
   const models = priced.length ? priced : DEMO_MODELS;
   const deals = useRef<SimDeal[]>([]);
   const clock = useRef(0);
