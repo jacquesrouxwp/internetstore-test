@@ -31,6 +31,9 @@ import {
 import { dropUkrainianSentences } from "@/lib/spec-ru";
 import { feedImageOrder } from "@/data/merchant-image-overrides";
 
+/** Image file names that read as weapon optics to Google. */
+const WEAPON_FILE_NAME = /scope|sight|rifle|weapon|gun/i;
+
 export type MerchantLocale = "uk" | "ru";
 
 /** Google taxonomy numeric IDs (Cameras & Optics > …). */
@@ -137,10 +140,14 @@ export function productToMerchantItem(
   if (!isMerchantEligible(p, merchantItemId(p))) return null;
 
   // Photos with a promotional badge are skipped — see data/merchant-image-overrides
-  const images = feedImageOrder(
+  const ordered = feedImageOrder(
     merchantItemId(p),
     absoluteProductImageUrls(p.images || [], siteUrl),
   );
+  // A maker's file name can call a handheld monocular a "scope"
+  // (Pulsar: thermal_imaging_scope_quantum_xd38s.jpg) — offer the other photos when there are any
+  const plain = ordered.filter((u) => !WEAPON_FILE_NAME.test(u.split("/").pop() || ""));
+  const images = plain.length ? plain : ordered;
   if (!images.length) return null; // image_link required
 
   const title = productName(p, locale).trim();

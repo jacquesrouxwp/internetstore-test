@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { Product } from "@/types";
 import { MERCHANT_DISAPPROVED_IDS } from "@/data/merchant-disapproved-ids";
 import {
+  isWeaponSpec,
   mentionsWeapon,
   productPageDescription,
   stripWeaponSentences,
@@ -169,5 +170,16 @@ describe("product page description", () => {
       descriptionUk: "Кріплення потрібне, щоб зафіксувати тепловізійний прилад на шоломі.",
     });
     assert.equal(productPageDescription(helmet, "uk"), helmet.descriptionUk);
+  });
+});
+
+describe("weapon words in spec rows and forend phrases", () => {
+  it("keeps rail mounts out of the feed's spec rows, tripod sockets in", () => {
+    assert.equal(isWeaponSpec("Кріплення", "Планка Weaver для дод. аксесуарів"), true);
+    assert.equal(isWeaponSpec("Гніздо для кріплення штатива", "1/4 дюйм"), false);
+  });
+  it("drops sentences about the forend", () => {
+    const r = stripWeaponSentences("Габарит 165х60х64 мм. Удобен, когда прибор не сажают на цевье. Матрица 256х192.");
+    assert.equal(r.removed, 1);
   });
 });

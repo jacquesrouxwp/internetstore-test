@@ -11,6 +11,7 @@
  * value the sheet does not state is skipped rather than guessed.
  */
 
+import { isWeaponSpec } from "@/lib/merchant-description";
 import { productMetrics } from "@/lib/comparisons";
 import {
   buildSpecRows,
@@ -120,6 +121,8 @@ export function productDetails(
     if (!label || !value) continue;
     // A Russian item with a Ukrainian line in it reads as the wrong language
     if (locale === "ru" && UKRAINIAN_LETTERS.test(label + value)) continue;
+    // Google enforces its firearms policy on these rows too
+    if (isWeaponSpec(label, value)) continue;
     const section = classifySpecKey(row.sourceKey || row.key);
     out.push({
       section: SECTION_NAMES[section][locale],

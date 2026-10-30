@@ -59,6 +59,11 @@ const WEAPON_WORDS = new RegExp(
     "насадк",
     "кал[іи]бр",
     "калибр",
+    // The forend: "сяде на цівку", "на цевье" (an AGM Taipan text reached the
+    // Russian feed with it on 30 October)
+    "ц[іи]вц",
+    "ц[іи]вк",
+    "цевь",
     "карабін",
     "карабин",
     "рушниц",
@@ -93,6 +98,7 @@ const WEAPON_USE = new RegExp(
     "кал[іи]бр",
     "калибр",
     "ц[іи]вц",
+    "ц[іи]вк",
     "цевь",
     "карабін",
     "карабин",
@@ -102,6 +108,19 @@ const WEAPON_USE = new RegExp(
   ].join("|"),
   "i",
 );
+
+/** Rails a device or a sight rides on — the words that make a spec row read as a weapon mount. */
+const RAIL_WORDS = /weaver|picatinny|п[іи]катін|пикатин|планк|рейк/i;
+
+/**
+ * True when a spec row must stay out of the feed. "Кріплення: Планка Weaver
+ * для дод. аксесуарів" went to Google on four monoculars until 30 October,
+ * when the account was suspended for firearms; a tripod socket stays.
+ */
+export function isWeaponSpec(label: string, value: string): boolean {
+  const text = `${label} ${value}`;
+  return WEAPON_USE.test(text) || RAIL_WORDS.test(text);
+}
 
 /** Below this a description is not worth sending — the caller builds its own. */
 export const MIN_FEED_DESCRIPTION = 200;
