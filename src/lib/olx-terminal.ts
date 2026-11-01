@@ -37,6 +37,12 @@ export type OlxDeal = {
   olx_url: string;
   title: string | null;
   seller_name: string | null;
+  /** The seller's OLX user id */
+  seller_id: string | null;
+  /** How many of this seller's listings we have already written about */
+  contacted_count: number | null;
+  /** Ready-made line from the bot: "Сергій · писали 2 рази" */
+  seller_label: string | null;
   city: string | null;
   /** When the seller published the listing on OLX */
   listed_at: string | null;
@@ -169,6 +175,11 @@ const int = (v: unknown): number | null => {
   const n = Math.round(Number(String(v).replace(/[^\d.]/g, "")));
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
+/** A whole count from 2 or "2"; anything else is not known. */
+const count = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" && /^\s*\d+\s*$/.test(v) ? Number(v) : NaN;
+  return Number.isInteger(n) && n >= 0 ? n : null;
+};
 const str = (v: unknown, max: number): string | null => {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
@@ -215,14 +226,24 @@ export function normalizeOlxUrl(raw: unknown): string | null {
 }
 
 export type DealPatch = Partial<
-  Pick<OlxDeal, "title" | "seller_name" | "city" | "listed_at" | "product_slug" | "model_id" | "model" | "condition" | "grade" | "has_box" | "has_docs" | "kit" | "condition_notes" | "asking_price" | "our_offer" | "bargain_at" | "final_price" | "status" | "notes">
+  Pick<OlxDeal, "title" | "seller_name" | "seller_id" | "contacted_count" | "seller_label" | "city" | "listed_at" | "product_slug" | "model_id" | "model" | "condition" | "grade" | "has_box" | "has_docs" | "kit" | "condition_notes" | "asking_price" | "our_offer" | "bargain_at" | "final_price" | "status" | "notes">
 >;
+
+/** Seller fields from migration 015 (seller_name is older). */
+export const SELLER_KEYS = ["seller_id", "contacted_count", "seller_label"] as const;
 
 /** Fields a bot may set; anything else in the body is ignored. */
 export function parseDealPatch(body: Record<string, unknown>): DealPatch {
   const p: DealPatch = {};
   if ("title" in body) p.title = str(body.title, 300);
   if ("seller_name" in body) p.seller_name = str(body.seller_name, 120);
+  // Who the seller is: kept as long as a later update does not bring a new value
+  const sellerId = str(body.seller_id, 64);
+  if (sellerId) p.seller_id = sellerId;
+  const contacted = count(body.contacted_count);
+  if (contacted !== null) p.contacted_count = contacted;
+  const sellerLabel = str(body.seller_label, 200);
+  if (sellerLabel) p.seller_label = sellerLabel;
   if ("city" in body) p.city = str(body.city, 120);
   if ("listed_at" in body) {
     const t = body.listed_at ? Date.parse(String(body.listed_at)) : NaN;
@@ -258,6 +279,12 @@ export function ownerDecision(decision: unknown, price: unknown, now: string): P
   }
   if (decision === "no") return { owner_decision: "ні", owner_decision_at: now, status: "rejected" };
   return null;
+}
+
+/** The card's seller line: the bot's label, else the name; null when we know neither. */
+export function sellerLine(d: Pick<OlxDeal, "seller_label" | "seller_name">): string | null {
+  const who = d.seller_label?.trim() || d.seller_name?.trim();
+  return who ? `Продавець: ${who}` : null;
 }
 
 /** Words of a model name: lower case, "E6 +" glued to "E6+", punctuation dropped. */

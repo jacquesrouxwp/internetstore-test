@@ -7,7 +7,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { CONDITION_LABEL, type OlxDeal } from "@/lib/olx-terminal";
+import { CONDITION_LABEL, sellerLine, type OlxDeal } from "@/lib/olx-terminal";
 import type { TerminalDeal } from "@/lib/olx-store";
 import { absoluteUrl } from "@/lib/site-url";
 
@@ -55,7 +55,8 @@ export function dealText(d: TerminalDeal, head: string): string {
   return [
     head,
     `<b>${esc(b?.model_name || d.model || d.title || "—")}</b>`,
-    esc([d.seller_name, d.city].filter(Boolean).join(" · ") || "продавець"),
+    esc(sellerLine(d) ?? ""),
+    esc(d.city ?? ""),
     esc(conditionLine(d)),
     "",
     `Хоче: <b>${uah(d.asking_price)}</b>`,

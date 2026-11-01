@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buyPrices, matchModel, normalizeOlxUrl, parseDealPatch, parseMessages, zone, type OlxModel } from "./olx-terminal";
+import { buyPrices, matchModel, normalizeOlxUrl, parseDealPatch, parseMessages, sellerLine, zone, type OlxModel } from "./olx-terminal";
 
 const th35: OlxModel = {
   id: "th35",
@@ -95,5 +95,29 @@ describe("matchModel", () => {
     assert.equal(matchModel("InfiRay XEYE 2 E6 + V3", models)?.id, "e6v3");
     assert.equal(matchModel("RICO RH50", models)?.id, "rh50");
     assert.equal(matchModel("RICO RH50 V2", models)?.id, "rh50v2");
+  });
+});
+
+describe("seller on the deal", () => {
+  it("keeps seller_id, contacted_count and seller_label from the bot", () => {
+    const p = parseDealPatch({ seller_id: 12345, seller_name: "Сергій", contacted_count: "2", seller_label: " Сергій · писали 2 рази " });
+    assert.equal(p.seller_id, "12345");
+    assert.equal(p.seller_name, "Сергій");
+    assert.equal(p.contacted_count, 2);
+    assert.equal(p.seller_label, "Сергій · писали 2 рази");
+  });
+  it("does not wipe them when an update leaves them out or empty", () => {
+    const p = parseDealPatch({ asking_price: 20000, seller_id: "", seller_label: null, contacted_count: "багато" });
+    assert.ok(!("seller_id" in p));
+    assert.ok(!("seller_label" in p));
+    assert.ok(!("contacted_count" in p));
+    assert.equal(p.contacted_count, undefined);
+    assert.ok(!("contacted_count" in parseDealPatch({ contacted_count: -1 })));
+    assert.equal(parseDealPatch({ contacted_count: 0 }).contacted_count, 0);
+  });
+  it("shows the label, else the name, else nothing", () => {
+    assert.equal(sellerLine({ seller_label: "Сергій · новий продавець", seller_name: "Сергій" }), "Продавець: Сергій · новий продавець");
+    assert.equal(sellerLine({ seller_label: "  ", seller_name: "Сергій" }), "Продавець: Сергій");
+    assert.equal(sellerLine({ seller_label: null, seller_name: null }), null);
   });
 });
