@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient, hasServiceSupabase } from "@/lib/supabase/service";
 import { olxKeyDenied } from "@/lib/olx-api-key";
 import { notifyBought, notifyNeedsOk } from "@/lib/olx-telegram";
-import { normalizeOlxUrl, parseDealPatch, parseMessages, type OlxDeal } from "@/lib/olx-terminal";
+import { SELLER_KEYS, normalizeOlxUrl, parseDealPatch, parseMessages, type DealPatch, type OlxDeal } from "@/lib/olx-terminal";
 import { loadModels, withPrices } from "@/lib/olx-store";
 
 /**
@@ -12,6 +12,8 @@ import { loadModels, withPrices } from "@/lib/olx-store";
  *   GET  /api/olx/deals?outbox=1             — only deals with owner messages waiting to be sent
  *   GET  /api/olx/deals?refresh=1            — only deals the owner asked to re-read now
  *   POST /api/olx/deals                      — create or update one deal by olx_url, append chat lines
+ *
+ * Seller fields (optional, kept until a later POST brings a new value): seller_id, contacted_count, seller_label.
  *
  * Auth: header `x-olx-key: <OLX_TERMINAL_KEY>`. Without the env var the API is off.
  */
@@ -69,30 +71,49 @@ export async function POST(req: NextRequest) {
     const waiting = (prev.outbox || []).filter((m) => !m.sent_at && sentIds.includes(m.id));
     const outbox = (prev.outbox || []).map((m) => (waiting.includes(m) ? { ...m, sent_at: now } : m));
     const sentLines = waiting.map((m) => ({ at: now, from: "us" as const, text: m.text }));
-    const { data, error } = await sb
-      .from("olx_deals")
-      // Any update from the bot answers an "оновити" request
-      .update({
-        ...patch,
-        chat: [...(prev.chat || []), ...messages, ...sentLines],
-        outbox,
-        refresh_requested_at: null,
-        updated_at: now,
-      })
-      .eq("id", prev.id)
-      .select("*")
-      .single();
+    const { data, error } = await withoutMissingSellerColumns(patch, (p) =>
+      sb
+        .from("olx_deals")
+        // Any update from the bot answers an "оновити" request
+        .update({
+          ...p,
+          chat: [...(prev.chat || []), ...messages, ...sentLines],
+          outbox,
+          refresh_requested_at: null,
+          updated_at: now,
+        })
+        .eq("id", prev.id)
+        .select("*")
+        .single(),
+    );
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ deal: await priced(sb, prev.status, data as OlxDeal), created: false });
   }
 
-  const { data, error } = await sb
-    .from("olx_deals")
-    .insert({ olx_url: olxUrl, ...patch, chat: messages, created_at: now, updated_at: now })
-    .select("*")
-    .single();
+  const { data, error } = await withoutMissingSellerColumns(patch, (p) =>
+    sb
+      .from("olx_deals")
+      .insert({ olx_url: olxUrl, ...p, chat: messages, created_at: now, updated_at: now })
+      .select("*")
+      .single(),
+  );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ deal: await priced(sb, null, data as OlxDeal), created: true });
+}
+
+/**
+ * Until migration 015 is applied the seller columns are not in the table and
+ * PostgREST refuses the whole write (PGRST204); then the deal is saved without them.
+ */
+async function withoutMissingSellerColumns<R extends { error: { code?: string; message: string } | null }>(
+  patch: DealPatch,
+  write: (p: DealPatch) => PromiseLike<R>,
+): Promise<R> {
+  const res = await write(patch);
+  if (res.error?.code !== "PGRST204" || !SELLER_KEYS.some((k) => k in patch)) return res;
+  const rest = { ...patch };
+  for (const k of SELLER_KEYS) delete rest[k];
+  return write(rest);
 }
 
 /**
