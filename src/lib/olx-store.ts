@@ -4,11 +4,38 @@
  */
 
 import type { createServiceClient } from "@/lib/supabase/service";
-import { OLX_TIERS, buyPrices, matchModel, type OlxDeal, type OlxModel, type OlxTier, type OlxTierKey, type TerminalDeal } from "@/lib/olx-terminal";
+import { OLX_TIERS, buyPrices, matchCatalog, matchModel, type OlxDeal, type OlxModel, type OlxTier, type OlxTierKey, type TerminalDeal } from "@/lib/olx-terminal";
 
 export type { TerminalDeal };
 
 type Sb = ReturnType<typeof createServiceClient>;
+
+type CatalogProduct = { slug: string; name: string; price: number };
+let catalog: { at: number; items: CatalogProduct[] } | null = null;
+
+/**
+ * Our published product an OLX listing is about, with its price — for the
+ * new-listing card. The catalogue is kept for ten minutes: the Supabase
+ * plan counts every byte read.
+ */
+export async function catalogProductFor(sb: Sb, title: string | null): Promise<CatalogProduct | null> {
+  if (!title) return null;
+  if (!catalog || Date.now() - catalog.at > 10 * 60_000) {
+    const items: CatalogProduct[] = [];
+    for (let from = 0; from < 10000; from += 1000) {
+      const { data, error } = await sb.from("products").select("slug, name_uk, price").eq("published", true).range(from, from + 999);
+      if (error) {
+        console.error("[olx] catalogue", error.message);
+        return null;
+      }
+      const rows = (data ?? []) as { slug: string; name_uk: string; price: number }[];
+      items.push(...rows.map((p) => ({ slug: p.slug, name: p.name_uk, price: Number(p.price) })));
+      if (rows.length < 1000) break;
+    }
+    catalog = { at: Date.now(), items };
+  }
+  return matchCatalog(title, catalog.items);
+}
 
 /** The whole price list — a few hundred rows at most. Empty if the table is not there yet. */
 export async function loadModels(sb: Sb): Promise<OlxModel[]> {

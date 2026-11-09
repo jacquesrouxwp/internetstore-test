@@ -112,6 +112,7 @@ export function createDeals(models: OlxModel[], items: SimItem[] = ITEMS): SimDe
       chat: [],
       outbox: [],
       refresh_requested_at: null,
+      tg_message_id: null,
       created_at: iso,
       updated_at: iso,
       buy: null,

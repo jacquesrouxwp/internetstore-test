@@ -65,6 +65,8 @@ export type OlxDeal = {
   outbox: OutboxMessage[];
   /** Owner pressed "оновити": a bot should re-read this chat on OLX */
   refresh_requested_at: string | null;
+  /** The deal's card in the Telegram group; the chat goes there as replies */
+  tg_message_id: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -247,6 +249,51 @@ export function parseDealPatch(body: Record<string, unknown>): DealPatch {
 }
 
 /**
+ * The price a chat line names, or null: "за 27 000 віддам", "27000 грн",
+ * "27к", "27 тис". Years ("2023 року") and model numbers ("XM30S") are not prices.
+ */
+export function priceInText(text: string): number | null {
+  const t = text.toLowerCase().replace(/(\d)[\s ](?=\d{3}\b)/g, "$1");
+  const k = t.match(/(?<![\w.])(\d{1,3}(?:[.,]\d)?)\s*(к|k|тис|тыс)(?![a-zа-яіїєґ])/);
+  if (k) return Math.round(Number(k[1].replace(",", ".")) * 1000);
+  for (const m of Array.from(t.matchAll(/(?<![\w.,])(\d{3,6})(?![\w.,]\d)(\s*(грн|uah|₴|гривень|гривен))?/g))) {
+    const n = Number(m[1]);
+    if (!m[2] && n >= 1990 && n <= 2035) continue;
+    if (n >= 500) return n;
+  }
+  return null;
+}
+
+/** The prices the bargain went through, in turn: who named which, newest last. */
+export function bargainTrail(chat: ChatMessage[]): { from: ChatMessage["from"]; price: number }[] {
+  const trail: { from: ChatMessage["from"]; price: number }[] = [];
+  for (const m of chat) {
+    const price = priceInText(m.text);
+    const last = trail[trail.length - 1];
+    if (price && !(last && last.from === m.from && last.price === price)) trail.push({ from: m.from, price });
+  }
+  return trail;
+}
+
+/**
+ * Photo links of a listing, as a bot reads them off the page: OLX's own
+ * image hosts only, https, ten at most.
+ */
+export function parsePhotos(v: unknown): string[] {
+  const list = Array.isArray(v) ? v : typeof v === "string" ? [v] : [];
+  const out: string[] = [];
+  for (const raw of list) {
+    try {
+      const u = new URL(String(raw));
+      if (u.protocol === "https:" && /(^|\.)(olxcdn\.com|olx\.ua)$/i.test(u.hostname) && !out.includes(u.href)) out.push(u.href);
+    } catch {
+      // not a link
+    }
+  }
+  return out.slice(0, 10);
+}
+
+/**
  * The owner's word on a deal, from the terminal or from Telegram:
  * "ok" with a price lets the bot close at it, "no" turns the seller down.
  */
@@ -258,6 +305,27 @@ export function ownerDecision(decision: unknown, price: unknown, now: string): P
   }
   if (decision === "no") return { owner_decision: "ні", owner_decision_at: now, status: "rejected" };
   return null;
+}
+
+/**
+ * The owner's reply to a new listing in the Telegram group: "25000" or
+ * "25 000" — start bargaining there; "25000-30000" — and go no higher;
+ * "-" or "ні" — skip it; "@ прицел для пневматики" — not our kind of item,
+ * with the reason kept for the bot to learn what to leave out.
+ */
+export function startDecision(text: string, now: string): Partial<OlxDeal> | null {
+  const t = text.trim().toLowerCase();
+  if (t.startsWith("@")) {
+    const why = text.trim().slice(1).trim().slice(0, 500);
+    return { owner_decision: "не цікаво", owner_decision_at: now, status: "rejected", notes: why ? `Не цікаво: ${why}` : "Не цікаво" };
+  }
+  if (/^(-|—|ні|нет|skip|пропуск)$/.test(t)) return { owner_decision: "пропуск", owner_decision_at: now, status: "rejected" };
+  const m = t.replace(/(\d)[\s .](?=\d{3}\b)/g, "$1").match(/^(\d{3,7})(?:\s*(?:-|—|–|до)\s*(\d{3,7}))?\s*(грн|uah|₴)?$/);
+  if (!m) return null;
+  const from = Number(m[1]);
+  const to = m[2] ? Number(m[2]) : null;
+  if (to !== null && to < from) return null;
+  return { owner_decision: to ? `старт ${from}, до ${to}` : `старт ${from}`, owner_decision_at: now, our_offer: from, status: "negotiating" };
 }
 
 /** Words of a model name: lower case, "E6 +" glued to "E6+", punctuation dropped. */
@@ -279,8 +347,29 @@ const GENERIC_WORDS = new Set([
 ]);
 
 // Words in brackets are article codes and brand aliases: "INFIRAY (IRAY)", "(HM-TR13-35XF/W-TH35)"
-const core = (s: string) =>
-  Array.from(new Set(modelTokens(s.replace(/\([^)]*\)/g, " ")).filter((w) => !GENERIC_WORDS.has(w)))).sort().join(" ");
+const coreWords = (s: string) => Array.from(new Set(modelTokens(s.replace(/\([^)]*\)/g, " ")).filter((w) => !GENERIC_WORDS.has(w))));
+const core = (s: string) => coreWords(s).sort().join(" ");
+
+/**
+ * Our product an OLX title is about, or null. Every word that names the
+ * product must be in the title ("Pulsar Axion XM30S б/у, ідеал" is our
+ * "Axion XM30S"); when several fit, the one with the most words, and none
+ * if two fit equally. Only names with a model number count — "Pulsar
+ * тепловізор" is no product.
+ */
+export function matchCatalog<P extends { name: string }>(title: string | null | undefined, products: P[]): P | null {
+  const have = new Set(title ? coreWords(title) : []);
+  if (!have.size) return null;
+  let best: P[] = [];
+  let bestLen = 0;
+  for (const p of products) {
+    const words = coreWords(p.name);
+    if (!words.some((w) => /\d/.test(w)) || !words.every((w) => have.has(w))) continue;
+    if (words.length > bestLen) [best, bestLen] = [[p], words.length];
+    else if (words.length === bestLen) best.push(p);
+  }
+  return best.length === 1 ? best[0] : null;
+}
 
 /**
  * The owner's model a deal's model name means, or null. The words that tell

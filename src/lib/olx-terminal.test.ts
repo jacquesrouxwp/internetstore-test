@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buyPrices, matchModel, normalizeOlxUrl, parseDealPatch, parseMessages, zone, type OlxModel } from "./olx-terminal";
+import { buyPrices, matchModel, normalizeOlxUrl, parseDealPatch, bargainTrail, matchCatalog, parseMessages, priceInText, parsePhotos, startDecision, zone, type OlxModel } from "./olx-terminal";
 
 const th35: OlxModel = {
   id: "th35",
@@ -49,6 +49,27 @@ describe("buying prices by state", () => {
   });
 });
 
+describe("start price from the Telegram group", () => {
+  const now = "2026-10-30T12:00:00.000Z";
+  it("reads a start price, with or without a ceiling", () => {
+    assert.deepEqual(startDecision("25 000", now), { owner_decision: "старт 25000", owner_decision_at: now, our_offer: 25000, status: "negotiating" });
+    assert.equal(startDecision("25000-30000 грн", now)?.owner_decision, "старт 25000, до 30000");
+    assert.equal(startDecision("25000 до 30000", now)?.owner_decision, "старт 25000, до 30000");
+  });
+  it("skips on a dash and ignores chatter", () => {
+    assert.equal(startDecision("-", now)?.status, "rejected");
+    assert.equal(startDecision("ні", now)?.status, "rejected");
+    assert.deepEqual(startDecision("@ це приціл для пневматики", now), {
+      owner_decision: "не цікаво",
+      owner_decision_at: now,
+      status: "rejected",
+      notes: "Не цікаво: це приціл для пневматики",
+    });
+    assert.equal(startDecision("класний стан", now), null);
+    assert.equal(startDecision("30000-25000", now), null);
+  });
+});
+
 describe("olx terminal input", () => {
   it("accepts only olx.ua listing links", () => {
     assert.equal(normalizeOlxUrl("https://www.olx.ua/d/uk/obyavlenie/pulsar-axion-IDabc.html?x=1"), "https://www.olx.ua/d/uk/obyavlenie/pulsar-axion-IDabc.html");
@@ -72,6 +93,55 @@ describe("olx terminal input", () => {
     const m = parseMessages([{ from: "us", text: "за 19 700 віддасте?" }, { from: "x", text: "?" }]);
     assert.equal(m.length, 1);
     assert.equal(m[0].from, "us");
+  });
+});
+
+describe("prices in the chat", () => {
+  it("reads the price a line names", () => {
+    assert.equal(priceInText("За 27 000 віддам"), 27000);
+    assert.equal(priceInText("27000 грн і забирайте"), 27000);
+    assert.equal(priceInText("давайте 27к"), 27000);
+    assert.equal(priceInText("27,5 тис"), 27500);
+    assert.equal(priceInText("купував у 2023 році, Axion XM30S"), null);
+    assert.equal(priceInText("Добрий день, ще актуально?"), null);
+  });
+  it("lays out the bargain in turn", () => {
+    const at = "2026-10-30T12:00:00.000Z";
+    const chat = [
+      { at, from: "us" as const, text: "Добрий день! Віддасте за 22 000?" },
+      { at, from: "seller" as const, text: "Ні, мінімум 28 000" },
+      { at, from: "seller" as const, text: "28000 остаточно" },
+      { at, from: "us" as const, text: "Можемо 25 000 грн" },
+    ];
+    assert.deepEqual(bargainTrail(chat).map((s) => `${s.from} ${s.price}`), ["us 22000", "seller 28000", "us 25000"]);
+  });
+});
+
+describe("parsePhotos", () => {
+  it("keeps OLX image links only", () => {
+    const img = "https://ireland.apollo.olxcdn.com/v1/files/abc-UA/image;s=1000x700";
+    assert.deepEqual(parsePhotos([img, img, "https://evil.example/x.jpg", "http://ireland.apollo.olxcdn.com/x", 5]), [img]);
+    assert.deepEqual(parsePhotos(img), [img]);
+    assert.deepEqual(parsePhotos(undefined), []);
+  });
+});
+
+describe("matchCatalog", () => {
+  const products = [
+    { name: "Тепловізійний монокуляр Pulsar Axion XM30S" },
+    { name: "Тепловізійний приціл HikMicro Thunder TH35" },
+    { name: "Тепловізійний приціл HikMicro Thunder TH35 2.0" },
+    { name: "Pulsar Telos XP50" },
+    { name: "Pulsar Telos XP50 LRF" },
+  ];
+  it("finds our product in a seller's title", () => {
+    assert.equal(matchCatalog("Тепловізор Pulsar Axion XM30S б/у, ідеал", products)?.name, products[0].name);
+    assert.equal(matchCatalog("Thunder TH35 2.0 як новий", products)?.name, products[2].name);
+    assert.equal(matchCatalog("Pulsar Telos XP50 LRF", products)?.name, products[4].name);
+  });
+  it("finds nothing rather than a guess", () => {
+    assert.equal(matchCatalog("Теповізійний приціл", products), null);
+    assert.equal(matchCatalog("Pulsar Axion XM30", products), null);
   });
 });
 
