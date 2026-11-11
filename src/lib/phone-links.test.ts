@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { linkifyPhonesHtml, splitPhones } from "./phone-links";
 
-const LINK = (n: string) =>
-  `<a href="tel:+380637897699" class="phone-link">${n}</a>`;
+const DISPLAY = "+380 63 789 76 99";
+const LINK = `<a href="tel:+380637897699" class="phone-link">${DISPLAY}</a>`;
 
 describe("linkifyPhonesHtml", () => {
   it("links the store number in the formats used on the site", () => {
@@ -12,16 +12,17 @@ describe("linkifyPhonesHtml", () => {
       "063 789 76 99",
       "+38 (063) 789-76-99",
       "+380637897699",
+      "+380 63 789 76 99",
       "0637897699",
     ]) {
-      assert.equal(linkifyPhonesHtml(`<p>Тел. ${n}.</p>`), `<p>Тел. ${LINK(n)}.</p>`);
+      assert.equal(linkifyPhonesHtml(`<p>Тел. ${n}.</p>`), `<p>Тел. ${LINK}.</p>`);
     }
   });
 
   it("keeps the surrounding markup", () => {
     assert.equal(
       linkifyPhonesHtml("<p>Консультант: <strong>063 789-76-99</strong>.</p>"),
-      `<p>Консультант: <strong>${LINK("063 789-76-99")}</strong>.</p>`
+      `<p>Консультант: <strong>${LINK}</strong>.</p>`
     );
   });
 
@@ -40,12 +41,23 @@ describe("linkifyPhonesHtml", () => {
 
 describe("the second number", () => {
   it("links 098 218-17-82 to itself", () => {
-    for (const n of ["098 218-17-82", "098 218 17 82", "+38 (098) 218-17-82", "+380982181782"]) {
-      assert.equal(linkifyPhonesHtml(`<p>${n}</p>`), `<p><a href="tel:+380982181782" class="phone-link">${n}</a></p>`, n);
+    const shown = "+380 98 218 17 82";
+    for (const n of [
+      "098 218-17-82",
+      "098 218 17 82",
+      "+38 (098) 218-17-82",
+      "+380982181782",
+      "+380 98 218 17 82",
+    ]) {
+      assert.equal(
+        linkifyPhonesHtml(`<p>${n}</p>`),
+        `<p><a href="tel:+380982181782" class="phone-link">${shown}</a></p>`,
+        n
+      );
     }
     assert.deepEqual(splitPhones("або 098 218-17-82"), [
       { text: "або ", phone: false },
-      { text: "098 218-17-82", phone: true, tel: "tel:+380982181782" },
+      { text: shown, phone: true, tel: "tel:+380982181782" },
     ]);
   });
 });
@@ -54,7 +66,7 @@ describe("splitPhones", () => {
   it("marks the number inside plain text", () => {
     assert.deepEqual(splitPhones("Дзвоніть 063 789-76-99 щодня"), [
       { text: "Дзвоніть ", phone: false },
-      { text: "063 789-76-99", phone: true, tel: "tel:+380637897699" },
+      { text: DISPLAY, phone: true, tel: "tel:+380637897699" },
       { text: " щодня", phone: false },
     ]);
   });
