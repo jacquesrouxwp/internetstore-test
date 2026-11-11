@@ -159,25 +159,27 @@ export function Header({
           </div>
         </div>
         {/*
-          Phones stacked on the left, slogan right-aligned directly above the
-          language switch. Buyback stays under the numbers so it does not
-          push that pair apart.
+          Two rows. Phones stay stacked on the left (icons share an edge).
+          Buyback sits on the second row, just to the right of the lower
+          number. The slogan is right-aligned directly above the languages.
         */}
-        <div className="container-shop flex items-start justify-between gap-x-3 py-2 md:hidden">
-          <div className="flex min-w-0 flex-col items-start gap-1.5">
+        <div className="container-shop flex flex-col gap-1.5 py-2 md:hidden">
+          <div className="flex items-center justify-between gap-2">
             <TopBarPhone href={STORE_PHONE_TEL}>{STORE_PHONE_DISPLAY}</TopBarPhone>
+            <span className="whitespace-nowrap text-right leading-none text-muted-ui">
+              {t("workNote")}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
             <TopBarPhone href={STORE_PHONE_2_TEL}>{STORE_PHONE_2_DISPLAY}</TopBarPhone>
             <Link
               href="/vykup"
-              className="inline-flex items-center gap-1.5 font-semibold leading-none text-green-400 hover:opacity-90"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold leading-none text-green-400 hover:opacity-90"
             >
               <Banknote className="h-3.5 w-3.5 shrink-0" />
               {t("buyback")}
             </Link>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1.5 text-right">
-            <span className="whitespace-nowrap text-muted-ui">{t("workNote")}</span>
-            <div className="flex items-center gap-4">
+            <div className="ml-auto flex shrink-0 items-center gap-3">
               {LOCALE_TABS.map(({ code, label }) => (
                 <button
                   key={code}
