@@ -1,6 +1,7 @@
 /**
- * Single storefront phone — use everywhere (header, footer, contacts, CTA).
- * Display as the owner requested; tel/messengers use E.164 digits.
+ * Storefront phones — both shown everywhere (header, footer, contacts, CTA);
+ * each has its own Telegram and WhatsApp. Display as the owner requested;
+ * tel/messengers use E.164 digits.
  */
 
 /** Visible format on the site */
@@ -18,6 +19,11 @@ export const STORE_PHONE_DIGITS = "380637897699";
 export const STORE_PHONE_WHATSAPP = `https://wa.me/${STORE_PHONE_DIGITS}`;
 export const STORE_PHONE_TELEGRAM = `https://t.me/+${STORE_PHONE_DIGITS}`;
 export const STORE_PHONE_VIBER = `viber://chat?number=%2B${STORE_PHONE_DIGITS}`;
+
+/** The second number, added 11.11.2026 — also on Telegram and WhatsApp */
+export const STORE_PHONE_2_DISPLAY = "098 218-17-82";
+export const STORE_PHONE_2_E164 = "+380982181782";
+export const STORE_PHONE_2_TEL = "tel:+380982181782";
 
 /**
  * pro-optics.ua is not a registered domain, so mail to it bounces — yet it was

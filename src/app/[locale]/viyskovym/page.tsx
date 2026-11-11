@@ -12,6 +12,8 @@ import {
   STORE_PHONE_TEL,
   STORE_PHONE_TELEGRAM,
   STORE_PHONE_WHATSAPP,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
 } from "@/lib/contact";
 
 type Props = { params: Promise<{ locale: string }> };
@@ -110,6 +112,14 @@ export default async function MilitaryPage({ params }: Props) {
         className="btn-hero btn-hero-secondary !no-underline"
       >
         {STORE_PHONE_DISPLAY}
+      </ConsultTrackLink>
+      <ConsultTrackLink
+        channel="phone"
+        source="military"
+        href={STORE_PHONE_2_TEL}
+        className="btn-hero btn-hero-secondary !no-underline"
+      >
+        {STORE_PHONE_2_DISPLAY}
       </ConsultTrackLink>
     </div>
   );

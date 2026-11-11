@@ -11,6 +11,7 @@ import {
   STORE_PHONE_E164,
   STORE_PHONE_TELEGRAM,
   STORE_PHONE_WHATSAPP,
+  STORE_PHONE_2_E164,
 } from "@/lib/contact";
 
 export type OrganizationSocial = {
@@ -139,6 +140,13 @@ export function buildOrganizationJsonLd(input?: {
     {
       "@type": "ContactPoint",
       telephone: phone,
+      contactType: "customer service",
+      areaServed: "UA",
+      availableLanguage: ["uk", "ru", "en"],
+    },
+    {
+      "@type": "ContactPoint",
+      telephone: STORE_PHONE_2_E164,
       contactType: "customer service",
       areaServed: "UA",
       availableLanguage: ["uk", "ru", "en"],

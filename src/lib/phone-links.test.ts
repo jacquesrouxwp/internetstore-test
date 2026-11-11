@@ -38,11 +38,23 @@ describe("linkifyPhonesHtml", () => {
   });
 });
 
+describe("the second number", () => {
+  it("links 098 218-17-82 to itself", () => {
+    for (const n of ["098 218-17-82", "098 218 17 82", "+38 (098) 218-17-82", "+380982181782"]) {
+      assert.equal(linkifyPhonesHtml(`<p>${n}</p>`), `<p><a href="tel:+380982181782" class="phone-link">${n}</a></p>`, n);
+    }
+    assert.deepEqual(splitPhones("або 098 218-17-82"), [
+      { text: "або ", phone: false },
+      { text: "098 218-17-82", phone: true, tel: "tel:+380982181782" },
+    ]);
+  });
+});
+
 describe("splitPhones", () => {
   it("marks the number inside plain text", () => {
     assert.deepEqual(splitPhones("Дзвоніть 063 789-76-99 щодня"), [
       { text: "Дзвоніть ", phone: false },
-      { text: "063 789-76-99", phone: true },
+      { text: "063 789-76-99", phone: true, tel: "tel:+380637897699" },
       { text: " щодня", phone: false },
     ]);
   });

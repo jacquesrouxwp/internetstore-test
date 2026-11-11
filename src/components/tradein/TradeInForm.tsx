@@ -4,7 +4,12 @@ import { reportContactConversion } from "@/lib/analytics/google-ads";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Check, Loader2, Phone, X } from "lucide-react";
 import { CONDITIONS, DEFECTS, EXTRAS, MAX_PHOTOS, label } from "@/lib/trade-in";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+} from "@/lib/contact";
 import type { Locale } from "@/types";
 
 interface Suggestion {
@@ -201,6 +206,12 @@ export function TradeInForm({ locale }: { locale: Locale }) {
         >
           <Phone className="h-4 w-4" /> {STORE_PHONE_DISPLAY}
         </a>
+        <a
+          href={STORE_PHONE_2_TEL}
+          className="ml-4 mt-4 inline-flex items-center gap-2 font-semibold text-[var(--accent)] hover:underline"
+        >
+          <Phone className="h-4 w-4" /> {STORE_PHONE_2_DISPLAY}
+        </a>
         <div className="mt-5">
           <button
             type="button"
@@ -241,6 +252,10 @@ export function TradeInForm({ locale }: { locale: Locale }) {
         {t.callInstead}{" "}
         <a href={STORE_PHONE_TEL} className="font-semibold text-[var(--accent)] hover:underline">
           {STORE_PHONE_DISPLAY}
+        </a>
+        {", "}
+        <a href={STORE_PHONE_2_TEL} className="font-semibold text-[var(--accent)] hover:underline">
+          {STORE_PHONE_2_DISPLAY}
         </a>
         .
       </p>

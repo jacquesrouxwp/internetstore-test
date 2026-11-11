@@ -1,7 +1,12 @@
 import { ShieldCheck, Truck, Repeat, Wallet } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { articleCatalogLinks } from "@/lib/article-cta";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+} from "@/lib/contact";
 import type { Locale } from "@/types";
 
 /**
@@ -84,6 +89,13 @@ export function ArticleCta({
           className="font-semibold text-[var(--accent)] hover:underline"
         >
           {STORE_PHONE_DISPLAY}
+        </a>
+        {ru ? " или " : " або "}
+        <a
+          href={STORE_PHONE_2_TEL}
+          className="font-semibold text-[var(--accent)] hover:underline"
+        >
+          {STORE_PHONE_2_DISPLAY}
         </a>
         {ru
           ? " — подскажем по задаче и бюджету. Есть "

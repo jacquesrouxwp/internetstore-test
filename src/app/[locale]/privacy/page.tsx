@@ -6,7 +6,12 @@ import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 import { SellerDetails } from "@/components/legal/SellerDetails";
 import { pageAlternates } from "@/lib/seo-alternates";
 import { legalUpdatedLabel, SELLER } from "@/lib/legal";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+} from "@/lib/contact";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -182,7 +187,7 @@ export default async function PrivacyPage({ params }: Props) {
         </p>
         <p>
           {L("Щоб скористатися цими правами, зателефонуйте нам:", "Чтобы воспользоваться этими правами, позвоните нам:", "To exercise these rights, call us:")}{" "}
-          <a href={STORE_PHONE_TEL}>{STORE_PHONE_DISPLAY}</a>.
+          <a href={STORE_PHONE_TEL}>{STORE_PHONE_DISPLAY}</a>, <a href={STORE_PHONE_2_TEL}>{STORE_PHONE_2_DISPLAY}</a>.
         </p>
 
         <h2>{L("8. Захист даних", "8. Защита данных", "8. Data protection")}</h2>

@@ -22,10 +22,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         : "Повернення та обмін товару | Pro-Optics";
   const description =
     locale === "ru"
-      ? "Условия возврата и обмена в Pro-Optics: 14 дней для товара надлежащего качества, брак по гарантии, оформление через Новую Почту. Тел. 063 789 76 99."
+      ? "Условия возврата и обмена в Pro-Optics: 14 дней для товара надлежащего качества, брак по гарантии, оформление через Новую Почту. Тел. 063 789 76 99, 098 218 17 82."
       : locale === "en"
-        ? "Returns and exchange at Pro-Optics: 14 days for products of proper quality, defects covered by the warranty, returns through Nova Poshta. Tel. 063 789 76 99."
-        : "Умови повернення та обміну в Pro-Optics: 14 днів для товару належної якості, брак за гарантією, оформлення через Нову Пошту. Тел. 063 789 76 99.";
+        ? "Returns and exchange at Pro-Optics: 14 days for products of proper quality, defects covered by the warranty, returns through Nova Poshta. Tel. 063 789 76 99, 098 218 17 82."
+        : "Умови повернення та обміну в Pro-Optics: 14 днів для товару належної якості, брак за гарантією, оформлення через Нову Пошту. Тел. 063 789 76 99, 098 218 17 82.";
   const path =
     locale === "ru"
       ? "/ru/returns"

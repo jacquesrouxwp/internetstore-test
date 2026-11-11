@@ -3,7 +3,12 @@
 import { reportContactConversion } from "@/lib/analytics/google-ads";
 import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Phone } from "lucide-react";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+} from "@/lib/contact";
 import type { Locale } from "@/types";
 
 /** Fired by the brand list when a visitor clicks a model. */
@@ -133,6 +138,12 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
         >
           <Phone className="h-4 w-4" /> {STORE_PHONE_DISPLAY}
         </a>
+        <a
+          href={STORE_PHONE_2_TEL}
+          className="ml-4 mt-4 inline-flex items-center gap-2 font-semibold text-[var(--accent)] hover:underline"
+        >
+          <Phone className="h-4 w-4" /> {STORE_PHONE_2_DISPLAY}
+        </a>
         <div className="mt-5">
           <button
             type="button"
@@ -217,6 +228,10 @@ export function PremiumOrderForm({ locale }: { locale: Locale }) {
             {t.orCall}{" "}
             <a href={STORE_PHONE_TEL} className="font-semibold text-[var(--accent)] hover:underline">
               {STORE_PHONE_DISPLAY}
+            </a>
+            {", "}
+            <a href={STORE_PHONE_2_TEL} className="font-semibold text-[var(--accent)] hover:underline">
+              {STORE_PHONE_2_DISPLAY}
             </a>
           </span>
         </div>

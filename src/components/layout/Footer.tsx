@@ -12,6 +12,8 @@ import {
   STORE_PHONE_TEL,
   STORE_PHONE_TELEGRAM,
   STORE_PHONE_WHATSAPP,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
 } from "@/lib/contact";
 
 const SIMULATOR_LINK_ENABLED = true;
@@ -22,7 +24,7 @@ export async function Footer() {
   const tn = await getTranslations("nav");
   const tp = await getTranslations("pages");
   const year = new Date().getFullYear();
-  // Only one public phone — never list multiple from settings
+  // The store's own numbers only — never list phones from settings
   const phoneDisplay = STORE_PHONE_DISPLAY;
   let address = tp("address");
   let tg = process.env.NEXT_PUBLIC_TELEGRAM_URL || STORE_PHONE_TELEGRAM;
@@ -180,6 +182,17 @@ export async function Footer() {
               >
                 <Phone className="h-4 w-4" />
                 {phoneDisplay}
+              </ConsultTrackLink>
+            </li>
+            <li>
+              <ConsultTrackLink
+                channel="phone"
+                source="footer"
+                href={STORE_PHONE_2_TEL}
+                className="inline-flex items-center gap-2 font-medium text-primary hover:text-[var(--accent)]"
+              >
+                <Phone className="h-4 w-4" />
+                {STORE_PHONE_2_DISPLAY}
               </ConsultTrackLink>
             </li>
             <li className="flex flex-wrap items-center gap-3 pt-1">

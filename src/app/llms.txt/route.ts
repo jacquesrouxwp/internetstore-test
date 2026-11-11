@@ -1,7 +1,7 @@
 import { getBrandsWithProducts, getCategories, getCatalog } from "@/lib/catalog";
 import { getSiteUrl } from "@/lib/site-url";
 import { pluralProducts } from "@/lib/brand-pages";
-import { STORE_EMAIL, STORE_PHONE_DISPLAY } from "@/lib/contact";
+import { STORE_EMAIL, STORE_PHONE_DISPLAY, STORE_PHONE_2_DISPLAY } from "@/lib/contact";
 import { SELLER } from "@/lib/legal";
 
 /**
@@ -28,7 +28,7 @@ export async function GET() {
   const lines: string[] = [
     "# Pro-Optics (Про Оптікс)",
     "",
-    `> Інтернет-магазин тепловізорів, тепловізійних прицілів, насадок і приладів нічного бачення в Україні. Продавець — ${SELLER.legalName.uk}, ${SELLER.legalAddress.uk}. Доставка Новою Поштою по всій Україні, оплата при отриманні. Телефон ${STORE_PHONE_DISPLAY}, пошта ${STORE_EMAIL}.`,
+    `> Інтернет-магазин тепловізорів, тепловізійних прицілів, насадок і приладів нічного бачення в Україні. Продавець — ${SELLER.legalName.uk}, ${SELLER.legalAddress.uk}. Доставка Новою Поштою по всій Україні, оплата при отриманні. Телефони ${STORE_PHONE_DISPLAY}, ${STORE_PHONE_2_DISPLAY}, пошта ${STORE_EMAIL}.`,
     "",
     "## Каталог",
     "",

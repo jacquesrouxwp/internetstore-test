@@ -6,7 +6,12 @@ import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 import { SellerDetails } from "@/components/legal/SellerDetails";
 import { pageAlternates } from "@/lib/seo-alternates";
 import { legalUpdatedLabel, SELLER } from "@/lib/legal";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+} from "@/lib/contact";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -278,7 +283,7 @@ export default async function OfertaPage({ params }: Props) {
         <h2>{L("10. Контакти", "10. Контакты", "10. Contacts")}</h2>
         <p>
           {L("З усіх питань телефонуйте:", "По всем вопросам звоните:", "For any questions, call:")}{" "}
-          <a href={STORE_PHONE_TEL}>{STORE_PHONE_DISPLAY}</a>.{" "}
+          <a href={STORE_PHONE_TEL}>{STORE_PHONE_DISPLAY}</a>, <a href={STORE_PHONE_2_TEL}>{STORE_PHONE_2_DISPLAY}</a>.{" "}
           {L("Продавець може оновлювати ці умови; чинна редакція завжди опублікована на цій сторінці. Замовлення, підтверджені раніше, виконуються на умовах, що діяли на момент підтвердження.",
             "Продавец может обновлять эти условия; действующая редакция всегда опубликована на этой странице. Заказы, подтверждённые ранее, выполняются на условиях, действовавших на момент подтверждения.", "The Seller may update these terms; the current version is always published on this page. Orders confirmed earlier are fulfilled on the terms that applied at the time of confirmation.")}
         </p>

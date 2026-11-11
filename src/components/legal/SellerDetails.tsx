@@ -1,6 +1,11 @@
 import { SELLER, sellerName } from "@/lib/legal";
 import type { Locale } from "@/types";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+} from "@/lib/contact";
 import { getAllPublicSettings, type LegalSettings } from "@/lib/store-settings";
 
 /**
@@ -34,9 +39,9 @@ export async function SellerDetails({ locale }: { locale: Locale }) {
   ]);
   rows.push([
     label("Телефон", "Телефон", "Phone"),
-    <a key="tel" href={STORE_PHONE_TEL}>
-      {STORE_PHONE_DISPLAY}
-    </a>,
+    <span key="tel">
+      <a href={STORE_PHONE_TEL}>{STORE_PHONE_DISPLAY}</a>, <a href={STORE_PHONE_2_TEL}>{STORE_PHONE_2_DISPLAY}</a>
+    </span>,
   ]);
   rows.push([label("Графік роботи", "График работы", "Opening hours"), SELLER.hours[locale]]);
 

@@ -21,7 +21,12 @@ import type { Locale } from "@/types";
 import type { Brand, Category } from "@/types";
 import { categoryName } from "@/types";
 import { SiteLogo } from "@/components/layout/SiteLogo";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+} from "@/lib/contact";
 import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
@@ -120,6 +125,15 @@ export function Header({
           >
             <Phone className="h-3.5 w-3.5" />
             {STORE_PHONE_DISPLAY}
+          </ConsultTrackLink>
+          <ConsultTrackLink
+            channel="phone"
+            source="header"
+            href={STORE_PHONE_2_TEL}
+            className="inline-flex items-center gap-1.5 font-semibold text-primary hover:opacity-90"
+          >
+            <Phone className="h-3.5 w-3.5" />
+            {STORE_PHONE_2_DISPLAY}
           </ConsultTrackLink>
           <span className="hidden text-muted-ui sm:inline">{t("hours")}</span>
           {/* On phones the nav row is hidden; buyback brings most contacts, so it sits here */}

@@ -7,7 +7,12 @@ import type { Brand } from "@/types";
 import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { DualRangeSlider } from "@/components/ui/dual-range-slider";
-import { STORE_PHONE_DISPLAY, STORE_PHONE_TEL } from "@/lib/contact";
+import {
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+} from "@/lib/contact";
 import { ConsultTrackLink } from "@/components/analytics/ConsultTrackLink";
 
 const RESOLUTIONS = [
@@ -277,6 +282,14 @@ export function CatalogFilters({
           className="btn-secondary mt-4 w-full text-sm"
         >
           {t("consultCall")} {STORE_PHONE_DISPLAY}
+        </ConsultTrackLink>
+        <ConsultTrackLink
+          channel="phone"
+          source="catalog"
+          href={STORE_PHONE_2_TEL}
+          className="btn-secondary mt-2 w-full text-sm"
+        >
+          {t("consultCall")} {STORE_PHONE_2_DISPLAY}
         </ConsultTrackLink>
       </div>
     </aside>

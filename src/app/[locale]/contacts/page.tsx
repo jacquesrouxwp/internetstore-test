@@ -6,6 +6,8 @@ import {
   STORE_EMAIL,
   STORE_PHONE_DISPLAY,
   STORE_PHONE_TEL,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
 } from "@/lib/contact";
 import { pageAlternates } from "@/lib/seo-alternates";
 
@@ -20,10 +22,10 @@ export async function generateMetadata({
       locale === "ru" ? "Контакты" : locale === "en" ? "Contacts" : "Контакти",
     description:
       locale === "ru"
-        ? `Контакты Pro-Optics (Про Оптикс): телефон ${STORE_PHONE_DISPLAY}, Telegram, Viber, WhatsApp. Консультация по тепловизорам и доставка по Украине.`
+        ? `Контакты Pro-Optics (Про Оптикс): телефоны ${STORE_PHONE_DISPLAY}, ${STORE_PHONE_2_DISPLAY}, Telegram, Viber, WhatsApp. Консультация по тепловизорам и доставка по Украине.`
         : locale === "en"
-          ? `Contact Pro-Optics: phone ${STORE_PHONE_DISPLAY}, Telegram, Viber and WhatsApp. Advice on thermal imagers and night vision devices, plus delivery across Ukraine.`
-          : `Контакти Pro-Optics (Про Оптікс): телефон ${STORE_PHONE_DISPLAY}, Telegram, Viber, WhatsApp. Консультація щодо тепловізорів і доставка по Україні.`,
+          ? `Contact Pro-Optics: phones ${STORE_PHONE_DISPLAY}, ${STORE_PHONE_2_DISPLAY}, Telegram, Viber and WhatsApp. Advice on thermal imagers and night vision devices, plus delivery across Ukraine.`
+          : `Контакти Pro-Optics (Про Оптікс): телефони ${STORE_PHONE_DISPLAY}, ${STORE_PHONE_2_DISPLAY}, Telegram, Viber, WhatsApp. Консультація щодо тепловізорів і доставка по Україні.`,
     alternates: pageAlternates(locale, "/contacts"),
   };
 }
@@ -49,6 +51,12 @@ export default async function ContactsPage({
               className="block font-medium text-primary hover:text-accent"
             >
               {STORE_PHONE_DISPLAY}
+            </a>
+            <a
+              href={STORE_PHONE_2_TEL}
+              className="block font-medium text-primary hover:text-accent"
+            >
+              {STORE_PHONE_2_DISPLAY}
             </a>
           </div>
         </div>
