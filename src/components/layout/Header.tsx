@@ -117,24 +117,31 @@ export function Header({
       >
         <div className="container-shop flex flex-wrap items-center gap-x-6 gap-y-2 py-2">
           <span className="text-muted-ui">{t("workNote")}</span>
-          <ConsultTrackLink
-            channel="phone"
-            source="header"
-            href={STORE_PHONE_TEL}
-            className="inline-flex items-center gap-1.5 font-semibold text-primary hover:opacity-90"
-          >
-            <Phone className="h-3.5 w-3.5" />
-            {STORE_PHONE_DISPLAY}
-          </ConsultTrackLink>
-          <ConsultTrackLink
-            channel="phone"
-            source="header"
-            href={STORE_PHONE_2_TEL}
-            className="inline-flex items-center gap-1.5 font-semibold text-primary hover:opacity-90"
-          >
-            <Phone className="h-3.5 w-3.5" />
-            {STORE_PHONE_2_DISPLAY}
-          </ConsultTrackLink>
+          {/*
+            Phones share one row on a narrow screen (the second number used to
+            drop under the slogan and sit off the first). From md up the box
+            disappears, so the bar stays one line.
+          */}
+          <div className="flex items-center gap-x-4 max-md:w-full max-md:flex-nowrap md:contents">
+            <ConsultTrackLink
+              channel="phone"
+              source="header"
+              href={STORE_PHONE_TEL}
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap font-semibold text-primary hover:opacity-90 max-md:leading-none"
+            >
+              <Phone className="h-3.5 w-3.5 shrink-0" />
+              {STORE_PHONE_DISPLAY}
+            </ConsultTrackLink>
+            <ConsultTrackLink
+              channel="phone"
+              source="header"
+              href={STORE_PHONE_2_TEL}
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap font-semibold text-primary hover:opacity-90 max-md:leading-none"
+            >
+              <Phone className="h-3.5 w-3.5 shrink-0" />
+              {STORE_PHONE_2_DISPLAY}
+            </ConsultTrackLink>
+          </div>
           <span className="hidden text-muted-ui sm:inline">{t("hours")}</span>
           {/* On phones the nav row is hidden; buyback brings most contacts, so it sits here */}
           <Link

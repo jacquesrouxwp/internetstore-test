@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { publicStoreEmail } from "./contact";
+import {
+  publicStoreEmail,
+  STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_TEL,
+  STORE_PHONE_DISPLAY,
+  STORE_PHONE_TEL,
+} from "./contact";
+
+describe("store phones", () => {
+  it("shows both numbers as +380 XX XXX XX XX and dials the same +380 number", () => {
+    assert.equal(STORE_PHONE_DISPLAY, "+380 63 789 76 99");
+    assert.equal(STORE_PHONE_2_DISPLAY, "+380 98 218 17 82");
+    assert.equal(STORE_PHONE_TEL, "tel:+380637897699");
+    assert.equal(STORE_PHONE_2_TEL, "tel:+380982181782");
+  });
+});
 
 describe("publicStoreEmail", () => {
   it("drops addresses on the unregistered pro-optics.ua domain", () => {

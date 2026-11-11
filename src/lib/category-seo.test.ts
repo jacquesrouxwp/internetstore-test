@@ -9,7 +9,7 @@ describe("categorySeo", () => {
         const e = categorySeo(slug, loc);
         assert.ok(e, `${slug}/${loc}`);
         assert.ok(e.title.length > 10);
-        assert.match(e.html, /063 789-76-99/);
+        assert.match(e.html, /\+380 63 789 76 99/);
       }
     }
   });

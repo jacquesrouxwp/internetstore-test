@@ -5,6 +5,7 @@ import { InfoPage, InfoPanel } from "@/components/layout/InfoPage";
 import { absoluteUrl } from "@/lib/site-url";
 import { pageAlternates } from "@/lib/seo-alternates";
 import {
+  STORE_PHONE_2_DISPLAY,
   STORE_PHONE_DISPLAY,
   STORE_PHONE_TEL,
 } from "@/lib/contact";
@@ -22,10 +23,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         : "Повернення та обмін товару | Pro-Optics";
   const description =
     locale === "ru"
-      ? "Условия возврата и обмена в Pro-Optics: 14 дней для товара надлежащего качества, брак по гарантии, оформление через Новую Почту. Тел. 063 789 76 99, 098 218 17 82."
+      ? `Условия возврата и обмена в Pro-Optics: 14 дней для товара надлежащего качества, брак по гарантии, оформление через Новую Почту. Тел. ${STORE_PHONE_DISPLAY}, ${STORE_PHONE_2_DISPLAY}.`
       : locale === "en"
-        ? "Returns and exchange at Pro-Optics: 14 days for products of proper quality, defects covered by the warranty, returns through Nova Poshta. Tel. 063 789 76 99, 098 218 17 82."
-        : "Умови повернення та обміну в Pro-Optics: 14 днів для товару належної якості, брак за гарантією, оформлення через Нову Пошту. Тел. 063 789 76 99, 098 218 17 82.";
+        ? `Returns and exchange at Pro-Optics: 14 days for products of proper quality, defects covered by the warranty, returns through Nova Poshta. Tel. ${STORE_PHONE_DISPLAY}, ${STORE_PHONE_2_DISPLAY}.`
+        : `Умови повернення та обміну в Pro-Optics: 14 днів для товару належної якості, брак за гарантією, оформлення через Нову Пошту. Тел. ${STORE_PHONE_DISPLAY}, ${STORE_PHONE_2_DISPLAY}.`;
   const path =
     locale === "ru"
       ? "/ru/returns"
