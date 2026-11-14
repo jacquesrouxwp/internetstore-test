@@ -174,26 +174,27 @@ export async function Footer() {
           <ul className="space-y-3 text-sm text-secondary">
             <li>{address}</li>
             <li>
-              <ConsultTrackLink
-                channel="phone"
-                source="footer"
-                href={STORE_PHONE_TEL}
-                className="inline-flex items-center gap-2 font-medium text-primary hover:text-[var(--accent)]"
-              >
-                <Phone className="h-4 w-4" />
-                {phoneDisplay}
-              </ConsultTrackLink>
-            </li>
-            <li>
-              <ConsultTrackLink
-                channel="phone"
-                source="footer"
-                href={STORE_PHONE_2_TEL}
-                className="inline-flex items-center gap-2 font-medium text-primary hover:text-[var(--accent)]"
-              >
-                <Phone className="h-4 w-4" />
-                {STORE_PHONE_2_DISPLAY}
-              </ConsultTrackLink>
+              {/* One row on a phone; stacked in the narrow desktop column. */}
+              <div className="flex flex-col gap-3 max-sm:flex-row max-sm:flex-nowrap max-sm:items-center max-sm:gap-x-4">
+                <ConsultTrackLink
+                  channel="phone"
+                  source="footer"
+                  href={STORE_PHONE_TEL}
+                  className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap font-medium text-primary hover:text-[var(--accent)]"
+                >
+                  <Phone className="h-4 w-4 shrink-0" />
+                  {phoneDisplay}
+                </ConsultTrackLink>
+                <ConsultTrackLink
+                  channel="phone"
+                  source="footer"
+                  href={STORE_PHONE_2_TEL}
+                  className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap font-medium text-primary hover:text-[var(--accent)]"
+                >
+                  <Phone className="h-4 w-4 shrink-0" />
+                  {STORE_PHONE_2_DISPLAY}
+                </ConsultTrackLink>
+              </div>
             </li>
             <li className="flex flex-wrap items-center gap-3 pt-1">
               <ConsultTrackLink

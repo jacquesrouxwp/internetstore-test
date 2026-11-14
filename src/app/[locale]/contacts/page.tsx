@@ -48,13 +48,13 @@ export default async function ContactsPage({
           <div className="space-y-1.5 text-[0.9375rem] leading-relaxed">
             <a
               href={STORE_PHONE_TEL}
-              className="block font-medium text-primary hover:text-accent"
+              className="block whitespace-nowrap font-medium text-primary hover:text-accent"
             >
               {STORE_PHONE_DISPLAY}
             </a>
             <a
               href={STORE_PHONE_2_TEL}
-              className="block font-medium text-primary hover:text-accent"
+              className="block whitespace-nowrap font-medium text-primary hover:text-accent"
             >
               {STORE_PHONE_2_DISPLAY}
             </a>

@@ -14,7 +14,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/types";
@@ -41,6 +41,26 @@ const LOCALE_TABS = [
 const SIMULATOR_LINK_ENABLED = true;
 /** Blog in top / mobile nav for SEO internal linking. */
 const BLOG_NAV_ENABLED = true;
+
+function TopBarPhone({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <ConsultTrackLink
+      channel="phone"
+      source="header"
+      href={href}
+      className="inline-flex items-center gap-1.5 whitespace-nowrap font-semibold leading-none text-primary hover:opacity-90"
+    >
+      <Phone className="h-3.5 w-3.5 shrink-0" />
+      <span className="tabular-nums">{children}</span>
+    </ConsultTrackLink>
+  );
+}
 
 export function Header({
   categories,
@@ -115,35 +135,11 @@ export function Header({
           color: "var(--text-secondary)",
         }}
       >
-        <div className="container-shop flex flex-wrap items-center gap-x-6 gap-y-2 py-2">
+        <div className="container-shop hidden flex-wrap items-center gap-x-6 gap-y-2 py-2 md:flex">
           <span className="text-muted-ui">{t("workNote")}</span>
-          <ConsultTrackLink
-            channel="phone"
-            source="header"
-            href={STORE_PHONE_TEL}
-            className="inline-flex items-center gap-1.5 font-semibold text-primary hover:opacity-90"
-          >
-            <Phone className="h-3.5 w-3.5" />
-            {STORE_PHONE_DISPLAY}
-          </ConsultTrackLink>
-          <ConsultTrackLink
-            channel="phone"
-            source="header"
-            href={STORE_PHONE_2_TEL}
-            className="inline-flex items-center gap-1.5 font-semibold text-primary hover:opacity-90"
-          >
-            <Phone className="h-3.5 w-3.5" />
-            {STORE_PHONE_2_DISPLAY}
-          </ConsultTrackLink>
-          <span className="hidden text-muted-ui sm:inline">{t("hours")}</span>
-          {/* On phones the nav row is hidden; buyback brings most contacts, so it sits here */}
-          <Link
-            href="/vykup"
-            className="inline-flex items-center gap-1.5 font-semibold text-green-400 hover:opacity-90 md:hidden"
-          >
-            <Banknote className="h-3.5 w-3.5" />
-            {t("buyback")}
-          </Link>
+          <TopBarPhone href={STORE_PHONE_TEL}>{STORE_PHONE_DISPLAY}</TopBarPhone>
+          <TopBarPhone href={STORE_PHONE_2_TEL}>{STORE_PHONE_2_DISPLAY}</TopBarPhone>
+          <span className="text-muted-ui">{t("hours")}</span>
           <div className="ml-auto flex items-center gap-4">
             {LOCALE_TABS.map(({ code, label }) => (
               <button
@@ -160,6 +156,46 @@ export function Header({
                 {label}
               </button>
             ))}
+          </div>
+        </div>
+        {/*
+          Two rows. Phones stay stacked on the left (icons share an edge).
+          Buyback sits on the second row, just to the right of the lower
+          number. The slogan is right-aligned directly above the languages.
+        */}
+        <div className="container-shop flex flex-col gap-1.5 py-2 md:hidden">
+          <div className="flex items-center justify-between gap-2">
+            <TopBarPhone href={STORE_PHONE_TEL}>{STORE_PHONE_DISPLAY}</TopBarPhone>
+            <span className="whitespace-nowrap text-right leading-none text-muted-ui">
+              {t("workNote")}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <TopBarPhone href={STORE_PHONE_2_TEL}>{STORE_PHONE_2_DISPLAY}</TopBarPhone>
+            <Link
+              href="/vykup"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold leading-none text-green-400 hover:opacity-90"
+            >
+              <Banknote className="h-3.5 w-3.5 shrink-0" />
+              {t("buyback")}
+            </Link>
+            <div className="ml-auto flex shrink-0 items-center gap-3">
+              {LOCALE_TABS.map(({ code, label }) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => switchLocale(code)}
+                  className={cn(
+                    "font-medium uppercase leading-none tracking-wide transition",
+                    locale === code
+                      ? "text-primary"
+                      : "text-faint hover:text-primary"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
