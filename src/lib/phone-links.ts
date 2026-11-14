@@ -1,3 +1,4 @@
+import { STORE_PHONE_2_TEL, STORE_PHONE_TEL } from "@/lib/contact";
 
 /**
  * The store numbers as people write them in articles and descriptions:
@@ -14,7 +15,7 @@ export const STORE_PHONE_TEXT_RE = new RegExp(
 );
 
 /** The tel: link for a number found in text. */
-const telOf = (found: string) => (found.replace(/\D/g, "").includes("98218") ? "tel:+380982181782" : "tel:+380637897699");
+const telOf = (found: string) => (found.replace(/\D/g, "").includes("98218") ? STORE_PHONE_2_TEL : STORE_PHONE_TEL);
 
 export type PhoneSegment = { text: string; phone: boolean; tel?: string };
 
