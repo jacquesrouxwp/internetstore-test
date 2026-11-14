@@ -1,5 +1,6 @@
 import {
   STORE_PHONE_2_DISPLAY,
+  STORE_PHONE_2_E164,
   STORE_PHONE_2_TEL,
   STORE_PHONE_DISPLAY,
   STORE_PHONE_TEL,
@@ -22,7 +23,8 @@ export const STORE_PHONE_TEXT_RE = new RegExp(
   "g"
 );
 
-const isSecond = (found: string) => found.replace(/\D/g, "").includes("98218");
+/** Whichever number was written, matched by its last nine digits — not by which one is listed first. */
+const isSecond = (found: string) => found.replace(/\D/g, "").endsWith(STORE_PHONE_2_E164.slice(-9));
 
 /** The tel: link for a number found in text. Always the +380 E.164 form. */
 const telOf = (found: string) => (isSecond(found) ? STORE_PHONE_2_TEL : STORE_PHONE_TEL);

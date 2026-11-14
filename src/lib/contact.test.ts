@@ -9,11 +9,11 @@ import {
 } from "./contact";
 
 describe("store phones", () => {
-  it("shows both numbers as +380 XX XXX XX XX and dials the same +380 number", () => {
-    assert.equal(STORE_PHONE_DISPLAY, "+380 63 789 76 99");
-    assert.equal(STORE_PHONE_2_DISPLAY, "+380 98 218 17 82");
-    assert.equal(STORE_PHONE_TEL, "tel:+380637897699");
-    assert.equal(STORE_PHONE_2_TEL, "tel:+380982181782");
+  it("lists 098 first, shows both as +380 XX XXX XX XX and dials the same +380 number", () => {
+    assert.equal(STORE_PHONE_DISPLAY, "+380 98 218 17 82");
+    assert.equal(STORE_PHONE_2_DISPLAY, "+380 63 789 76 99");
+    assert.equal(STORE_PHONE_TEL, "tel:+380982181782");
+    assert.equal(STORE_PHONE_2_TEL, "tel:+380637897699");
   });
 });
 
