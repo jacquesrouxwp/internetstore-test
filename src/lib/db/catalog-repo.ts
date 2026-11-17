@@ -31,6 +31,7 @@ import {
   isRixProduct,
   sortBrandsByPriority,
 } from "@/lib/brand-priority";
+import { isTemporarilyHiddenProduct } from "@/lib/temporarily-hidden-products";
 import { STOREFRONT_TTL } from "@/lib/storefront-cache";
 
 /**
@@ -238,15 +239,18 @@ export async function dbGetCatalog(
       return null;
     }
 
-    const products = await attachPriceCompare(
-      filterHiddenBrandProducts(
-        (data || []).map((r) => mapDbProduct(r as Record<string, unknown>))
-      )
+    const mapped = (data || []).map((r) =>
+      mapDbProduct(r as Record<string, unknown>)
     );
+    const visible = filterHiddenBrandProducts(mapped);
+    const products = await attachPriceCompare(visible);
 
     return {
       products,
-      total: count ?? 0,
+      // Count comes from SQL before the storefront hide list is applied.
+      // Drop whatever this page just removed so a search for a hidden
+      // product does not report "1 товар" over an empty grid.
+      total: Math.max(0, (count ?? 0) - (mapped.length - visible.length)),
       page,
       limit,
       brands: sortBrandsByPriority(filterHiddenBrands(brands || [])),
@@ -274,6 +278,7 @@ function emptyCatalog(page: number, limit: number): CatalogResult {
 export async function dbGetProductBySlug(
   slug: string
 ): Promise<Product | null> {
+  if (isTemporarilyHiddenProduct(slug)) return null;
   const supabase = await getReadClient();
   if (!supabase) return null;
   try {
@@ -285,7 +290,14 @@ export async function dbGetProductBySlug(
       .maybeSingle();
     if (error || !data) return null;
     const product = mapDbProduct(data as Record<string, unknown>);
-    if (isBrandHidden(product.brandSlug) || isRixProduct(product)) return null;
+    if (
+      isTemporarilyHiddenProduct(product.slug) ||
+      isBrandHidden(product.brandSlug) ||
+      isBrandHidden(product.brandName) ||
+      isRixProduct(product)
+    ) {
+      return null;
+    }
     const [withCompare] = await attachPriceCompare([product]);
     return withCompare;
   } catch {

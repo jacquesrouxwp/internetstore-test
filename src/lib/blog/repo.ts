@@ -10,6 +10,7 @@ import {
   type BlogPost,
 } from "@/lib/blog/types";
 import { isUuid } from "@/lib/supabase/mappers";
+import { isTemporarilyHiddenBlogPost } from "@/lib/temporarily-hidden-products";
 
 const TABLE = "blog_posts";
 
@@ -59,9 +60,13 @@ export async function listPublishedPosts(opts?: {
     console.error("[blog] list", error.message);
     return { posts: [], total: 0, page, limit };
   }
+  const mapped = (data || []).map((r) =>
+    mapDbPost(r as Record<string, unknown>)
+  );
+  const posts = mapped.filter((p) => !isTemporarilyHiddenBlogPost(p.slug));
   return {
-    posts: (data || []).map((r) => mapDbPost(r as Record<string, unknown>)),
-    total: count ?? 0,
+    posts,
+    total: Math.max(0, (count ?? 0) - (mapped.length - posts.length)),
     page,
     limit,
   };
@@ -70,6 +75,7 @@ export async function listPublishedPosts(opts?: {
 export async function getPublishedPostBySlug(
   slug: string
 ): Promise<BlogPost | null> {
+  if (isTemporarilyHiddenBlogPost(slug)) return null;
   const sb = await readClient();
   if (!sb) return null;
   const { data, error } = await sb
@@ -97,9 +103,9 @@ export async function listRelatedPosts(
     .limit(limit);
   if (post.category) q = q.eq("category", post.category);
   const { data } = await q;
-  const posts = (data || []).map((r) =>
-    mapDbPost(r as Record<string, unknown>)
-  );
+  const posts = (data || [])
+    .map((r) => mapDbPost(r as Record<string, unknown>))
+    .filter((p) => !isTemporarilyHiddenBlogPost(p.slug));
   if (posts.length < limit) {
     const { data: more } = await sb
       .from(TABLE)
@@ -111,6 +117,7 @@ export async function listRelatedPosts(
     const ids = new Set(posts.map((p) => p.id));
     for (const r of more || []) {
       const p = mapDbPost(r as Record<string, unknown>);
+      if (isTemporarilyHiddenBlogPost(p.slug)) continue;
       if (!ids.has(p.id)) {
         posts.push(p);
         ids.add(p.id);

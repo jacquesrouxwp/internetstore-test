@@ -15,6 +15,11 @@ import { COLLECTIONS } from "@/lib/collections";
 import { COMPARISONS } from "@/lib/comparisons";
 import { isBrandHidden, isRixProduct } from "@/lib/brand-priority";
 import {
+  isTemporarilyHiddenBlogPost,
+  isTemporarilyHiddenBrand,
+  isTemporarilyHiddenProduct,
+} from "@/lib/temporarily-hidden-products";
+import {
   MIN_INDEXABLE_PRODUCTS,
   brandCounts,
   indexableBrandCategories,
@@ -127,6 +132,9 @@ function mapProductRows(
         brandSlug,
         categorySlug: row.categories?.slug || null,
         hidden:
+          isTemporarilyHiddenProduct(slug) ||
+          isTemporarilyHiddenBrand(brandSlug) ||
+          isTemporarilyHiddenBrand(row.brands?.name) ||
           isBrandHidden(brandSlug) ||
           isRixProduct({ brandSlug, brandName: row.brands?.name, slug, nameUk: row.name_uk }),
       };
@@ -199,7 +207,11 @@ async function loadProductEntries(siteUrl: string): Promise<ProductRow[]> {
     images: absoluteProductImageUrls(p.images || [], siteUrl),
     brandSlug: p.brandSlug || null,
     categorySlug: p.categorySlug || null,
-    hidden: isBrandHidden(p.brandSlug) || isRixProduct(p),
+    hidden:
+      isTemporarilyHiddenProduct(p.slug) ||
+      isTemporarilyHiddenBrand(p.brandSlug) ||
+      isBrandHidden(p.brandSlug) ||
+      isRixProduct(p),
   }));
 }
 
@@ -230,7 +242,9 @@ async function loadBlogEntries(): Promise<SlugRow[]> {
           lastModified: ts ? new Date(ts) : undefined,
         };
       })
-      .filter((e: SlugRow) => e.slug);
+      .filter(
+        (e: SlugRow) => e.slug && !isTemporarilyHiddenBlogPost(e.slug)
+      );
   };
 
   try {
@@ -348,7 +362,12 @@ export async function buildSitemapEntries(
     });
   }
 
-  for (const p of products) {
+  const visibleProducts = products.filter(
+    (p) =>
+      !isTemporarilyHiddenProduct(p.slug) && !isTemporarilyHiddenBrand(p.brandSlug)
+  );
+
+  for (const p of visibleProducts) {
     const lm = p.lastModified ? iso(p.lastModified) : undefined;
     const images = p.images?.length ? p.images : undefined;
     push(`/product/${p.slug}`, {
@@ -367,7 +386,7 @@ export async function buildSitemapEntries(
 
   // Brand landing pages: only brands / brand×category combos with enough
   // products to be a real listing (the thin ones are noindex anyway).
-  const brandRows: BrandProductRow[] = products
+  const brandRows: BrandProductRow[] = visibleProducts
     .filter((p) => p.brandSlug && !p.hidden)
     .map((p) => ({
       slug: p.slug,

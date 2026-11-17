@@ -14,6 +14,12 @@ describe("categorySeo", () => {
     }
   });
 
+  it("does not name the temporarily hidden Leonardo monocular", () => {
+    for (const loc of ["uk", "ru"] as const) {
+      assert.doesNotMatch(categorySeo("teplovizori", loc)!.html, /Leonardo/i);
+    }
+  });
+
   it("returns null for categories without copy", () => {
     assert.equal(categorySeo("aksesuary", "uk"), null);
   });

@@ -191,4 +191,19 @@ describe("productToMerchantItem extras", () => {
     );
     assert.deepEqual(item!.highlights, []);
   });
+
+  it("omits the temporarily hidden Leonardo monocular", () => {
+    const item = productToMerchantItem(
+      baseProduct({
+        slug: "leonardo-drs-iws-teploviziynyy-monokuliar",
+        brandSlug: "leonardo-drs",
+        brandName: "Leonardo DRS",
+        nameUk: "Тепловізійний монокуляр Leonardo DRS IWS",
+        nameRu: "Тепловизионный монокуляр Leonardo DRS IWS",
+      }),
+      "uk",
+      "https://pro-optics.com.ua",
+    );
+    assert.equal(item, null);
+  });
 });

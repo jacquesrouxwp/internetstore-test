@@ -4,10 +4,16 @@
  * A running line between the header and the hero: one current offer.
  * The price is the owner's own (Leonardo DRS IWS at 199 999 грн until the
  * New Year, set 13 October 2026); take the line down when the offer ends.
+ *
+ * Temporarily hidden (November 2026): this ticker has no other message, in
+ * any language — uk, ru and en all advertise Leonardo DRS IWS. The whole
+ * line is off until the product comes back. Restore:
+ * `isPromoTickerEnabled` in `src/lib/temporarily-hidden-products.ts`.
  */
 
 import { Link } from "@/i18n/routing";
 import { InfiniteSlider } from "@/components/ui/infinite-slider";
+import { isPromoTickerEnabled } from "@/lib/temporarily-hidden-products";
 import type { Locale } from "@/types";
 
 const HREF = "/product/leonardo-drs-iws-teploviziynyy-monokuliar";
@@ -19,6 +25,7 @@ const TEXT: Record<Locale, { price: string; until: string; more: string }> = {
 };
 
 export function PromoTicker({ locale }: { locale: Locale }) {
+  if (!isPromoTickerEnabled()) return null;
   const t = TEXT[locale] ?? TEXT.uk;
   const items = Array.from({ length: 4 }, (_, i) => i);
 

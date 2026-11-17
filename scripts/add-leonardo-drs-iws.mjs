@@ -1,5 +1,7 @@
 /**
- * Add Leonardo DRS IWS monocular from Kapral facts + photos,
+ * Add Leonardo DRS IWS monocular from Kapral facts + photos.
+ * The storefront hide switch is src/lib/temporarily-hidden-products.ts
+ * (data and images stay). Do not delete this script's row to "remove" it.
  * price 250000 (sale vs market 817990), publish unique-offer blog post.
  *
  *   npx tsx scripts/add-leonardo-drs-iws.mjs
