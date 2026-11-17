@@ -59,10 +59,12 @@ const RAIL_SIZE = 10;
  * Hand-picked models for the top of the homepage. Slugs, not flags, so the
  * selection is explicit and cannot be shuffled by marketing flags on other
  * products. Anything that fails to resolve is simply skipped.
- * Leonardo DRS IWS first (unique offer), then Merger / AGM Rattler / Adder / PVS.
+ * HikMicro LYNX Pro LE15 first while Leonardo DRS IWS is temporarily hidden
+ * (see FEATURED_SLUGS), then Merger / AGM Rattler / Adder / PVS.
  */
 const FEATURED_SLUGS = [
-  "leonardo-drs-iws-teploviziynyy-monokuliar",
+  // Temporarily hidden — Leonardo DRS IWS. Restore by uncommenting.
+  // "leonardo-drs-iws-teploviziynyy-monokuliar",
   "hikmicro-teplovizor-hikmicro-lynx-pro-le15-hm-ts02-15xg-w-le15",
   "pulsar-teploviziynyy-binokl-pulsar-merger-lrf-xl50-merger-lrf-xl50",
   "agm-teploviziynyy-prytsil-agm-rattler-v2-35-384-314204550205r331",

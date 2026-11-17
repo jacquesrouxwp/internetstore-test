@@ -27,10 +27,13 @@ const SERVICE: Record<AppLocale, string> = {
 };
 
 const CONTENT: Record<string, Record<Locale, Entry>> = {
+  // Leonardo DRS is temporarily hidden (src/lib/temporarily-hidden-products.ts).
+  // Put "Leonardo DRS" back into the brand list in both languages when the
+  // monocular returns.
   teplovizori: {
     uk: {
       title: "Як обрати тепловізор",
-      html: `<p>Тепловізор показує теплове випромінювання, тому бачить тварину чи людину в повній темряві, у легкому тумані та за негустою рослинністю. У каталозі Pro-Optics — тепловізійні монокуляри й біноклі Pulsar, HikMicro, InfiRay, AGM, ATN, PARD, Guide, Leonardo DRS та інших брендів, нові й Б/У.</p>
+      html: `<p>Тепловізор показує теплове випромінювання, тому бачить тварину чи людину в повній темряві, у легкому тумані та за негустою рослинністю. У каталозі Pro-Optics — тепловізійні монокуляри й біноклі Pulsar, HikMicro, InfiRay, AGM, ATN, PARD, Guide та інших брендів, нові й Б/У.</p>
 <h3>На що дивитися при виборі</h3>
 <ul>
 <li><strong>Матриця</strong> — 256, 384 або 640 пікселів по ширині. Чим більша, тим ширше поле зору з тим самим об'єктивом і тим більше деталей при цифровому зумі.</li>
@@ -43,7 +46,7 @@ const CONTENT: Record<string, Record<Locale, Entry>> = {
     },
     ru: {
       title: "Как выбрать тепловизор",
-      html: `<p>Тепловизор показывает тепловое излучение, поэтому видит животное или человека в полной темноте, в лёгком тумане и за негустой растительностью. В каталоге Pro-Optics — тепловизионные монокуляры и бинокли Pulsar, HikMicro, InfiRay, AGM, ATN, PARD, Guide, Leonardo DRS и других брендов, новые и Б/У.</p>
+      html: `<p>Тепловизор показывает тепловое излучение, поэтому видит животное или человека в полной темноте, в лёгком тумане и за негустой растительностью. В каталоге Pro-Optics — тепловизионные монокуляры и бинокли Pulsar, HikMicro, InfiRay, AGM, ATN, PARD, Guide и других брендов, новые и Б/У.</p>
 <h3>На что смотреть при выборе</h3>
 <ul>
 <li><strong>Матрица</strong> — 256, 384 или 640 пикселей по ширине. Чем больше, тем шире поле зрения с тем же объективом и тем больше деталей при цифровом зуме.</li>

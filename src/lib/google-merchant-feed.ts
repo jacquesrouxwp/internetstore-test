@@ -17,6 +17,7 @@ import {
   stripWeaponSentences,
 } from "@/lib/merchant-description";
 import { isBrandHidden } from "@/lib/brand-priority";
+import { isTemporarilyHiddenProduct } from "@/lib/temporarily-hidden-products";
 import { isMerchantEligible, merchantItemId } from "@/lib/merchant-eligibility";
 import {
   productDetails,
@@ -135,6 +136,7 @@ export function productToMerchantItem(
   siteUrl: string
 ): MerchantItem | null {
   if (p.published === false) return null;
+  if (isTemporarilyHiddenProduct(p.slug)) return null;
   if (isBrandHidden(p.brandSlug) || isBrandHidden(p.brandName)) return null;
   // Weapon-mounted optics breach Google's firearms policy — see lib/merchant-eligibility
   if (!isMerchantEligible(p, merchantItemId(p))) return null;

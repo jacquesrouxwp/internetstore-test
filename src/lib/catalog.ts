@@ -31,6 +31,7 @@ import {
   filterHiddenBrandProducts,
   sortBrandsByPriority,
 } from "@/lib/brand-priority";
+import { isTemporarilyHiddenProduct } from "@/lib/temporarily-hidden-products";
 import type { BrandProductRow } from "@/lib/brand-pages";
 import { unstable_cache } from "next/cache";
 import { STOREFRONT_TTL } from "@/lib/storefront-cache";
@@ -62,6 +63,7 @@ export function getCategoryDetectionRangeBounds(categorySlug: string) {
  */
 export const getProductBySlug = cache(
   async (slug: string): Promise<Product | null> => {
+    if (isTemporarilyHiddenProduct(slug)) return null;
     const fromDb = await dbGetProductBySlug(slug);
     if (fromDb) return fromDb;
     // fallback only without supabase

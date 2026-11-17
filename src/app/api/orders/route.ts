@@ -9,6 +9,7 @@ import {
 import { isUuid } from "@/lib/supabase/mappers";
 import { getSiteUrl } from "@/lib/site-url";
 import { clientIp, rateLimit } from "@/lib/admin/rate-limit";
+import { isTemporarilyHiddenProduct } from "@/lib/temporarily-hidden-products";
 
 function createPaymentUrl(
   order: Order,
@@ -142,7 +143,11 @@ export async function POST(req: NextRequest) {
         productRow = data as Record<string, unknown> | null;
       }
 
-      if (!productRow || productRow.published === false) {
+      if (
+        !productRow ||
+        productRow.published === false ||
+        isTemporarilyHiddenProduct(String(productRow.slug || ""))
+      ) {
         return NextResponse.json(
           {
             error: `Product not found: ${raw.productSlug || raw.productId || idx}`,

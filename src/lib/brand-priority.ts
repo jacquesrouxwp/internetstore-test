@@ -1,4 +1,8 @@
 import type { Brand } from "@/types";
+import {
+  isTemporarilyHiddenBrand,
+  isTemporarilyHiddenProduct,
+} from "@/lib/temporarily-hidden-products";
 
 /**
  * Storefront brands the owner wants surfaced first everywhere a brand list
@@ -30,11 +34,12 @@ export const HIDDEN_FROM_BRAND_GRID = [
 /** Brands fully removed from storefront (products + brand chips). */
 export const HIDDEN_BRAND_SLUGS = new Set(["rix"]);
 
-/** True if slug/name is the Rix brand (or any blocked brand). */
+/** True if slug/name is the Rix brand, a temporarily hidden brand, or any blocked brand. */
 export function isBrandHidden(slugOrName: string | null | undefined): boolean {
   if (!slugOrName) return false;
   const s = String(slugOrName).trim().toLowerCase();
   if (HIDDEN_BRAND_SLUGS.has(s)) return true;
+  if (isTemporarilyHiddenBrand(slugOrName)) return true;
   // catch "Rix", "RIX", "rix thermal", etc.
   if (/\brix\b/.test(s)) return true;
   return false;
@@ -72,7 +77,13 @@ export function filterHiddenBrandProducts<
     sku?: string | null;
   },
 >(products: T[]): T[] {
-  return products.filter((p) => !isRixProduct(p) && !isBrandHidden(p.brandSlug));
+  return products.filter(
+    (p) =>
+      !isRixProduct(p) &&
+      !isBrandHidden(p.brandSlug) &&
+      !isBrandHidden(p.brandName) &&
+      !isTemporarilyHiddenProduct(p.slug)
+  );
 }
 
 export function visibleBrandGridBrands(brands: Brand[]): Brand[] {
