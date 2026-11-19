@@ -1389,7 +1389,8 @@ body {
 [data-clean-only] {
   display: none;
 }
-html:has([data-merchant-clean]) [data-weapon-nav] {
+html:has([data-merchant-clean]) [data-weapon-nav],
+html:has([data-merchant-clean]) .badge-military {
   display: none !important;
 }
 html:has([data-merchant-clean]) [data-clean-only] {
