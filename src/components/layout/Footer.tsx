@@ -133,7 +133,7 @@ export async function Footer() {
                 {tn("returns")}
               </Link>
             </li>
-            <li>
+            <li data-weapon-nav="">
               <Link href="/viyskovym" className="hover:text-[var(--accent)]">
                 {t("military")}
               </Link>
