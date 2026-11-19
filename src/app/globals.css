@@ -1380,3 +1380,18 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/*
+ * Pages of products offered to Google Shopping (MerchantCleanPage) leave the
+ * weapon-mounted categories out of the menus — Google's reviewers read the
+ * whole page, and a scopes menu on a binocular page reads as a gun shop.
+ */
+[data-clean-only] {
+  display: none;
+}
+html:has([data-merchant-clean]) [data-weapon-nav] {
+  display: none !important;
+}
+html:has([data-merchant-clean]) [data-clean-only] {
+  display: inline;
+}

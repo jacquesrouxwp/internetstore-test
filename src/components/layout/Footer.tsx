@@ -57,7 +57,8 @@ export async function Footer() {
             <SiteLogo size="md" showWordmark />
           </div>
           <p className="line-clamp-4 text-sm leading-relaxed text-secondary">
-            {tp("aboutText")}
+            <span data-weapon-nav="">{tp("aboutText")}</span>
+            <span data-clean-only="">{tp("aboutTextObservation")}</span>
           </p>
           {legalLine ? (
             <p className="mt-2 text-xs text-muted-ui">{legalLine}</p>
@@ -74,7 +75,7 @@ export async function Footer() {
                 {tn("thermal")}
               </Link>
             </li>
-            <li>
+            <li data-weapon-nav="">
               <Link href="/catalog/pricili" className="hover:text-[var(--accent)]">
                 {tn("scopes")}
               </Link>

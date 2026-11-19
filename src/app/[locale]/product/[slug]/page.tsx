@@ -14,7 +14,7 @@ import {
 } from "@/types";
 import { breadcrumbJsonLd, jsonLdScript, type Crumb } from "@/lib/breadcrumbs";
 import { productPageDescription } from "@/lib/merchant-description";
-import { productRail } from "@/lib/merchant-eligibility";
+import { isMerchantEligible, merchantItemId, productRail } from "@/lib/merchant-eligibility";
 import { cn, formatPrice } from "@/lib/utils";
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import {
@@ -133,6 +133,8 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <div className="container-shop py-6 sm:py-10">
+      {/* Offered to Google Shopping: the menus leave the weapon categories out (globals.css) */}
+      {isMerchantEligible(product, merchantItemId(product)) ? <span data-merchant-clean="" hidden /> : null}
       <ProductJsonLd
         product={product}
         locale={loc}

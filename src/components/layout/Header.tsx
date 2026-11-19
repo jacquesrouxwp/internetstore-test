@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { Locale } from "@/types";
 import type { Brand, Category } from "@/types";
 import { categoryName } from "@/types";
+import { weaponNav } from "@/lib/weapon-categories";
 import { SiteLogo } from "@/components/layout/SiteLogo";
 import {
   STORE_PHONE_DISPLAY,
@@ -315,6 +316,7 @@ export function Header({
                 return (
                   <li
                     key={c.id}
+                    {...weaponNav(c.slug)}
                     className="shrink-0"
                     onMouseEnter={(e) =>
                       dropBrands.length &&
@@ -475,7 +477,7 @@ export function Header({
                 </Link>
               </li>
               {categories.map((c) => (
-                <li key={c.id}>
+                <li key={c.id} {...weaponNav(c.slug)}>
                   <Link
                     href={`/catalog/${c.slug}`}
                     onClick={() => setOpen(false)}

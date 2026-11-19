@@ -17,13 +17,8 @@
 import type { Product } from "@/types";
 import { MERCHANT_DISAPPROVED_IDS } from "@/data/merchant-disapproved-ids";
 
-/** Categories that exist to be mounted on a weapon. */
-export const WEAPON_CATEGORY_SLUGS: ReadonlySet<string> = new Set([
-  "pricili",
-  "pricili-pnb",
-  "nasadky",
-  "kolimatronie",
-]);
+import { WEAPON_CATEGORY_SLUGS } from "@/lib/weapon-categories";
+export { WEAPON_CATEGORY_SLUGS };
 
 /** The one category whose products are not observation devices. */
 export const ACCESSORY_SLUG = "aksesuary";
