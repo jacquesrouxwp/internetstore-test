@@ -17,6 +17,7 @@ import { OrganizationJsonLd } from "@/components/seo/OrganizationJsonLd";
 import { getAllPublicSettings } from "@/lib/store-settings";
 import { publicStoreEmail, STORE_EMAIL } from "@/lib/contact";
 import { HtmlLang } from "@/components/layout/HtmlLang";
+import { Snowfall } from "@/components/layout/Snowfall";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -92,6 +93,8 @@ export default async function LocaleLayout({
         <Footer />
         <ConsultWidget />
         <PhoneChooser />
+        {/* Winter holidays only (24.11 to 14.01), see Snowfall */}
+        <Snowfall />
         {/* Storefront-only analytics (never on /sitemap.xml / API) */}
         <SiteAnalytics />
         <VercelAnalytics />
