@@ -18,6 +18,7 @@ import {
 import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import { pageAlternates } from "@/lib/seo-alternates";
 import { linkifyPhonesHtml } from "@/lib/phone-links";
+import { faqFromArticleHtml, faqPageJsonLd } from "@/lib/faq-json-ld";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -99,6 +100,8 @@ export default async function BlogPostPage({ params }: Props) {
     articleSection: post.category || undefined,
     inLanguage: loc === "ru" ? "ru-UA" : "uk-UA",
   };
+  // The article's own "Часті питання" section, as FAQPage for search and answer engines
+  const faqJsonLd = faqPageJsonLd(faqFromArticleHtml(bodyHtml));
 
   return (
     <article className="container-shop py-10 sm:py-14">
@@ -106,6 +109,12 @@ export default async function BlogPostPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {faqJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      ) : null}
 
       <Link
         href="/blog"

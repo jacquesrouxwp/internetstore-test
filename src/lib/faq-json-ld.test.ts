@@ -1,6 +1,26 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { faqPageJsonLd } from "./faq-json-ld";
+import { faqFromArticleHtml, faqPageJsonLd } from "./faq-json-ld";
+
+describe("faq from an article", () => {
+  it("takes the questions of the FAQ section only", () => {
+    const html =
+      "<h2>Чи працює тепловізор взимку?</h2><p>Так.</p>" +
+      "<h2>Часті питання</h2>" +
+      "<h3>Чи можна заряджати тепловізор на морозі?</h3><p>Ні. Спершу <strong>зігрійте</strong> акумулятор.</p>" +
+      "<h3>Порада</h3><p>Не питання.</p>" +
+      "<h3>Чи бачить тепловізор у туман?</h3><p>Бачить, але гірше.</p><p>Дальність падає.</p>" +
+      "<h2>Інше</h2><p>Текст.</p>";
+    assert.deepEqual(faqFromArticleHtml(html), [
+      { q: "Чи можна заряджати тепловізор на морозі?", a: "Ні. Спершу зігрійте акумулятор." },
+      { q: "Чи бачить тепловізор у туман?", a: "Бачить, але гірше. Дальність падає." },
+    ]);
+  });
+  it("reads the Russian heading and finds nothing without one", () => {
+    assert.equal(faqFromArticleHtml("<h2>Частые вопросы</h2><h3>Можно ли?</h3><p>Да.</p>").length, 1);
+    assert.deepEqual(faqFromArticleHtml("<h2>Коротко</h2><h3>Можно ли?</h3><p>Да.</p>"), []);
+  });
+});
 
 describe("faq json-ld", () => {
   it("wraps questions as a FAQPage", () => {
